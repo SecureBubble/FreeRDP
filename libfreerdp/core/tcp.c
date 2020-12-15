@@ -760,8 +760,12 @@ static int freerdp_uds_connect(const char* path)
 	return -1;
 #endif
 }
-
 struct addrinfo* freerdp_tcp_resolve_host(const char* hostname, int port, int ai_flags)
+{
+	return freerdp_resolve_host(hostname, port, SOCK_STREAM, ai_flags);
+}
+
+struct addrinfo* freerdp_resolve_host(const char* hostname, int port, int sockType, int ai_flags)
 {
 	char* service = NULL;
 	char port_str[16];
@@ -769,7 +773,7 @@ struct addrinfo* freerdp_tcp_resolve_host(const char* hostname, int port, int ai
 	struct addrinfo hints = { 0 };
 	struct addrinfo* result = NULL;
 	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_socktype = sockType;
 	hints.ai_flags = ai_flags;
 
 	if (port >= 0)
