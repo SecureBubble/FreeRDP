@@ -514,21 +514,27 @@ BOOL rdp_set_error_info(rdpRdp* rdp, UINT32 errorInfo)
 
 wStream* rdp_message_channel_pdu_init(rdpRdp* rdp, UINT16* sec_flags)
 {
-	wStream* s = NULL;
-
 	WINPR_ASSERT(rdp);
 
-	s = transport_send_stream_init(rdp->transport, 4096);
+	return rdp_message_channel_pdu_init_ex(rdp, sec_flags, RDP_TRANSPORT_TCP);
+}
+
+wStream* rdp_message_channel_pdu_init_ex(rdpRdp* rdp, UINT16* sec_flags,
+                                         RDP_TRANSPORT_TYPE transport)
+{
+	wStream* s = transport_send_stream_init(rdp->transport, 4096);
 
 	if (!s)
 		return NULL;
 
-	if (!Stream_SafeSeek(s, RDP_PACKET_HEADER_MAX_LENGTH))
-		goto fail;
+	if (transport == RDP_TRANSPORT_TCP)
+	{
+		if (!Stream_SafeSeek(s, RDP_PACKET_HEADER_MAX_LENGTH))
+			goto fail;
 
-	if (!rdp_security_stream_init(rdp, s, TRUE, sec_flags))
-		goto fail;
-
+		if (!rdp_security_stream_init(rdp, s, TRUE, sec_flags))
+			goto fail;
+	}
 	return s;
 fail:
 	Stream_Release(s);
@@ -975,12 +981,17 @@ fail:
 
 BOOL rdp_send_message_channel_pdu(rdpRdp* rdp, wStream* s, UINT16 sec_flags)
 {
-	BOOL rc = FALSE;
-	UINT32 pad = 0;
-	BOOL should_unlock = FALSE;
+	return rdp_send_message_channel_pdu_ex(rdp, RDP_TRANSPORT_TCP, s, sec_flags);
+}
 
+BOOL rdp_send_message_channel_pdu_ex(rdpRdp* rdp, RDP_TRANSPORT_TYPE transport, wStream* s,
+                                     UINT16 sec_flags)
+{
 	WINPR_ASSERT(rdp);
 	WINPR_ASSERT(s);
+
+	BOOL rc = FALSE;
+	BOOL should_unlock = FALSE;
 
 	if (sec_flags & SEC_ENCRYPT)
 	{
@@ -989,22 +1000,33 @@ BOOL rdp_send_message_channel_pdu(rdpRdp* rdp, wStream* s, UINT16 sec_flags)
 		should_unlock = TRUE;
 	}
 
-	size_t length = Stream_GetPosition(s);
-	Stream_SetPosition(s, 0);
-	if (!rdp_write_header(rdp, s, length, rdp->mcs->messageChannelId, sec_flags))
-		goto fail;
+	if (transport == RDP_TRANSPORT_TCP)
+	{
+		UINT32 pad = 0;
+		UINT16 length = Stream_GetPosition(s);
+		Stream_SetPosition(s, 0);
+		if (!rdp_write_header(rdp, s, length, rdp->mcs->messageChannelId, sec_flags))
+			goto fail;
 
-	if (!rdp_security_stream_out(rdp, s, length, sec_flags, &pad))
-		goto fail;
+		if (!rdp_security_stream_out(rdp, s, length, sec_flags, &pad))
+			goto fail;
 
-	length += pad;
-	Stream_SetPosition(s, length);
-	Stream_SealLength(s);
+		length += pad;
+		Stream_SetPosition(s, length);
 
-	if (transport_write(rdp->transport, s) < 0)
-		goto fail;
+		Stream_SealLength(s);
 
-	rc = TRUE;
+		if (transport_write(rdp->transport, s) < 0)
+			goto fail;
+
+		rc = TRUE;
+	}
+	else
+	{
+		Stream_SealLength(s);
+		rc = freerdp_send_udp(rdp, transport == RDP_TRANSPORT_UDP_L, s, NULL);
+	}
+
 fail:
 	if (should_unlock && !security_unlock(rdp))
 		rc = FALSE;
@@ -2249,7 +2271,6 @@ BOOL rdp_send_error_info(rdpRdp* rdp)
 
 int rdp_check_fds(rdpRdp* rdp)
 {
-	int status = 0;
 	rdpTsg* tsg = NULL;
 	rdpTransport* transport = NULL;
 
@@ -2269,8 +2290,7 @@ int rdp_check_fds(rdpRdp* rdp)
 			return 1;
 	}
 
-	status = transport_check_fds(transport);
-
+	int status = transport_check_fds(transport);
 	if (status == 1)
 	{
 		if (!rdp_client_redirect(rdp)) /* session redirection */
@@ -2278,9 +2298,20 @@ int rdp_check_fds(rdpRdp* rdp)
 	}
 
 	if (status < 0)
+	{
 		WLog_Print(rdp->log, WLOG_DEBUG, "transport_check_fds() - %i", status);
-	else
-		status = freerdp_timer_poll(rdp->timer);
+		return -1;
+	}
+
+	if (!freerdp_timer_poll(rdp->timer))
+	{
+		WLog_Print(rdp->log, WLOG_DEBUG, "transport_check_fds() - error checking timer");
+		return -1;
+	}
+
+	status = multitransport_check_fds(rdp->multitransport);
+	if (status < 0)
+		WLog_Print(rdp->log, WLOG_DEBUG, "transport_check_fds() - UDP transport=%i", status);
 
 	return status;
 }
@@ -2435,9 +2466,7 @@ rdpRdp* rdp_new(rdpContext* context)
 	if (!rdp->heartbeat)
 		goto fail;
 
-	rdp->multitransport = multitransport_new(rdp, INITIATE_REQUEST_PROTOCOL_UDPFECL |
-	                                                  INITIATE_REQUEST_PROTOCOL_UDPFECR);
-
+	rdp->multitransport = multitransport_new(rdp, rdp->settings->MultitransportFlags);
 	if (!rdp->multitransport)
 		goto fail;
 
@@ -2619,11 +2648,11 @@ const char* rdp_finalize_flags_to_str(UINT32 flags, char* buffer, size_t size)
 {
 	char number[32] = { 0 };
 	const UINT32 mask =
-	    (uint32_t)~(FINALIZE_SC_SYNCHRONIZE_PDU | FINALIZE_SC_CONTROL_COOPERATE_PDU |
-	                FINALIZE_SC_CONTROL_GRANTED_PDU | FINALIZE_SC_FONT_MAP_PDU |
-	                FINALIZE_CS_SYNCHRONIZE_PDU | FINALIZE_CS_CONTROL_COOPERATE_PDU |
-	                FINALIZE_CS_CONTROL_REQUEST_PDU | FINALIZE_CS_PERSISTENT_KEY_LIST_PDU |
-	                FINALIZE_CS_FONT_LIST_PDU | FINALIZE_DEACTIVATE_REACTIVATE);
+	    (uint32_t) ~(FINALIZE_SC_SYNCHRONIZE_PDU | FINALIZE_SC_CONTROL_COOPERATE_PDU |
+	                 FINALIZE_SC_CONTROL_GRANTED_PDU | FINALIZE_SC_FONT_MAP_PDU |
+	                 FINALIZE_CS_SYNCHRONIZE_PDU | FINALIZE_CS_CONTROL_COOPERATE_PDU |
+	                 FINALIZE_CS_CONTROL_REQUEST_PDU | FINALIZE_CS_PERSISTENT_KEY_LIST_PDU |
+	                 FINALIZE_CS_FONT_LIST_PDU | FINALIZE_DEACTIVATE_REACTIVATE);
 
 	if (flags & FINALIZE_SC_SYNCHRONIZE_PDU)
 		winpr_str_append("FINALIZE_SC_SYNCHRONIZE_PDU", buffer, size, "|");

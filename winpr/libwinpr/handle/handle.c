@@ -84,4 +84,28 @@ BOOL SetHandleInformation(WINPR_ATTR_UNUSED HANDLE hObject, WINPR_ATTR_UNUSED DW
 	return TRUE;
 }
 
+#if 0
+DWORD winpr_Handle_cleanup(HANDLE handle)
+{
+#ifndef _WIN32
+	WINPR_HANDLE* hdl;
+	ULONG type;
+
+	if (!winpr_Handle_GetInfo(handle, &type, &hdl))
+		return WAIT_FAILED;
+
+	if (!hdl || !hdl->ops)
+		return WAIT_FAILED;
+
+	/* If there is no cleanup function, assume all ok. */
+	if (!hdl->ops->CleanupHandle)
+		return WAIT_OBJECT_0;
+
+	return hdl->ops->CleanupHandle(handle);
+#else
+	return WAIT_OBJECT_0;
+#endif
+}
+#endif
+
 #endif

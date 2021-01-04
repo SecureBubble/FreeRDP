@@ -570,7 +570,7 @@ static BOOL rdp_write_extended_info_packet(rdpRdp* rdp, wStream* s)
 		if (!Stream_EnsureRemainingCapacity(s, 8 + 254 * sizeof(WCHAR)))
 			goto fail;
 
-		Stream_Write_UINT16(s, 0); /* reserved1 (2 bytes) */
+		Stream_Write_UINT16(s, 0x64); /* reserved1 (2 bytes) */
 		Stream_Write_UINT16(s, 0); /* reserved2 (2 bytes) */
 
 		size_t rlen = 0;

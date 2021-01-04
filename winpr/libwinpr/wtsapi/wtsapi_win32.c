@@ -61,7 +61,6 @@ typedef struct
 	CHANNEL_PDU_HEADER* header;
 } WTSAPI_CHANNEL;
 
-static BOOL g_Initialized = FALSE;
 static HMODULE g_WinStaModule = NULL;
 
 typedef HANDLE(WINAPI* fnWinStationVirtualOpen)(HANDLE hServer, DWORD SessionId,

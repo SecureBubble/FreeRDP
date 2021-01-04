@@ -48,6 +48,8 @@ struct rdp_nego
 	BOOL SendPreconnectionPdu;
 	UINT32 PreconnectionId;
 	const char* PreconnectionBlob;
+	BOOL haveCorrelationId;
+	BYTE CorrelationId[16];
 
 	NEGO_STATE state;
 	BOOL TcpConnected;
@@ -1146,11 +1148,24 @@ BOOL nego_send_negotiation_request(rdpNego* nego)
 		if (nego->RemoteCredsGuardRequired)
 			flags |= REDIRECTED_AUTHENTICATION_MODE_REQUIRED;
 
+		if (nego->haveCorrelationId)
+			flags |= CORRELATION_INFO_PRESENT;
+
 		Stream_Write_UINT8(s, TYPE_RDP_NEG_REQ);
 		Stream_Write_UINT8(s, flags);
 		Stream_Write_UINT16(s, 8);                        /* RDP_NEG_DATA length (8) */
 		Stream_Write_UINT32(s, nego->RequestedProtocols); /* requestedProtocols */
 		length += 8;
+	}
+
+	if (nego->haveCorrelationId)
+	{
+		Stream_Write_UINT8(s, TYPE_RDP_CORRELATION_INFO);
+		Stream_Write_UINT8(s, 0);
+		Stream_Write_UINT16(s, 36);
+		Stream_Write(s, nego->CorrelationId, sizeof(nego->CorrelationId));
+		Stream_Zero(s, 16);
+		length += 36;
 	}
 
 	if (length > UINT16_MAX)
@@ -1316,6 +1331,7 @@ BOOL nego_process_negotiation_request(rdpNego* nego, wStream* s)
 		           nego_protocol_to_str(nego->RequestedProtocols, buffer, sizeof(buffer)));
 	}
 	nego_set_state(nego, NEGO_STATE_FINAL);
+
 	return TRUE;
 }
 
@@ -1699,6 +1715,7 @@ void nego_init(rdpNego* nego)
 	nego->RequestedProtocols = PROTOCOL_RDP;
 	nego->CookieMaxLength = DEFAULT_COOKIE_MAX_LENGTH;
 	nego->sendNegoData = FALSE;
+	nego->haveCorrelationId = FALSE;
 	nego->flags = 0;
 }
 
@@ -1980,6 +1997,12 @@ BOOL nego_set_cookie(rdpNego* nego, const char* cookie)
 void nego_set_cookie_max_length(rdpNego* nego, UINT32 CookieMaxLength)
 {
 	nego->CookieMaxLength = CookieMaxLength;
+}
+
+void nego_set_correlationId(rdpNego* nego, const BYTE* id)
+{
+	memcpy(nego->CorrelationId, id, sizeof(nego->CorrelationId));
+	nego->haveCorrelationId = TRUE;
 }
 
 /**

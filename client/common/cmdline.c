@@ -1260,10 +1260,14 @@ static int freerdp_client_command_line_post_filter_int(void* context, COMMAND_LI
 			return fail_at(arg, COMMAND_LINE_ERROR);
 
 		UINT32 flags = 0;
-		if (freerdp_settings_get_bool(settings, FreeRDP_SupportMultitransport))
-			flags =
-			    (TRANSPORT_TYPE_UDP_FECR | TRANSPORT_TYPE_UDP_FECL | TRANSPORT_TYPE_UDP_PREFERRED);
+		if (enable)
+		{
+			if (!freerdp_settings_generate_correlationId(settings))
+				return fail_at(arg, status);
 
+			flags =
+			    (TRANSPORT_TYPE_UDP_FECR | TRANSPORT_TYPE_UDP_FECL | SOFTSYNC_TCP_TO_UDP | TRANSPORT_TYPE_UDP_PREFERRED);
+		}
 		if (!freerdp_settings_set_uint32(settings, FreeRDP_MultitransportFlags, flags))
 			return fail_at(arg, COMMAND_LINE_ERROR);
 	}

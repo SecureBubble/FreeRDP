@@ -246,6 +246,9 @@ FREERDP_LOCAL BOOL rdp_channel_send_packet(rdpRdp* rdp, UINT16 channelId, size_t
                                            UINT32 flags, const BYTE* data, size_t chunkSize);
 
 FREERDP_LOCAL wStream* rdp_message_channel_pdu_init(rdpRdp* rdp, UINT16* sec_flags);
+FREERDP_LOCAL wStream* rdp_message_channel_pdu_init_ex(rdpRdp* rdp, UINT16* sec_flags, RDP_TRANSPORT_TYPE transport);
+FREERDP_LOCAL BOOL rdp_send_message_channel_pdu_ex(rdpRdp* rdp, RDP_TRANSPORT_TYPE transport, wStream* s, UINT16 sec_flags);
+
 FREERDP_LOCAL BOOL rdp_send_message_channel_pdu(rdpRdp* rdp, wStream* s, UINT16 sec_flags);
 FREERDP_LOCAL state_run_t rdp_recv_message_channel_pdu(rdpRdp* rdp, wStream* s,
                                                        UINT16 securityFlags);

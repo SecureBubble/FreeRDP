@@ -176,7 +176,9 @@ struct rdp_settings
 	/* Client Multitransport Channel Data */
 	SETTINGS_DEPRECATED(ALIGN64 UINT32 MultitransportFlags); /* 512 */
 	SETTINGS_DEPRECATED(ALIGN64 BOOL SupportMultitransport); /* 513 */
-	UINT64 padding0576[576 - 514];                           /* 514 */
+	SETTINGS_DEPRECATED(ALIGN64 UINT32 MaxPendingUdpPackets);/* 514 */
+	SETTINGS_DEPRECATED(ALIGN64 UINT32 RemoteMultitransportFlags);/* 515 */
+	UINT64 padding0576[576 - 516];                           /* 516 */
 	UINT64 padding0640[640 - 576];                           /* 576 */
 
 	/*
@@ -291,7 +293,9 @@ struct rdp_settings
 	SETTINGS_DEPRECATED(ALIGN64 BOOL RemoteCredentialGuard);        /* 1114 */
 	SETTINGS_DEPRECATED(ALIGN64 BOOL RestrictedAdminModeSupported); /** 1115
 		                                                             * @since version 3.16.0 */
-	UINT64 padding1152[1152 - 1116];                                /* 1116 */
+	SETTINGS_DEPRECATED(ALIGN64 BOOL UseCorrelationId);             /* 1116 @since version 3.XX.0 */
+	SETTINGS_DEPRECATED(ALIGN64 BYTE* CorrelationId);               /* 1117 @since version 3.XX.0 */
+	UINT64 padding1152[1152 - 1118];                                /* 1118 @since version 3.XX.0 */
 
 	/* Connection Cookie */
 	SETTINGS_DEPRECATED(ALIGN64 BOOL MstscCookieMode);      /* 1152 */

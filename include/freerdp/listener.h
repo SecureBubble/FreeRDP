@@ -3,6 +3,7 @@
  * RDP Server Listener
  *
  * Copyright 2011 Vic Lee
+ * Copyright 2023 David Fort <contact@hardening-consulting.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +26,11 @@
 #include <freerdp/settings.h>
 #include <freerdp/peer.h>
 
+typedef struct rdp_freerdp_listener freerdp_listener;
+typedef struct rdp_multitransport_channel multiTransportChannel;
+typedef struct listener_udp_peer ListenerUdpPeer;
+
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -34,6 +40,8 @@ extern "C"
 
 	typedef BOOL (*psListenerOpen)(freerdp_listener* instance, const char* bind_address,
 	                               UINT16 port);
+	typedef BOOL (*psListenerOpenEx)(freerdp_listener* instance, const char* bind_address,
+	                                 UINT16 port, BOOL udp);
 	typedef BOOL (*psListenerOpenLocal)(freerdp_listener* instance, const char* path);
 	typedef BOOL (*psListenerOpenFromSocket)(freerdp_listener* instance, int fd);
 #if defined(WITH_FREERDP_DEPRECATED)
@@ -44,8 +52,12 @@ extern "C"
 	typedef DWORD (*psListenerGetEventHandles)(freerdp_listener* instance, HANDLE* events,
 	                                           DWORD nCount);
 	typedef BOOL (*psListenerCheckFileDescriptor)(freerdp_listener* instance);
+	typedef BOOL (*psListenerCheckFileDescriptorEx)(freerdp_listener* instance, DWORD waitResult);
 	typedef void (*psListenerClose)(freerdp_listener* instance);
 	typedef BOOL (*psPeerAccepted)(freerdp_listener* instance, freerdp_peer* client);
+	typedef BOOL (*psNewUdpPeer)(freerdp_listener* instance, ListenerUdpPeer* peer);
+	typedef INT32 (*psIdentifyUdpPeer)(freerdp_listener* instance, UINT32 reqId,
+	                                   const BYTE* cookieHash, multiTransportChannel* channel);
 
 	struct rdp_freerdp_listener
 	{
@@ -70,11 +82,26 @@ extern "C"
 
 		psPeerAccepted PeerAccepted;
 		psListenerOpenFromSocket OpenFromSocket;
-
 		psListenerCheckFileDescriptor CheckPeerAcceptRestrictions;
+
+		/* added in version 3.X */
+		BOOL withUdp;
+		psNewUdpPeer NewUdpPeer;
+		psListenerOpenEx OpenEx;
+		psListenerCheckFileDescriptorEx CheckFileDescriptorEx;
+		psIdentifyUdpPeer IdentifyUdpPeer;
 	};
 
+	typedef struct
+	{
+		struct sockaddr_storage addr;
+		socklen_t len;
+	} PeerAddr;
+
+	FREERDP_API freerdp_listener* freerdp_listener_new_ex(BOOL allowUdp, rdpSettings* udpSettings);
 	FREERDP_API void freerdp_listener_free(freerdp_listener* instance);
+	FREERDP_API void peer_addr_computation(const struct sockaddr_storage* addr, BOOL* isLocal,
+			char* str, size_t strSz, BOOL withPort);
 
 	WINPR_ATTR_MALLOC(freerdp_listener_free, 1)
 	FREERDP_API freerdp_listener* freerdp_listener_new(void);

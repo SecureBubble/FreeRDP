@@ -29,6 +29,7 @@
 #include <winpr/stream.h>
 #include <winpr/sspi.h>
 
+#include <freerdp/types.h>
 #include <freerdp/server/proxy/proxy_types.h>
 
 #define MODULE_TAG(module) "proxy.modules." module
@@ -184,6 +185,7 @@ typedef struct
 	/* channel metadata */
 	const char* channel_name;
 	UINT16 channel_id;
+	RDP_TRANSPORT_TYPE transport;
 
 	/* actual data */
 	const BYTE* data;

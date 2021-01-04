@@ -3,6 +3,7 @@
  * Multitransport PDUs
  *
  * Copyright 2014 Dell Software <Mike.McDonald@software.dell.com>
+ * Copyright 2021 David Fort <contact@hardening-consulting.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,29 +21,52 @@
 #ifndef FREERDP_LIB_CORE_MULTITRANSPORT_H
 #define FREERDP_LIB_CORE_MULTITRANSPORT_H
 
-typedef struct rdp_multitransport rdpMultitransport;
 
 #include "rdp.h"
 #include "state.h"
 
+#include <winpr/stream.h>
 #include <freerdp/freerdp.h>
 #include <freerdp/api.h>
+#include <freerdp/multitransport.h>
+#include "../crypto/tls.h"
+#include <freerdp/utils/ringbuffer.h>
 
-#include <winpr/stream.h>
-
+/** @brief */
 typedef enum
 {
 	INITIATE_REQUEST_PROTOCOL_UDPFECR = 0x01,
 	INITIATE_REQUEST_PROTOCOL_UDPFECL = 0x02
 } MultitransportRequestProtocol;
 
+
+#define RDPUDP_COOKIE_HASHLEN 32
+
+typedef struct rdp_multitransport rdpMultitransport;
+typedef struct rdp_multitransport_channel multiTransportChannel;
+
 typedef state_run_t (*MultiTransportRequestCb)(rdpMultitransport* multi, UINT32 reqId,
                                                UINT16 reqProto, const BYTE* cookie);
 typedef state_run_t (*MultiTransportResponseCb)(rdpMultitransport* multi, UINT32 reqId,
                                                 UINT32 hrResponse);
 
-#define RDPUDP_COOKIE_LEN 16
-#define RDPUDP_COOKIE_HASHLEN 32
+struct rdp_multitransport
+{
+	rdpRdp* rdp;
+
+	MultiTransportRequestCb MtRequest;
+	MultiTransportResponseCb MtResponse;
+
+	/* server-side data */
+	UINT32 reliableReqId;
+
+	BYTE reliableCookie[RDPUDP_COOKIE_LEN];
+	BYTE reliableCookieHash[RDPUDP_COOKIE_HASHLEN];
+
+	multiTransportChannel* channels[2];
+};
+
+
 
 FREERDP_LOCAL state_run_t multitransport_recv_request(rdpMultitransport* multi, wStream* s);
 FREERDP_LOCAL state_run_t multitransport_server_request(rdpMultitransport* multi, UINT16 reqProto);
@@ -55,5 +79,21 @@ FREERDP_LOCAL void multitransport_free(rdpMultitransport* multi);
 
 WINPR_ATTR_MALLOC(multitransport_free, 1)
 FREERDP_LOCAL rdpMultitransport* multitransport_new(rdpRdp* rdp, UINT16 protocol);
+
+typedef struct rdp_freerdp_listener freerdp_listener;
+typedef struct listener_udp_peer ListenerUdpPeer;
+
+
+FREERDP_LOCAL int multitransport_recv_req_packet(rdpMultitransport* multi, wStream* s);
+FREERDP_LOCAL int multitransport_recv_resp_packet(rdpMultitransport* multi, wStream* s);
+
+FREERDP_LOCAL int multitransport_send_request(rdpRdp* rdp, UINT32 reqId, UINT16 reqProto,
+                                                  const BYTE* cookie);
+FREERDP_LOCAL BOOL multitransport_send_response(rdpRdp* rdp, UINT32 reqId, UINT32 hrResponse);
+
+FREERDP_LOCAL DWORD multitransport_get_event_handles(rdpMultitransport* multi, HANDLE* events,
+                                                     DWORD count);
+FREERDP_LOCAL int multitransport_check_fds(rdpMultitransport* multi);
+
 
 #endif /* FREERDP_LIB_CORE_MULTITRANSPORT_H */

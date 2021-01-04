@@ -51,8 +51,7 @@ static BOOL update_string_(char** current, char* next, size_t next_len)
 	return !next || (*current != NULL);
 }
 
-BOOL freerdp_settings_get_bool(WINPR_ATTR_UNUSED const rdpSettings* settings,
-                               WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_Bool id)
+BOOL freerdp_settings_get_bool(WINPR_ATTR_UNUSED const rdpSettings* settings, WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_Bool id)
 {
 	WINPR_ASSERT(settings);
 
@@ -647,24 +646,21 @@ BOOL freerdp_settings_get_bool(WINPR_ATTR_UNUSED const rdpSettings* settings,
 			return settings->Workarea;
 
 		default:
-			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id,
-			         freerdp_settings_get_name_for_key(id),
-			         freerdp_settings_get_type_name_for_key(id));
+			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id, freerdp_settings_get_name_for_key(id), freerdp_settings_get_type_name_for_key(id));
 			WINPR_ASSERT(FALSE);
 			return FALSE;
 	}
 }
 
-BOOL freerdp_settings_set_bool(WINPR_ATTR_UNUSED rdpSettings* settings,
-                               WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_Bool id, BOOL val)
+BOOL freerdp_settings_set_bool(WINPR_ATTR_UNUSED rdpSettings* settings, WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_Bool id, BOOL val)
 {
 	union
 	{
 		void* v;
 		const void* cv;
-		BOOL c;
-		const BOOL cc;
-	} cnv;
+    BOOL c;
+    const BOOL cc;
+} cnv;
 	WINPR_ASSERT(settings);
 
 	cnv.c = val;
@@ -672,800 +668,798 @@ BOOL freerdp_settings_set_bool(WINPR_ATTR_UNUSED rdpSettings* settings,
 	switch (id)
 	{
 		case FreeRDP_AadSecurity:
-			settings->AadSecurity = cnv.c;
+			settings->AadSecurity =  cnv.c;
 			break;
 
 		case FreeRDP_AllowCacheWaitingList:
-			settings->AllowCacheWaitingList = cnv.c;
+			settings->AllowCacheWaitingList =  cnv.c;
 			break;
 
 		case FreeRDP_AllowDesktopComposition:
-			settings->AllowDesktopComposition = cnv.c;
+			settings->AllowDesktopComposition =  cnv.c;
 			break;
 
 		case FreeRDP_AllowFontSmoothing:
-			settings->AllowFontSmoothing = cnv.c;
+			settings->AllowFontSmoothing =  cnv.c;
 			break;
 
 		case FreeRDP_AllowUnanouncedOrdersFromServer:
-			settings->AllowUnanouncedOrdersFromServer = cnv.c;
+			settings->AllowUnanouncedOrdersFromServer =  cnv.c;
 			break;
 
 		case FreeRDP_AltSecFrameMarkerSupport:
-			settings->AltSecFrameMarkerSupport = cnv.c;
+			settings->AltSecFrameMarkerSupport =  cnv.c;
 			break;
 
 		case FreeRDP_AsyncChannels:
-			settings->AsyncChannels = cnv.c;
+			settings->AsyncChannels =  cnv.c;
 			break;
 
 		case FreeRDP_AsyncUpdate:
-			settings->AsyncUpdate = cnv.c;
+			settings->AsyncUpdate =  cnv.c;
 			break;
 
 		case FreeRDP_AudioCapture:
-			settings->AudioCapture = cnv.c;
+			settings->AudioCapture =  cnv.c;
 			break;
 
 		case FreeRDP_AudioPlayback:
-			settings->AudioPlayback = cnv.c;
+			settings->AudioPlayback =  cnv.c;
 			break;
 
 		case FreeRDP_Authentication:
-			settings->Authentication = cnv.c;
+			settings->Authentication =  cnv.c;
 			break;
 
 		case FreeRDP_AuthenticationOnly:
-			settings->AuthenticationOnly = cnv.c;
+			settings->AuthenticationOnly =  cnv.c;
 			break;
 
 		case FreeRDP_AutoAcceptCertificate:
-			settings->AutoAcceptCertificate = cnv.c;
+			settings->AutoAcceptCertificate =  cnv.c;
 			break;
 
 		case FreeRDP_AutoDenyCertificate:
-			settings->AutoDenyCertificate = cnv.c;
+			settings->AutoDenyCertificate =  cnv.c;
 			break;
 
 		case FreeRDP_AutoLogonEnabled:
-			settings->AutoLogonEnabled = cnv.c;
+			settings->AutoLogonEnabled =  cnv.c;
 			break;
 
 		case FreeRDP_AutoReconnectionEnabled:
-			settings->AutoReconnectionEnabled = cnv.c;
+			settings->AutoReconnectionEnabled =  cnv.c;
 			break;
 
 		case FreeRDP_AutoReconnectionPacketSupported:
-			settings->AutoReconnectionPacketSupported = cnv.c;
+			settings->AutoReconnectionPacketSupported =  cnv.c;
 			break;
 
 		case FreeRDP_BitmapCacheEnabled:
-			settings->BitmapCacheEnabled = cnv.c;
+			settings->BitmapCacheEnabled =  cnv.c;
 			break;
 
 		case FreeRDP_BitmapCachePersistEnabled:
-			settings->BitmapCachePersistEnabled = cnv.c;
+			settings->BitmapCachePersistEnabled =  cnv.c;
 			break;
 
 		case FreeRDP_BitmapCacheV3Enabled:
-			settings->BitmapCacheV3Enabled = cnv.c;
+			settings->BitmapCacheV3Enabled =  cnv.c;
 			break;
 
 		case FreeRDP_BitmapCompressionDisabled:
-			settings->BitmapCompressionDisabled = cnv.c;
+			settings->BitmapCompressionDisabled =  cnv.c;
 			break;
 
 		case FreeRDP_CertificateCallbackPreferPEM:
-			settings->CertificateCallbackPreferPEM = cnv.c;
+			settings->CertificateCallbackPreferPEM =  cnv.c;
 			break;
 
 		case FreeRDP_CompressionEnabled:
-			settings->CompressionEnabled = cnv.c;
+			settings->CompressionEnabled =  cnv.c;
 			break;
 
 		case FreeRDP_ConnectChildSession:
-			settings->ConnectChildSession = cnv.c;
+			settings->ConnectChildSession =  cnv.c;
 			break;
 
 		case FreeRDP_ConsoleSession:
-			settings->ConsoleSession = cnv.c;
+			settings->ConsoleSession =  cnv.c;
 			break;
 
 		case FreeRDP_CredentialsFromStdin:
-			settings->CredentialsFromStdin = cnv.c;
+			settings->CredentialsFromStdin =  cnv.c;
 			break;
 
 		case FreeRDP_DeactivateClientDecoding:
-			settings->DeactivateClientDecoding = cnv.c;
+			settings->DeactivateClientDecoding =  cnv.c;
 			break;
 
 		case FreeRDP_Decorations:
-			settings->Decorations = cnv.c;
+			settings->Decorations =  cnv.c;
 			break;
 
 		case FreeRDP_DesktopResize:
-			settings->DesktopResize = cnv.c;
+			settings->DesktopResize =  cnv.c;
 			break;
 
 		case FreeRDP_DeviceRedirection:
-			settings->DeviceRedirection = cnv.c;
+			settings->DeviceRedirection =  cnv.c;
 			break;
 
 		case FreeRDP_DisableCredentialsDelegation:
-			settings->DisableCredentialsDelegation = cnv.c;
+			settings->DisableCredentialsDelegation =  cnv.c;
 			break;
 
 		case FreeRDP_DisableCtrlAltDel:
-			settings->DisableCtrlAltDel = cnv.c;
+			settings->DisableCtrlAltDel =  cnv.c;
 			break;
 
 		case FreeRDP_DisableCursorBlinking:
-			settings->DisableCursorBlinking = cnv.c;
+			settings->DisableCursorBlinking =  cnv.c;
 			break;
 
 		case FreeRDP_DisableCursorShadow:
-			settings->DisableCursorShadow = cnv.c;
+			settings->DisableCursorShadow =  cnv.c;
 			break;
 
 		case FreeRDP_DisableFullWindowDrag:
-			settings->DisableFullWindowDrag = cnv.c;
+			settings->DisableFullWindowDrag =  cnv.c;
 			break;
 
 		case FreeRDP_DisableMenuAnims:
-			settings->DisableMenuAnims = cnv.c;
+			settings->DisableMenuAnims =  cnv.c;
 			break;
 
 		case FreeRDP_DisableRemoteAppCapsCheck:
-			settings->DisableRemoteAppCapsCheck = cnv.c;
+			settings->DisableRemoteAppCapsCheck =  cnv.c;
 			break;
 
 		case FreeRDP_DisableThemes:
-			settings->DisableThemes = cnv.c;
+			settings->DisableThemes =  cnv.c;
 			break;
 
 		case FreeRDP_DisableWallpaper:
-			settings->DisableWallpaper = cnv.c;
+			settings->DisableWallpaper =  cnv.c;
 			break;
 
 		case FreeRDP_DrawAllowColorSubsampling:
-			settings->DrawAllowColorSubsampling = cnv.c;
+			settings->DrawAllowColorSubsampling =  cnv.c;
 			break;
 
 		case FreeRDP_DrawAllowDynamicColorFidelity:
-			settings->DrawAllowDynamicColorFidelity = cnv.c;
+			settings->DrawAllowDynamicColorFidelity =  cnv.c;
 			break;
 
 		case FreeRDP_DrawAllowSkipAlpha:
-			settings->DrawAllowSkipAlpha = cnv.c;
+			settings->DrawAllowSkipAlpha =  cnv.c;
 			break;
 
 		case FreeRDP_DrawGdiPlusCacheEnabled:
-			settings->DrawGdiPlusCacheEnabled = cnv.c;
+			settings->DrawGdiPlusCacheEnabled =  cnv.c;
 			break;
 
 		case FreeRDP_DrawGdiPlusEnabled:
-			settings->DrawGdiPlusEnabled = cnv.c;
+			settings->DrawGdiPlusEnabled =  cnv.c;
 			break;
 
 		case FreeRDP_DrawNineGridEnabled:
-			settings->DrawNineGridEnabled = cnv.c;
+			settings->DrawNineGridEnabled =  cnv.c;
 			break;
 
 		case FreeRDP_DumpRemoteFx:
-			settings->DumpRemoteFx = cnv.c;
+			settings->DumpRemoteFx =  cnv.c;
 			break;
 
 		case FreeRDP_DynamicDaylightTimeDisabled:
-			settings->DynamicDaylightTimeDisabled = cnv.c;
+			settings->DynamicDaylightTimeDisabled =  cnv.c;
 			break;
 
 		case FreeRDP_DynamicResolutionUpdate:
-			settings->DynamicResolutionUpdate = cnv.c;
+			settings->DynamicResolutionUpdate =  cnv.c;
 			break;
 
 		case FreeRDP_EmbeddedWindow:
-			settings->EmbeddedWindow = cnv.c;
+			settings->EmbeddedWindow =  cnv.c;
 			break;
 
 		case FreeRDP_EnableWindowsKey:
-			settings->EnableWindowsKey = cnv.c;
+			settings->EnableWindowsKey =  cnv.c;
 			break;
 
 		case FreeRDP_EncomspVirtualChannel:
-			settings->EncomspVirtualChannel = cnv.c;
+			settings->EncomspVirtualChannel =  cnv.c;
 			break;
 
 		case FreeRDP_ExtSecurity:
-			settings->ExtSecurity = cnv.c;
+			settings->ExtSecurity =  cnv.c;
 			break;
 
 		case FreeRDP_ExternalCertificateManagement:
-			settings->ExternalCertificateManagement = cnv.c;
+			settings->ExternalCertificateManagement =  cnv.c;
 			break;
 
 		case FreeRDP_FIPSMode:
-			settings->FIPSMode = cnv.c;
+			settings->FIPSMode =  cnv.c;
 			break;
 
 		case FreeRDP_FakeSmartcardCreds:
-			settings->FakeSmartcardCreds = cnv.c;
+			settings->FakeSmartcardCreds =  cnv.c;
 			break;
 
 		case FreeRDP_FastPathInput:
-			settings->FastPathInput = cnv.c;
+			settings->FastPathInput =  cnv.c;
 			break;
 
 		case FreeRDP_FastPathOutput:
-			settings->FastPathOutput = cnv.c;
+			settings->FastPathOutput =  cnv.c;
 			break;
 
 		case FreeRDP_ForceEncryptedCsPdu:
-			settings->ForceEncryptedCsPdu = cnv.c;
+			settings->ForceEncryptedCsPdu =  cnv.c;
 			break;
 
 		case FreeRDP_ForceMultimon:
-			settings->ForceMultimon = cnv.c;
+			settings->ForceMultimon =  cnv.c;
 			break;
 
 		case FreeRDP_FrameMarkerCommandEnabled:
-			settings->FrameMarkerCommandEnabled = cnv.c;
+			settings->FrameMarkerCommandEnabled =  cnv.c;
 			break;
 
 		case FreeRDP_Fullscreen:
-			settings->Fullscreen = cnv.c;
+			settings->Fullscreen =  cnv.c;
 			break;
 
 		case FreeRDP_GatewayArmTransport:
-			settings->GatewayArmTransport = cnv.c;
+			settings->GatewayArmTransport =  cnv.c;
 			break;
 
 		case FreeRDP_GatewayAvdUseTenantid:
-			settings->GatewayAvdUseTenantid = cnv.c;
+			settings->GatewayAvdUseTenantid =  cnv.c;
 			break;
 
 		case FreeRDP_GatewayBypassLocal:
-			settings->GatewayBypassLocal = cnv.c;
+			settings->GatewayBypassLocal =  cnv.c;
 			break;
 
 		case FreeRDP_GatewayEnabled:
-			settings->GatewayEnabled = cnv.c;
+			settings->GatewayEnabled =  cnv.c;
 			break;
 
 		case FreeRDP_GatewayHttpExtAuthSspiNtlm:
-			settings->GatewayHttpExtAuthSspiNtlm = cnv.c;
+			settings->GatewayHttpExtAuthSspiNtlm =  cnv.c;
 			break;
 
 		case FreeRDP_GatewayHttpTransport:
-			settings->GatewayHttpTransport = cnv.c;
+			settings->GatewayHttpTransport =  cnv.c;
 			break;
 
 		case FreeRDP_GatewayHttpUseWebsockets:
-			settings->GatewayHttpUseWebsockets = cnv.c;
+			settings->GatewayHttpUseWebsockets =  cnv.c;
 			break;
 
 		case FreeRDP_GatewayIgnoreRedirectionPolicy:
-			settings->GatewayIgnoreRedirectionPolicy = cnv.c;
+			settings->GatewayIgnoreRedirectionPolicy =  cnv.c;
 			break;
 
 		case FreeRDP_GatewayRpcTransport:
-			settings->GatewayRpcTransport = cnv.c;
+			settings->GatewayRpcTransport =  cnv.c;
 			break;
 
 		case FreeRDP_GatewayUdpTransport:
-			settings->GatewayUdpTransport = cnv.c;
+			settings->GatewayUdpTransport =  cnv.c;
 			break;
 
 		case FreeRDP_GatewayUseSameCredentials:
-			settings->GatewayUseSameCredentials = cnv.c;
+			settings->GatewayUseSameCredentials =  cnv.c;
 			break;
 
 		case FreeRDP_GfxAVC444:
-			settings->GfxAVC444 = cnv.c;
+			settings->GfxAVC444 =  cnv.c;
 			break;
 
 		case FreeRDP_GfxAVC444v2:
-			settings->GfxAVC444v2 = cnv.c;
+			settings->GfxAVC444v2 =  cnv.c;
 			break;
 
 		case FreeRDP_GfxH264:
-			settings->GfxH264 = cnv.c;
+			settings->GfxH264 =  cnv.c;
 			break;
 
 		case FreeRDP_GfxPlanar:
-			settings->GfxPlanar = cnv.c;
+			settings->GfxPlanar =  cnv.c;
 			break;
 
 		case FreeRDP_GfxProgressive:
-			settings->GfxProgressive = cnv.c;
+			settings->GfxProgressive =  cnv.c;
 			break;
 
 		case FreeRDP_GfxProgressiveV2:
-			settings->GfxProgressiveV2 = cnv.c;
+			settings->GfxProgressiveV2 =  cnv.c;
 			break;
 
 		case FreeRDP_GfxSendQoeAck:
-			settings->GfxSendQoeAck = cnv.c;
+			settings->GfxSendQoeAck =  cnv.c;
 			break;
 
 		case FreeRDP_GfxSmallCache:
-			settings->GfxSmallCache = cnv.c;
+			settings->GfxSmallCache =  cnv.c;
 			break;
 
 		case FreeRDP_GfxSuspendFrameAck:
-			settings->GfxSuspendFrameAck = cnv.c;
+			settings->GfxSuspendFrameAck =  cnv.c;
 			break;
 
 		case FreeRDP_GfxThinClient:
-			settings->GfxThinClient = cnv.c;
+			settings->GfxThinClient =  cnv.c;
 			break;
 
 		case FreeRDP_GrabKeyboard:
-			settings->GrabKeyboard = cnv.c;
+			settings->GrabKeyboard =  cnv.c;
 			break;
 
 		case FreeRDP_GrabMouse:
-			settings->GrabMouse = cnv.c;
+			settings->GrabMouse =  cnv.c;
 			break;
 
 		case FreeRDP_HasExtendedMouseEvent:
-			settings->HasExtendedMouseEvent = cnv.c;
+			settings->HasExtendedMouseEvent =  cnv.c;
 			break;
 
 		case FreeRDP_HasHorizontalWheel:
-			settings->HasHorizontalWheel = cnv.c;
+			settings->HasHorizontalWheel =  cnv.c;
 			break;
 
 		case FreeRDP_HasMonitorAttributes:
-			settings->HasMonitorAttributes = cnv.c;
+			settings->HasMonitorAttributes =  cnv.c;
 			break;
 
 		case FreeRDP_HasQoeEvent:
-			settings->HasQoeEvent = cnv.c;
+			settings->HasQoeEvent =  cnv.c;
 			break;
 
 		case FreeRDP_HasRelativeMouseEvent:
-			settings->HasRelativeMouseEvent = cnv.c;
+			settings->HasRelativeMouseEvent =  cnv.c;
 			break;
 
 		case FreeRDP_HiDefRemoteApp:
-			settings->HiDefRemoteApp = cnv.c;
+			settings->HiDefRemoteApp =  cnv.c;
 			break;
 
 		case FreeRDP_IPv6Enabled:
-			settings->IPv6Enabled = cnv.c;
+			settings->IPv6Enabled =  cnv.c;
 			break;
 
 		case FreeRDP_IgnoreCertificate:
-			settings->IgnoreCertificate = cnv.c;
+			settings->IgnoreCertificate =  cnv.c;
 			break;
 
 		case FreeRDP_IgnoreInvalidDevices:
-			settings->IgnoreInvalidDevices = cnv.c;
+			settings->IgnoreInvalidDevices =  cnv.c;
 			break;
 
 		case FreeRDP_JpegCodec:
-			settings->JpegCodec = cnv.c;
+			settings->JpegCodec =  cnv.c;
 			break;
 
 		case FreeRDP_KerberosRdgIsProxy:
-			settings->KerberosRdgIsProxy = cnv.c;
+			settings->KerberosRdgIsProxy =  cnv.c;
 			break;
 
 		case FreeRDP_ListMonitors:
-			settings->ListMonitors = cnv.c;
+			settings->ListMonitors =  cnv.c;
 			break;
 
 		case FreeRDP_LocalConnection:
-			settings->LocalConnection = cnv.c;
+			settings->LocalConnection =  cnv.c;
 			break;
 
 		case FreeRDP_LogonErrors:
-			settings->LogonErrors = cnv.c;
+			settings->LogonErrors =  cnv.c;
 			break;
 
 		case FreeRDP_LogonNotify:
-			settings->LogonNotify = cnv.c;
+			settings->LogonNotify =  cnv.c;
 			break;
 
 		case FreeRDP_LongCredentialsSupported:
-			settings->LongCredentialsSupported = cnv.c;
+			settings->LongCredentialsSupported =  cnv.c;
 			break;
 
 		case FreeRDP_LyncRdpMode:
-			settings->LyncRdpMode = cnv.c;
+			settings->LyncRdpMode =  cnv.c;
 			break;
 
 		case FreeRDP_MaximizeShell:
-			settings->MaximizeShell = cnv.c;
+			settings->MaximizeShell =  cnv.c;
 			break;
 
 		case FreeRDP_MouseAttached:
-			settings->MouseAttached = cnv.c;
+			settings->MouseAttached =  cnv.c;
 			break;
 
 		case FreeRDP_MouseHasWheel:
-			settings->MouseHasWheel = cnv.c;
+			settings->MouseHasWheel =  cnv.c;
 			break;
 
 		case FreeRDP_MouseMotion:
-			settings->MouseMotion = cnv.c;
+			settings->MouseMotion =  cnv.c;
 			break;
 
 		case FreeRDP_MouseUseRelativeMove:
-			settings->MouseUseRelativeMove = cnv.c;
+			settings->MouseUseRelativeMove =  cnv.c;
 			break;
 
 		case FreeRDP_MstscCookieMode:
-			settings->MstscCookieMode = cnv.c;
+			settings->MstscCookieMode =  cnv.c;
 			break;
 
 		case FreeRDP_MultiTouchGestures:
-			settings->MultiTouchGestures = cnv.c;
+			settings->MultiTouchGestures =  cnv.c;
 			break;
 
 		case FreeRDP_MultiTouchInput:
-			settings->MultiTouchInput = cnv.c;
+			settings->MultiTouchInput =  cnv.c;
 			break;
 
 		case FreeRDP_NSCodec:
-			settings->NSCodec = cnv.c;
+			settings->NSCodec =  cnv.c;
 			break;
 
 		case FreeRDP_NSCodecAllowDynamicColorFidelity:
-			settings->NSCodecAllowDynamicColorFidelity = cnv.c;
+			settings->NSCodecAllowDynamicColorFidelity =  cnv.c;
 			break;
 
 		case FreeRDP_NSCodecAllowSubsampling:
-			settings->NSCodecAllowSubsampling = cnv.c;
+			settings->NSCodecAllowSubsampling =  cnv.c;
 			break;
 
 		case FreeRDP_NegotiateSecurityLayer:
-			settings->NegotiateSecurityLayer = cnv.c;
+			settings->NegotiateSecurityLayer =  cnv.c;
 			break;
 
 		case FreeRDP_NetworkAutoDetect:
-			settings->NetworkAutoDetect = cnv.c;
+			settings->NetworkAutoDetect =  cnv.c;
 			break;
 
 		case FreeRDP_NlaSecurity:
-			settings->NlaSecurity = cnv.c;
+			settings->NlaSecurity =  cnv.c;
 			break;
 
 		case FreeRDP_NoBitmapCompressionHeader:
-			settings->NoBitmapCompressionHeader = cnv.c;
+			settings->NoBitmapCompressionHeader =  cnv.c;
 			break;
 
 		case FreeRDP_OldLicenseBehaviour:
-			settings->OldLicenseBehaviour = cnv.c;
+			settings->OldLicenseBehaviour =  cnv.c;
 			break;
 
 		case FreeRDP_PasswordIsSmartcardPin:
-			settings->PasswordIsSmartcardPin = cnv.c;
+			settings->PasswordIsSmartcardPin =  cnv.c;
 			break;
 
 		case FreeRDP_PercentScreenUseHeight:
-			settings->PercentScreenUseHeight = cnv.c;
+			settings->PercentScreenUseHeight =  cnv.c;
 			break;
 
 		case FreeRDP_PercentScreenUseWidth:
-			settings->PercentScreenUseWidth = cnv.c;
+			settings->PercentScreenUseWidth =  cnv.c;
 			break;
 
 		case FreeRDP_PlayRemoteFx:
-			settings->PlayRemoteFx = cnv.c;
+			settings->PlayRemoteFx =  cnv.c;
 			break;
 
 		case FreeRDP_PreferIPv6OverIPv4:
-			settings->PreferIPv6OverIPv4 = cnv.c;
+			settings->PreferIPv6OverIPv4 =  cnv.c;
 			break;
 
 		case FreeRDP_PrintReconnectCookie:
-			settings->PrintReconnectCookie = cnv.c;
+			settings->PrintReconnectCookie =  cnv.c;
 			break;
 
 		case FreeRDP_PromptForCredentials:
-			settings->PromptForCredentials = cnv.c;
+			settings->PromptForCredentials =  cnv.c;
 			break;
 
 		case FreeRDP_RdpSecurity:
-			settings->RdpSecurity = cnv.c;
+			settings->RdpSecurity =  cnv.c;
 			break;
 
 		case FreeRDP_RdstlsSecurity:
-			settings->RdstlsSecurity = cnv.c;
+			settings->RdstlsSecurity =  cnv.c;
 			break;
 
 		case FreeRDP_RedirectClipboard:
-			settings->RedirectClipboard = cnv.c;
+			settings->RedirectClipboard =  cnv.c;
 			break;
 
 		case FreeRDP_RedirectDrives:
-			settings->RedirectDrives = cnv.c;
+			settings->RedirectDrives =  cnv.c;
 			break;
 
 		case FreeRDP_RedirectHomeDrive:
-			settings->RedirectHomeDrive = cnv.c;
+			settings->RedirectHomeDrive =  cnv.c;
 			break;
 
 		case FreeRDP_RedirectParallelPorts:
-			settings->RedirectParallelPorts = cnv.c;
+			settings->RedirectParallelPorts =  cnv.c;
 			break;
 
 		case FreeRDP_RedirectPrinters:
-			settings->RedirectPrinters = cnv.c;
+			settings->RedirectPrinters =  cnv.c;
 			break;
 
 		case FreeRDP_RedirectSerialPorts:
-			settings->RedirectSerialPorts = cnv.c;
+			settings->RedirectSerialPorts =  cnv.c;
 			break;
 
 		case FreeRDP_RedirectSmartCards:
-			settings->RedirectSmartCards = cnv.c;
+			settings->RedirectSmartCards =  cnv.c;
 			break;
 
 		case FreeRDP_RedirectWebAuthN:
-			settings->RedirectWebAuthN = cnv.c;
+			settings->RedirectWebAuthN =  cnv.c;
 			break;
 
 		case FreeRDP_RefreshRect:
-			settings->RefreshRect = cnv.c;
+			settings->RefreshRect =  cnv.c;
 			break;
 
 		case FreeRDP_RemdeskVirtualChannel:
-			settings->RemdeskVirtualChannel = cnv.c;
+			settings->RemdeskVirtualChannel =  cnv.c;
 			break;
 
 		case FreeRDP_RemoteAppLanguageBarSupported:
-			settings->RemoteAppLanguageBarSupported = cnv.c;
+			settings->RemoteAppLanguageBarSupported =  cnv.c;
 			break;
 
 		case FreeRDP_RemoteApplicationMode:
-			settings->RemoteApplicationMode = cnv.c;
+			settings->RemoteApplicationMode =  cnv.c;
 			break;
 
 		case FreeRDP_RemoteAssistanceMode:
-			settings->RemoteAssistanceMode = cnv.c;
+			settings->RemoteAssistanceMode =  cnv.c;
 			break;
 
 		case FreeRDP_RemoteAssistanceRequestControl:
-			settings->RemoteAssistanceRequestControl = cnv.c;
+			settings->RemoteAssistanceRequestControl =  cnv.c;
 			break;
 
 		case FreeRDP_RemoteConsoleAudio:
-			settings->RemoteConsoleAudio = cnv.c;
+			settings->RemoteConsoleAudio =  cnv.c;
 			break;
 
 		case FreeRDP_RemoteCredentialGuard:
-			settings->RemoteCredentialGuard = cnv.c;
+			settings->RemoteCredentialGuard =  cnv.c;
 			break;
 
 		case FreeRDP_RemoteFxCodec:
-			settings->RemoteFxCodec = cnv.c;
+			settings->RemoteFxCodec =  cnv.c;
 			break;
 
 		case FreeRDP_RemoteFxImageCodec:
-			settings->RemoteFxImageCodec = cnv.c;
+			settings->RemoteFxImageCodec =  cnv.c;
 			break;
 
 		case FreeRDP_RemoteFxOnly:
-			settings->RemoteFxOnly = cnv.c;
+			settings->RemoteFxOnly =  cnv.c;
 			break;
 
 		case FreeRDP_RestrictedAdminModeRequired:
-			settings->RestrictedAdminModeRequired = cnv.c;
+			settings->RestrictedAdminModeRequired =  cnv.c;
 			break;
 
 		case FreeRDP_RestrictedAdminModeSupported:
-			settings->RestrictedAdminModeSupported = cnv.c;
+			settings->RestrictedAdminModeSupported =  cnv.c;
 			break;
 
 		case FreeRDP_SaltedChecksum:
-			settings->SaltedChecksum = cnv.c;
+			settings->SaltedChecksum =  cnv.c;
 			break;
 
 		case FreeRDP_SendPreconnectionPdu:
-			settings->SendPreconnectionPdu = cnv.c;
+			settings->SendPreconnectionPdu =  cnv.c;
 			break;
 
 		case FreeRDP_ServerLicenseRequired:
-			settings->ServerLicenseRequired = cnv.c;
+			settings->ServerLicenseRequired =  cnv.c;
 			break;
 
 		case FreeRDP_ServerMode:
-			settings->ServerMode = cnv.c;
+			settings->ServerMode =  cnv.c;
 			break;
 
 		case FreeRDP_SmartSizing:
-			settings->SmartSizing = cnv.c;
+			settings->SmartSizing =  cnv.c;
 			break;
 
 		case FreeRDP_SmartcardEmulation:
-			settings->SmartcardEmulation = cnv.c;
+			settings->SmartcardEmulation =  cnv.c;
 			break;
 
 		case FreeRDP_SmartcardLogon:
-			settings->SmartcardLogon = cnv.c;
+			settings->SmartcardLogon =  cnv.c;
 			break;
 
 		case FreeRDP_SoftwareGdi:
-			settings->SoftwareGdi = cnv.c;
+			settings->SoftwareGdi =  cnv.c;
 			break;
 
 		case FreeRDP_SoundBeepsEnabled:
-			settings->SoundBeepsEnabled = cnv.c;
+			settings->SoundBeepsEnabled =  cnv.c;
 			break;
 
 		case FreeRDP_SpanMonitors:
-			settings->SpanMonitors = cnv.c;
+			settings->SpanMonitors =  cnv.c;
 			break;
 
 		case FreeRDP_SupportAsymetricKeys:
-			settings->SupportAsymetricKeys = cnv.c;
+			settings->SupportAsymetricKeys =  cnv.c;
 			break;
 
 		case FreeRDP_SupportDisplayControl:
-			settings->SupportDisplayControl = cnv.c;
+			settings->SupportDisplayControl =  cnv.c;
 			break;
 
 		case FreeRDP_SupportDynamicChannels:
-			settings->SupportDynamicChannels = cnv.c;
+			settings->SupportDynamicChannels =  cnv.c;
 			break;
 
 		case FreeRDP_SupportDynamicTimeZone:
-			settings->SupportDynamicTimeZone = cnv.c;
+			settings->SupportDynamicTimeZone =  cnv.c;
 			break;
 
 		case FreeRDP_SupportEchoChannel:
-			settings->SupportEchoChannel = cnv.c;
+			settings->SupportEchoChannel =  cnv.c;
 			break;
 
 		case FreeRDP_SupportEdgeActionV1:
-			settings->SupportEdgeActionV1 = cnv.c;
+			settings->SupportEdgeActionV1 =  cnv.c;
 			break;
 
 		case FreeRDP_SupportEdgeActionV2:
-			settings->SupportEdgeActionV2 = cnv.c;
+			settings->SupportEdgeActionV2 =  cnv.c;
 			break;
 
 		case FreeRDP_SupportErrorInfoPdu:
-			settings->SupportErrorInfoPdu = cnv.c;
+			settings->SupportErrorInfoPdu =  cnv.c;
 			break;
 
 		case FreeRDP_SupportGeometryTracking:
-			settings->SupportGeometryTracking = cnv.c;
+			settings->SupportGeometryTracking =  cnv.c;
 			break;
 
 		case FreeRDP_SupportGraphicsPipeline:
-			settings->SupportGraphicsPipeline = cnv.c;
+			settings->SupportGraphicsPipeline =  cnv.c;
 			break;
 
 		case FreeRDP_SupportHeartbeatPdu:
-			settings->SupportHeartbeatPdu = cnv.c;
+			settings->SupportHeartbeatPdu =  cnv.c;
 			break;
 
 		case FreeRDP_SupportMonitorLayoutPdu:
-			settings->SupportMonitorLayoutPdu = cnv.c;
+			settings->SupportMonitorLayoutPdu =  cnv.c;
 			break;
 
 		case FreeRDP_SupportMultitransport:
-			settings->SupportMultitransport = cnv.c;
+			settings->SupportMultitransport =  cnv.c;
 			break;
 
 		case FreeRDP_SupportSSHAgentChannel:
-			settings->SupportSSHAgentChannel = cnv.c;
+			settings->SupportSSHAgentChannel =  cnv.c;
 			break;
 
 		case FreeRDP_SupportSkipChannelJoin:
-			settings->SupportSkipChannelJoin = cnv.c;
+			settings->SupportSkipChannelJoin =  cnv.c;
 			break;
 
 		case FreeRDP_SupportStatusInfoPdu:
-			settings->SupportStatusInfoPdu = cnv.c;
+			settings->SupportStatusInfoPdu =  cnv.c;
 			break;
 
 		case FreeRDP_SupportVideoOptimized:
-			settings->SupportVideoOptimized = cnv.c;
+			settings->SupportVideoOptimized =  cnv.c;
 			break;
 
 		case FreeRDP_SuppressOutput:
-			settings->SuppressOutput = cnv.c;
+			settings->SuppressOutput =  cnv.c;
 			break;
 
 		case FreeRDP_SurfaceCommandsEnabled:
-			settings->SurfaceCommandsEnabled = cnv.c;
+			settings->SurfaceCommandsEnabled =  cnv.c;
 			break;
 
 		case FreeRDP_SurfaceFrameMarkerEnabled:
-			settings->SurfaceFrameMarkerEnabled = cnv.c;
+			settings->SurfaceFrameMarkerEnabled =  cnv.c;
 			break;
 
 		case FreeRDP_SuspendInput:
-			settings->SuspendInput = cnv.c;
+			settings->SuspendInput =  cnv.c;
 			break;
 
 		case FreeRDP_SynchronousDynamicChannels:
-			settings->SynchronousDynamicChannels = cnv.c;
+			settings->SynchronousDynamicChannels =  cnv.c;
 			break;
 
 		case FreeRDP_SynchronousStaticChannels:
-			settings->SynchronousStaticChannels = cnv.c;
+			settings->SynchronousStaticChannels =  cnv.c;
 			break;
 
 		case FreeRDP_TcpKeepAlive:
-			settings->TcpKeepAlive = cnv.c;
+			settings->TcpKeepAlive =  cnv.c;
 			break;
 
 		case FreeRDP_TlsSecurity:
-			settings->TlsSecurity = cnv.c;
+			settings->TlsSecurity =  cnv.c;
 			break;
 
 		case FreeRDP_ToggleFullscreen:
-			settings->ToggleFullscreen = cnv.c;
+			settings->ToggleFullscreen =  cnv.c;
 			break;
 
 		case FreeRDP_TransportDump:
-			settings->TransportDump = cnv.c;
+			settings->TransportDump =  cnv.c;
 			break;
 
 		case FreeRDP_TransportDumpReplay:
-			settings->TransportDumpReplay = cnv.c;
+			settings->TransportDumpReplay =  cnv.c;
 			break;
 
 		case FreeRDP_TransportDumpReplayNodelay:
-			settings->TransportDumpReplayNodelay = cnv.c;
+			settings->TransportDumpReplayNodelay =  cnv.c;
 			break;
 
 		case FreeRDP_UnicodeInput:
-			settings->UnicodeInput = cnv.c;
+			settings->UnicodeInput =  cnv.c;
 			break;
 
 		case FreeRDP_UnmapButtons:
-			settings->UnmapButtons = cnv.c;
+			settings->UnmapButtons =  cnv.c;
 			break;
 
 		case FreeRDP_UseCommonStdioCallbacks:
-			settings->UseCommonStdioCallbacks = cnv.c;
+			settings->UseCommonStdioCallbacks =  cnv.c;
 			break;
 
 		case FreeRDP_UseMultimon:
-			settings->UseMultimon = cnv.c;
+			settings->UseMultimon =  cnv.c;
 			break;
 
 		case FreeRDP_UseRdpSecurityLayer:
-			settings->UseRdpSecurityLayer = cnv.c;
+			settings->UseRdpSecurityLayer =  cnv.c;
 			break;
 
 		case FreeRDP_UsingSavedCredentials:
-			settings->UsingSavedCredentials = cnv.c;
+			settings->UsingSavedCredentials =  cnv.c;
 			break;
 
 		case FreeRDP_VideoDisable:
-			settings->VideoDisable = cnv.c;
+			settings->VideoDisable =  cnv.c;
 			break;
 
 		case FreeRDP_VmConnectMode:
-			settings->VmConnectMode = cnv.c;
+			settings->VmConnectMode =  cnv.c;
 			break;
 
 		case FreeRDP_WaitForOutputBufferFlush:
-			settings->WaitForOutputBufferFlush = cnv.c;
+			settings->WaitForOutputBufferFlush =  cnv.c;
 			break;
 
 		case FreeRDP_Workarea:
-			settings->Workarea = cnv.c;
+			settings->Workarea =  cnv.c;
 			break;
 
 		default:
-			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id,
-			         freerdp_settings_get_name_for_key(id),
-			         freerdp_settings_get_type_name_for_key(id));
+			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id, freerdp_settings_get_name_for_key(id), freerdp_settings_get_type_name_for_key(id));
 			return FALSE;
 	}
 	return TRUE;
 }
 
-UINT16 freerdp_settings_get_uint16(WINPR_ATTR_UNUSED const rdpSettings* settings,
-                                   WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_UInt16 id)
+
+UINT16 freerdp_settings_get_uint16(WINPR_ATTR_UNUSED const rdpSettings* settings, WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_UInt16 id)
 {
 	WINPR_ASSERT(settings);
 
@@ -1511,24 +1505,21 @@ UINT16 freerdp_settings_get_uint16(WINPR_ATTR_UNUSED const rdpSettings* settings
 			return settings->TextANSICodePage;
 
 		default:
-			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id,
-			         freerdp_settings_get_name_for_key(id),
-			         freerdp_settings_get_type_name_for_key(id));
+			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id, freerdp_settings_get_name_for_key(id), freerdp_settings_get_type_name_for_key(id));
 			WINPR_ASSERT(FALSE);
 			return 0;
 	}
 }
 
-BOOL freerdp_settings_set_uint16(WINPR_ATTR_UNUSED rdpSettings* settings,
-                                 WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_UInt16 id, UINT16 val)
+BOOL freerdp_settings_set_uint16(WINPR_ATTR_UNUSED rdpSettings* settings, WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_UInt16 id, UINT16 val)
 {
 	union
 	{
 		void* v;
 		const void* cv;
-		UINT16 c;
-		const UINT16 cc;
-	} cnv;
+    UINT16 c;
+    const UINT16 cc;
+} cnv;
 	WINPR_ASSERT(settings);
 
 	cnv.c = val;
@@ -1536,92 +1527,87 @@ BOOL freerdp_settings_set_uint16(WINPR_ATTR_UNUSED rdpSettings* settings,
 	switch (id)
 	{
 		case FreeRDP_CapsGeneralCompressionLevel:
-			settings->CapsGeneralCompressionLevel = cnv.c;
+			settings->CapsGeneralCompressionLevel =  cnv.c;
 			break;
 
 		case FreeRDP_CapsGeneralCompressionTypes:
-			settings->CapsGeneralCompressionTypes = cnv.c;
+			settings->CapsGeneralCompressionTypes =  cnv.c;
 			break;
 
 		case FreeRDP_CapsProtocolVersion:
-			settings->CapsProtocolVersion = cnv.c;
+			settings->CapsProtocolVersion =  cnv.c;
 			break;
 
 		case FreeRDP_CapsRemoteUnshareFlag:
-			settings->CapsRemoteUnshareFlag = cnv.c;
+			settings->CapsRemoteUnshareFlag =  cnv.c;
 			break;
 
 		case FreeRDP_CapsUpdateCapabilityFlag:
-			settings->CapsUpdateCapabilityFlag = cnv.c;
+			settings->CapsUpdateCapabilityFlag =  cnv.c;
 			break;
 
 		case FreeRDP_DesktopOrientation:
-			settings->DesktopOrientation = cnv.c;
+			settings->DesktopOrientation =  cnv.c;
 			break;
 
 		case FreeRDP_OrderSupportFlags:
-			settings->OrderSupportFlags = cnv.c;
+			settings->OrderSupportFlags =  cnv.c;
 			break;
 
 		case FreeRDP_OrderSupportFlagsEx:
-			settings->OrderSupportFlagsEx = cnv.c;
+			settings->OrderSupportFlagsEx =  cnv.c;
 			break;
 
 		case FreeRDP_ProxyPort:
-			settings->ProxyPort = cnv.c;
+			settings->ProxyPort =  cnv.c;
 			break;
 
 		case FreeRDP_SupportedColorDepths:
-			settings->SupportedColorDepths = cnv.c;
+			settings->SupportedColorDepths =  cnv.c;
 			break;
 
 		case FreeRDP_TLSMaxVersion:
-			settings->TLSMaxVersion = cnv.c;
+			settings->TLSMaxVersion =  cnv.c;
 			break;
 
 		case FreeRDP_TLSMinVersion:
-			settings->TLSMinVersion = cnv.c;
+			settings->TLSMinVersion =  cnv.c;
 			break;
 
 		case FreeRDP_TextANSICodePage:
-			settings->TextANSICodePage = cnv.c;
+			settings->TextANSICodePage =  cnv.c;
 			break;
 
 		default:
-			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id,
-			         freerdp_settings_get_name_for_key(id),
-			         freerdp_settings_get_type_name_for_key(id));
+			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id, freerdp_settings_get_name_for_key(id), freerdp_settings_get_type_name_for_key(id));
 			return FALSE;
 	}
 	return TRUE;
 }
 
-INT16 freerdp_settings_get_int16(WINPR_ATTR_UNUSED const rdpSettings* settings,
-                                 WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_Int16 id)
+
+INT16 freerdp_settings_get_int16(WINPR_ATTR_UNUSED const rdpSettings* settings, WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_Int16 id)
 {
 	WINPR_ASSERT(settings);
 
 	switch (id)
 	{
 		default:
-			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id,
-			         freerdp_settings_get_name_for_key(id),
-			         freerdp_settings_get_type_name_for_key(id));
+			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id, freerdp_settings_get_name_for_key(id), freerdp_settings_get_type_name_for_key(id));
 			WINPR_ASSERT(FALSE);
 			return 0;
 	}
 }
 
-BOOL freerdp_settings_set_int16(WINPR_ATTR_UNUSED rdpSettings* settings,
-                                WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_Int16 id, INT16 val)
+BOOL freerdp_settings_set_int16(WINPR_ATTR_UNUSED rdpSettings* settings, WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_Int16 id, INT16 val)
 {
 	union
 	{
 		void* v;
 		const void* cv;
-		INT16 c;
-		const INT16 cc;
-	} cnv;
+    INT16 c;
+    const INT16 cc;
+} cnv;
 	WINPR_ASSERT(settings);
 
 	cnv.c = val;
@@ -1629,16 +1615,14 @@ BOOL freerdp_settings_set_int16(WINPR_ATTR_UNUSED rdpSettings* settings,
 	switch (id)
 	{
 		default:
-			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id,
-			         freerdp_settings_get_name_for_key(id),
-			         freerdp_settings_get_type_name_for_key(id));
+			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id, freerdp_settings_get_name_for_key(id), freerdp_settings_get_type_name_for_key(id));
 			return FALSE;
 	}
 	return TRUE;
 }
 
-UINT32 freerdp_settings_get_uint32(WINPR_ATTR_UNUSED const rdpSettings* settings,
-                                   WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_UInt32 id)
+
+UINT32 freerdp_settings_get_uint32(WINPR_ATTR_UNUSED const rdpSettings* settings, WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_UInt32 id)
 {
 	WINPR_ASSERT(settings);
 
@@ -1821,6 +1805,9 @@ UINT32 freerdp_settings_get_uint32(WINPR_ATTR_UNUSED const rdpSettings* settings
 		case FreeRDP_LoadBalanceInfoLength:
 			return settings->LoadBalanceInfoLength;
 
+		case FreeRDP_MaxPendingUdpPackets:
+			return settings->MaxPendingUdpPackets;
+
 		case FreeRDP_MonitorAttributeFlags:
 			return settings->MonitorAttributeFlags;
 
@@ -1944,6 +1931,9 @@ UINT32 freerdp_settings_get_uint32(WINPR_ATTR_UNUSED const rdpSettings* settings
 		case FreeRDP_RemoteFxRlgrMode:
 			return settings->RemoteFxRlgrMode;
 
+		case FreeRDP_RemoteMultitransportFlags:
+			return settings->RemoteMultitransportFlags;
+
 		case FreeRDP_RemoteWndSupportLevel:
 			return settings->RemoteWndSupportLevel;
 
@@ -2027,24 +2017,21 @@ UINT32 freerdp_settings_get_uint32(WINPR_ATTR_UNUSED const rdpSettings* settings
 
 #endif
 		default:
-			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id,
-			         freerdp_settings_get_name_for_key(id),
-			         freerdp_settings_get_type_name_for_key(id));
+			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id, freerdp_settings_get_name_for_key(id), freerdp_settings_get_type_name_for_key(id));
 			WINPR_ASSERT(FALSE);
 			return 0;
 	}
 }
 
-BOOL freerdp_settings_set_uint32(WINPR_ATTR_UNUSED rdpSettings* settings,
-                                 WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_UInt32 id, UINT32 val)
+BOOL freerdp_settings_set_uint32(WINPR_ATTR_UNUSED rdpSettings* settings, WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_UInt32 id, UINT32 val)
 {
 	union
 	{
 		void* v;
 		const void* cv;
-		UINT32 c;
-		const UINT32 cc;
-	} cnv;
+    UINT32 c;
+    const UINT32 cc;
+} cnv;
 	WINPR_ASSERT(settings);
 
 	cnv.c = val;
@@ -2052,524 +2039,530 @@ BOOL freerdp_settings_set_uint32(WINPR_ATTR_UNUSED rdpSettings* settings,
 	switch (id)
 	{
 		case FreeRDP_AcceptedCertLength:
-			settings->AcceptedCertLength = cnv.c;
+			settings->AcceptedCertLength =  cnv.c;
 			break;
 
 		case FreeRDP_AuthenticationLevel:
-			settings->AuthenticationLevel = cnv.c;
+			settings->AuthenticationLevel =  cnv.c;
 			break;
 
 		case FreeRDP_AutoReconnectMaxRetries:
-			settings->AutoReconnectMaxRetries = cnv.c;
+			settings->AutoReconnectMaxRetries =  cnv.c;
 			break;
 
 		case FreeRDP_BitmapCacheV2NumCells:
-			settings->BitmapCacheV2NumCells = cnv.c;
+			settings->BitmapCacheV2NumCells =  cnv.c;
 			break;
 
 		case FreeRDP_BitmapCacheV3CodecId:
-			settings->BitmapCacheV3CodecId = cnv.c;
+			settings->BitmapCacheV3CodecId =  cnv.c;
 			break;
 
 		case FreeRDP_BitmapCacheVersion:
-			settings->BitmapCacheVersion = cnv.c;
+			settings->BitmapCacheVersion =  cnv.c;
 			break;
 
 		case FreeRDP_BrushSupportLevel:
-			settings->BrushSupportLevel = cnv.c;
+			settings->BrushSupportLevel =  cnv.c;
 			break;
 
 		case FreeRDP_ChannelCount:
-			settings->ChannelCount = cnv.c;
+			settings->ChannelCount =  cnv.c;
 			break;
 
 		case FreeRDP_ChannelDefArraySize:
-			settings->ChannelDefArraySize = cnv.c;
+			settings->ChannelDefArraySize =  cnv.c;
 			break;
 
 		case FreeRDP_ClientBuild:
-			settings->ClientBuild = cnv.c;
+			settings->ClientBuild =  cnv.c;
 			break;
 
 		case FreeRDP_ClientRandomLength:
-			settings->ClientRandomLength = cnv.c;
+			settings->ClientRandomLength =  cnv.c;
 			break;
 
 		case FreeRDP_ClientSessionId:
-			settings->ClientSessionId = cnv.c;
+			settings->ClientSessionId =  cnv.c;
 			break;
 
 		case FreeRDP_ClipboardFeatureMask:
-			settings->ClipboardFeatureMask = cnv.c;
+			settings->ClipboardFeatureMask =  cnv.c;
 			break;
 
 		case FreeRDP_ClusterInfoFlags:
-			settings->ClusterInfoFlags = cnv.c;
+			settings->ClusterInfoFlags =  cnv.c;
 			break;
 
 		case FreeRDP_ColorDepth:
-			settings->ColorDepth = cnv.c;
+			settings->ColorDepth =  cnv.c;
 			break;
 
 		case FreeRDP_ColorPointerCacheSize:
-			settings->ColorPointerCacheSize = cnv.c;
+			settings->ColorPointerCacheSize =  cnv.c;
 			break;
 
 		case FreeRDP_CompDeskSupportLevel:
-			settings->CompDeskSupportLevel = cnv.c;
+			settings->CompDeskSupportLevel =  cnv.c;
 			break;
 
 		case FreeRDP_CompressionLevel:
-			settings->CompressionLevel = cnv.c;
+			settings->CompressionLevel =  cnv.c;
 			break;
 
 		case FreeRDP_ConnectionType:
-			settings->ConnectionType = cnv.c;
+			settings->ConnectionType =  cnv.c;
 			break;
 
 		case FreeRDP_CookieMaxLength:
-			settings->CookieMaxLength = cnv.c;
+			settings->CookieMaxLength =  cnv.c;
 			break;
 
 		case FreeRDP_DesktopHeight:
-			settings->DesktopHeight = cnv.c;
+			settings->DesktopHeight =  cnv.c;
 			break;
 
 		case FreeRDP_DesktopPhysicalHeight:
-			settings->DesktopPhysicalHeight = cnv.c;
+			settings->DesktopPhysicalHeight =  cnv.c;
 			break;
 
 		case FreeRDP_DesktopPhysicalWidth:
-			settings->DesktopPhysicalWidth = cnv.c;
+			settings->DesktopPhysicalWidth =  cnv.c;
 			break;
 
 		case FreeRDP_DesktopPosX:
-			settings->DesktopPosX = cnv.c;
+			settings->DesktopPosX =  cnv.c;
 			break;
 
 		case FreeRDP_DesktopPosY:
-			settings->DesktopPosY = cnv.c;
+			settings->DesktopPosY =  cnv.c;
 			break;
 
 		case FreeRDP_DesktopScaleFactor:
-			settings->DesktopScaleFactor = cnv.c;
+			settings->DesktopScaleFactor =  cnv.c;
 			break;
 
 		case FreeRDP_DesktopWidth:
-			settings->DesktopWidth = cnv.c;
+			settings->DesktopWidth =  cnv.c;
 			break;
 
 		case FreeRDP_DeviceArraySize:
-			settings->DeviceArraySize = cnv.c;
+			settings->DeviceArraySize =  cnv.c;
 			break;
 
 		case FreeRDP_DeviceCount:
-			settings->DeviceCount = cnv.c;
+			settings->DeviceCount =  cnv.c;
 			break;
 
 		case FreeRDP_DeviceScaleFactor:
-			settings->DeviceScaleFactor = cnv.c;
+			settings->DeviceScaleFactor =  cnv.c;
 			break;
 
 		case FreeRDP_DrawNineGridCacheEntries:
-			settings->DrawNineGridCacheEntries = cnv.c;
+			settings->DrawNineGridCacheEntries =  cnv.c;
 			break;
 
 		case FreeRDP_DrawNineGridCacheSize:
-			settings->DrawNineGridCacheSize = cnv.c;
+			settings->DrawNineGridCacheSize =  cnv.c;
 			break;
 
 		case FreeRDP_DynamicChannelArraySize:
-			settings->DynamicChannelArraySize = cnv.c;
+			settings->DynamicChannelArraySize =  cnv.c;
 			break;
 
 		case FreeRDP_DynamicChannelCount:
-			settings->DynamicChannelCount = cnv.c;
+			settings->DynamicChannelCount =  cnv.c;
 			break;
 
 		case FreeRDP_EarlyCapabilityFlags:
-			settings->EarlyCapabilityFlags = cnv.c;
+			settings->EarlyCapabilityFlags =  cnv.c;
 			break;
 
 		case FreeRDP_EncryptionLevel:
-			settings->EncryptionLevel = cnv.c;
+			settings->EncryptionLevel =  cnv.c;
 			break;
 
 		case FreeRDP_EncryptionMethods:
-			settings->EncryptionMethods = cnv.c;
+			settings->EncryptionMethods =  cnv.c;
 			break;
 
 		case FreeRDP_ExtEncryptionMethods:
-			settings->ExtEncryptionMethods = cnv.c;
+			settings->ExtEncryptionMethods =  cnv.c;
 			break;
 
 		case FreeRDP_FakeMouseMotionInterval:
-			settings->FakeMouseMotionInterval = cnv.c;
+			settings->FakeMouseMotionInterval =  cnv.c;
 			break;
 
 		case FreeRDP_Floatbar:
-			settings->Floatbar = cnv.c;
+			settings->Floatbar =  cnv.c;
 			break;
 
 		case FreeRDP_ForceIPvX:
-			settings->ForceIPvX = cnv.c;
+			settings->ForceIPvX =  cnv.c;
 			break;
 
 		case FreeRDP_FrameAcknowledge:
-			settings->FrameAcknowledge = cnv.c;
+			settings->FrameAcknowledge =  cnv.c;
 			break;
 
 		case FreeRDP_GatewayAcceptedCertLength:
-			settings->GatewayAcceptedCertLength = cnv.c;
+			settings->GatewayAcceptedCertLength =  cnv.c;
 			break;
 
 		case FreeRDP_GatewayCredentialsSource:
-			settings->GatewayCredentialsSource = cnv.c;
+			settings->GatewayCredentialsSource =  cnv.c;
 			break;
 
 		case FreeRDP_GatewayPort:
-			settings->GatewayPort = cnv.c;
+			settings->GatewayPort =  cnv.c;
 			break;
 
 		case FreeRDP_GatewayUsageMethod:
-			settings->GatewayUsageMethod = cnv.c;
+			settings->GatewayUsageMethod =  cnv.c;
 			break;
 
 		case FreeRDP_GfxCapsFilter:
-			settings->GfxCapsFilter = cnv.c;
+			settings->GfxCapsFilter =  cnv.c;
 			break;
 
 		case FreeRDP_GlyphSupportLevel:
-			settings->GlyphSupportLevel = cnv.c;
+			settings->GlyphSupportLevel =  cnv.c;
 			break;
 
 		case FreeRDP_JpegCodecId:
-			settings->JpegCodecId = cnv.c;
+			settings->JpegCodecId =  cnv.c;
 			break;
 
 		case FreeRDP_JpegQuality:
-			settings->JpegQuality = cnv.c;
+			settings->JpegQuality =  cnv.c;
 			break;
 
 		case FreeRDP_KeySpec:
-			settings->KeySpec = cnv.c;
+			settings->KeySpec =  cnv.c;
 			break;
 
 		case FreeRDP_KeyboardCodePage:
-			settings->KeyboardCodePage = cnv.c;
+			settings->KeyboardCodePage =  cnv.c;
 			break;
 
 		case FreeRDP_KeyboardFunctionKey:
-			settings->KeyboardFunctionKey = cnv.c;
+			settings->KeyboardFunctionKey =  cnv.c;
 			break;
 
 		case FreeRDP_KeyboardHook:
-			settings->KeyboardHook = cnv.c;
+			settings->KeyboardHook =  cnv.c;
 			break;
 
 		case FreeRDP_KeyboardLayout:
-			settings->KeyboardLayout = cnv.c;
+			settings->KeyboardLayout =  cnv.c;
 			break;
 
 		case FreeRDP_KeyboardSubType:
-			settings->KeyboardSubType = cnv.c;
+			settings->KeyboardSubType =  cnv.c;
 			break;
 
 		case FreeRDP_KeyboardType:
-			settings->KeyboardType = cnv.c;
+			settings->KeyboardType =  cnv.c;
 			break;
 
 		case FreeRDP_LargePointerFlag:
-			settings->LargePointerFlag = cnv.c;
+			settings->LargePointerFlag =  cnv.c;
 			break;
 
 		case FreeRDP_LoadBalanceInfoLength:
-			settings->LoadBalanceInfoLength = cnv.c;
+			settings->LoadBalanceInfoLength =  cnv.c;
+			break;
+
+		case FreeRDP_MaxPendingUdpPackets:
+			settings->MaxPendingUdpPackets =  cnv.c;
 			break;
 
 		case FreeRDP_MonitorAttributeFlags:
-			settings->MonitorAttributeFlags = cnv.c;
+			settings->MonitorAttributeFlags =  cnv.c;
 			break;
 
 		case FreeRDP_MonitorCount:
-			settings->MonitorCount = cnv.c;
+			settings->MonitorCount =  cnv.c;
 			break;
 
 		case FreeRDP_MonitorDefArraySize:
-			settings->MonitorDefArraySize = cnv.c;
+			settings->MonitorDefArraySize =  cnv.c;
 			break;
 
 		case FreeRDP_MonitorFlags:
-			settings->MonitorFlags = cnv.c;
+			settings->MonitorFlags =  cnv.c;
 			break;
 
 		case FreeRDP_MultifragMaxRequestSize:
-			settings->MultifragMaxRequestSize = cnv.c;
+			settings->MultifragMaxRequestSize =  cnv.c;
 			break;
 
 		case FreeRDP_MultitransportFlags:
-			settings->MultitransportFlags = cnv.c;
+			settings->MultitransportFlags =  cnv.c;
 			break;
 
 		case FreeRDP_NSCodecColorLossLevel:
-			settings->NSCodecColorLossLevel = cnv.c;
+			settings->NSCodecColorLossLevel =  cnv.c;
 			break;
 
 		case FreeRDP_NSCodecId:
-			settings->NSCodecId = cnv.c;
+			settings->NSCodecId =  cnv.c;
 			break;
 
 		case FreeRDP_NegotiationFlags:
-			settings->NegotiationFlags = cnv.c;
+			settings->NegotiationFlags =  cnv.c;
 			break;
 
 		case FreeRDP_NumMonitorIds:
-			settings->NumMonitorIds = cnv.c;
+			settings->NumMonitorIds =  cnv.c;
 			break;
 
 		case FreeRDP_OffscreenCacheEntries:
-			settings->OffscreenCacheEntries = cnv.c;
+			settings->OffscreenCacheEntries =  cnv.c;
 			break;
 
 		case FreeRDP_OffscreenCacheSize:
-			settings->OffscreenCacheSize = cnv.c;
+			settings->OffscreenCacheSize =  cnv.c;
 			break;
 
 		case FreeRDP_OffscreenSupportLevel:
-			settings->OffscreenSupportLevel = cnv.c;
+			settings->OffscreenSupportLevel =  cnv.c;
 			break;
 
 		case FreeRDP_OsMajorType:
-			settings->OsMajorType = cnv.c;
+			settings->OsMajorType =  cnv.c;
 			break;
 
 		case FreeRDP_OsMinorType:
-			settings->OsMinorType = cnv.c;
+			settings->OsMinorType =  cnv.c;
 			break;
 
 		case FreeRDP_Password51Length:
-			settings->Password51Length = cnv.c;
+			settings->Password51Length =  cnv.c;
 			break;
 
 		case FreeRDP_PduSource:
-			settings->PduSource = cnv.c;
+			settings->PduSource =  cnv.c;
 			break;
 
 		case FreeRDP_PercentScreen:
-			settings->PercentScreen = cnv.c;
+			settings->PercentScreen =  cnv.c;
 			break;
 
 		case FreeRDP_PerformanceFlags:
-			settings->PerformanceFlags = cnv.c;
+			settings->PerformanceFlags =  cnv.c;
 			break;
 
 		case FreeRDP_PointerCacheSize:
-			settings->PointerCacheSize = cnv.c;
+			settings->PointerCacheSize =  cnv.c;
 			break;
 
 		case FreeRDP_PreconnectionId:
-			settings->PreconnectionId = cnv.c;
+			settings->PreconnectionId =  cnv.c;
 			break;
 
 		case FreeRDP_ProxyType:
-			settings->ProxyType = cnv.c;
+			settings->ProxyType =  cnv.c;
 			break;
 
 		case FreeRDP_RdpVersion:
-			settings->RdpVersion = cnv.c;
+			settings->RdpVersion =  cnv.c;
 			break;
 
 		case FreeRDP_ReceivedCapabilitiesSize:
-			settings->ReceivedCapabilitiesSize = cnv.c;
+			settings->ReceivedCapabilitiesSize =  cnv.c;
 			break;
 
 		case FreeRDP_RedirectedSessionId:
-			settings->RedirectedSessionId = cnv.c;
+			settings->RedirectedSessionId =  cnv.c;
 			break;
 
 		case FreeRDP_RedirectionAcceptedCertLength:
-			settings->RedirectionAcceptedCertLength = cnv.c;
+			settings->RedirectionAcceptedCertLength =  cnv.c;
 			break;
 
 		case FreeRDP_RedirectionFlags:
-			settings->RedirectionFlags = cnv.c;
+			settings->RedirectionFlags =  cnv.c;
 			break;
 
 		case FreeRDP_RedirectionGuidLength:
-			settings->RedirectionGuidLength = cnv.c;
+			settings->RedirectionGuidLength =  cnv.c;
 			break;
 
 		case FreeRDP_RedirectionPasswordLength:
-			settings->RedirectionPasswordLength = cnv.c;
+			settings->RedirectionPasswordLength =  cnv.c;
 			break;
 
 		case FreeRDP_RedirectionPreferType:
-			settings->RedirectionPreferType = cnv.c;
+			settings->RedirectionPreferType =  cnv.c;
 			break;
 
 		case FreeRDP_RedirectionTsvUrlLength:
-			settings->RedirectionTsvUrlLength = cnv.c;
+			settings->RedirectionTsvUrlLength =  cnv.c;
 			break;
 
 		case FreeRDP_RemoteAppNumIconCacheEntries:
-			settings->RemoteAppNumIconCacheEntries = cnv.c;
+			settings->RemoteAppNumIconCacheEntries =  cnv.c;
 			break;
 
 		case FreeRDP_RemoteAppNumIconCaches:
-			settings->RemoteAppNumIconCaches = cnv.c;
+			settings->RemoteAppNumIconCaches =  cnv.c;
 			break;
 
 		case FreeRDP_RemoteApplicationExpandCmdLine:
-			settings->RemoteApplicationExpandCmdLine = cnv.c;
+			settings->RemoteApplicationExpandCmdLine =  cnv.c;
 			break;
 
 		case FreeRDP_RemoteApplicationExpandWorkingDir:
-			settings->RemoteApplicationExpandWorkingDir = cnv.c;
+			settings->RemoteApplicationExpandWorkingDir =  cnv.c;
 			break;
 
 		case FreeRDP_RemoteApplicationSupportLevel:
-			settings->RemoteApplicationSupportLevel = cnv.c;
+			settings->RemoteApplicationSupportLevel =  cnv.c;
 			break;
 
 		case FreeRDP_RemoteApplicationSupportMask:
-			settings->RemoteApplicationSupportMask = cnv.c;
+			settings->RemoteApplicationSupportMask =  cnv.c;
 			break;
 
 		case FreeRDP_RemoteFxCaptureFlags:
-			settings->RemoteFxCaptureFlags = cnv.c;
+			settings->RemoteFxCaptureFlags =  cnv.c;
 			break;
 
 		case FreeRDP_RemoteFxCodecId:
-			settings->RemoteFxCodecId = cnv.c;
+			settings->RemoteFxCodecId =  cnv.c;
 			break;
 
 		case FreeRDP_RemoteFxCodecMode:
-			settings->RemoteFxCodecMode = cnv.c;
+			settings->RemoteFxCodecMode =  cnv.c;
 			break;
 
 		case FreeRDP_RemoteFxRlgrMode:
-			settings->RemoteFxRlgrMode = cnv.c;
+			settings->RemoteFxRlgrMode =  cnv.c;
+			break;
+
+		case FreeRDP_RemoteMultitransportFlags:
+			settings->RemoteMultitransportFlags =  cnv.c;
 			break;
 
 		case FreeRDP_RemoteWndSupportLevel:
-			settings->RemoteWndSupportLevel = cnv.c;
+			settings->RemoteWndSupportLevel =  cnv.c;
 			break;
 
 		case FreeRDP_RequestedProtocols:
-			settings->RequestedProtocols = cnv.c;
+			settings->RequestedProtocols =  cnv.c;
 			break;
 
 		case FreeRDP_SelectedProtocol:
-			settings->SelectedProtocol = cnv.c;
+			settings->SelectedProtocol =  cnv.c;
 			break;
 
 		case FreeRDP_ServerCertificateLength:
-			settings->ServerCertificateLength = cnv.c;
+			settings->ServerCertificateLength =  cnv.c;
 			break;
 
 		case FreeRDP_ServerLicenseProductIssuersCount:
-			settings->ServerLicenseProductIssuersCount = cnv.c;
+			settings->ServerLicenseProductIssuersCount =  cnv.c;
 			break;
 
 		case FreeRDP_ServerLicenseProductVersion:
-			settings->ServerLicenseProductVersion = cnv.c;
+			settings->ServerLicenseProductVersion =  cnv.c;
 			break;
 
 		case FreeRDP_ServerPort:
-			settings->ServerPort = cnv.c;
+			settings->ServerPort =  cnv.c;
 			break;
 
 		case FreeRDP_ServerRandomLength:
-			settings->ServerRandomLength = cnv.c;
+			settings->ServerRandomLength =  cnv.c;
 			break;
 
 		case FreeRDP_ShareId:
-			settings->ShareId = cnv.c;
+			settings->ShareId =  cnv.c;
 			break;
 
 		case FreeRDP_SmartSizingHeight:
-			settings->SmartSizingHeight = cnv.c;
+			settings->SmartSizingHeight =  cnv.c;
 			break;
 
 		case FreeRDP_SmartSizingWidth:
-			settings->SmartSizingWidth = cnv.c;
+			settings->SmartSizingWidth =  cnv.c;
 			break;
 
 		case FreeRDP_StaticChannelArraySize:
-			settings->StaticChannelArraySize = cnv.c;
+			settings->StaticChannelArraySize =  cnv.c;
 			break;
 
 		case FreeRDP_StaticChannelCount:
-			settings->StaticChannelCount = cnv.c;
+			settings->StaticChannelCount =  cnv.c;
 			break;
 
 		case FreeRDP_SurfaceCommandsSupported:
-			settings->SurfaceCommandsSupported = cnv.c;
+			settings->SurfaceCommandsSupported =  cnv.c;
 			break;
 
 		case FreeRDP_TargetNetAddressCount:
-			settings->TargetNetAddressCount = cnv.c;
+			settings->TargetNetAddressCount =  cnv.c;
 			break;
 
 		case FreeRDP_TcpAckTimeout:
-			settings->TcpAckTimeout = cnv.c;
+			settings->TcpAckTimeout =  cnv.c;
 			break;
 
 		case FreeRDP_TcpConnectTimeout:
-			settings->TcpConnectTimeout = cnv.c;
+			settings->TcpConnectTimeout =  cnv.c;
 			break;
 
 		case FreeRDP_TcpKeepAliveDelay:
-			settings->TcpKeepAliveDelay = cnv.c;
+			settings->TcpKeepAliveDelay =  cnv.c;
 			break;
 
 		case FreeRDP_TcpKeepAliveInterval:
-			settings->TcpKeepAliveInterval = cnv.c;
+			settings->TcpKeepAliveInterval =  cnv.c;
 			break;
 
 		case FreeRDP_TcpKeepAliveRetries:
-			settings->TcpKeepAliveRetries = cnv.c;
+			settings->TcpKeepAliveRetries =  cnv.c;
 			break;
 
 		case FreeRDP_ThreadingFlags:
-			settings->ThreadingFlags = cnv.c;
+			settings->ThreadingFlags =  cnv.c;
 			break;
 
 		case FreeRDP_TlsSecLevel:
-			settings->TlsSecLevel = cnv.c;
+			settings->TlsSecLevel =  cnv.c;
 			break;
 
 		case FreeRDP_VCChunkSize:
-			settings->VCChunkSize = cnv.c;
+			settings->VCChunkSize =  cnv.c;
 			break;
 
 		case FreeRDP_VCFlags:
-			settings->VCFlags = cnv.c;
+			settings->VCFlags =  cnv.c;
 			break;
 
 #if !defined(WITHOUT_FREERDP_3x_DEPRECATED)
 		// API Compatibility section, remove with FreeRDP 4.x
 		case FreeRDP_MonitorLocalShiftX:
-			settings->MonitorLocalShiftX = (int32_t)cnv.c;
+			settings->MonitorLocalShiftX = (int32_t) cnv.c;
 			break;
 
 		// API Compatibility section, remove with FreeRDP 4.x
 		case FreeRDP_MonitorLocalShiftY:
-			settings->MonitorLocalShiftY = (int32_t)cnv.c;
+			settings->MonitorLocalShiftY = (int32_t) cnv.c;
 			break;
 
 #endif
 		default:
-			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id,
-			         freerdp_settings_get_name_for_key(id),
-			         freerdp_settings_get_type_name_for_key(id));
+			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id, freerdp_settings_get_name_for_key(id), freerdp_settings_get_type_name_for_key(id));
 			return FALSE;
 	}
 	return TRUE;
 }
 
-INT32 freerdp_settings_get_int32(WINPR_ATTR_UNUSED const rdpSettings* settings,
-                                 WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_Int32 id)
+
+INT32 freerdp_settings_get_int32(WINPR_ATTR_UNUSED const rdpSettings* settings, WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_Int32 id)
 {
 	WINPR_ASSERT(settings);
 
@@ -2588,24 +2581,21 @@ INT32 freerdp_settings_get_int32(WINPR_ATTR_UNUSED const rdpSettings* settings,
 			return settings->YPan;
 
 		default:
-			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id,
-			         freerdp_settings_get_name_for_key(id),
-			         freerdp_settings_get_type_name_for_key(id));
+			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id, freerdp_settings_get_name_for_key(id), freerdp_settings_get_type_name_for_key(id));
 			WINPR_ASSERT(FALSE);
 			return 0;
 	}
 }
 
-BOOL freerdp_settings_set_int32(WINPR_ATTR_UNUSED rdpSettings* settings,
-                                WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_Int32 id, INT32 val)
+BOOL freerdp_settings_set_int32(WINPR_ATTR_UNUSED rdpSettings* settings, WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_Int32 id, INT32 val)
 {
 	union
 	{
 		void* v;
 		const void* cv;
-		INT32 c;
-		const INT32 cc;
-	} cnv;
+    INT32 c;
+    const INT32 cc;
+} cnv;
 	WINPR_ASSERT(settings);
 
 	cnv.c = val;
@@ -2613,32 +2603,30 @@ BOOL freerdp_settings_set_int32(WINPR_ATTR_UNUSED rdpSettings* settings,
 	switch (id)
 	{
 		case FreeRDP_MonitorLocalShiftX:
-			settings->MonitorLocalShiftX = cnv.c;
+			settings->MonitorLocalShiftX =  cnv.c;
 			break;
 
 		case FreeRDP_MonitorLocalShiftY:
-			settings->MonitorLocalShiftY = cnv.c;
+			settings->MonitorLocalShiftY =  cnv.c;
 			break;
 
 		case FreeRDP_XPan:
-			settings->XPan = cnv.c;
+			settings->XPan =  cnv.c;
 			break;
 
 		case FreeRDP_YPan:
-			settings->YPan = cnv.c;
+			settings->YPan =  cnv.c;
 			break;
 
 		default:
-			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id,
-			         freerdp_settings_get_name_for_key(id),
-			         freerdp_settings_get_type_name_for_key(id));
+			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id, freerdp_settings_get_name_for_key(id), freerdp_settings_get_type_name_for_key(id));
 			return FALSE;
 	}
 	return TRUE;
 }
 
-UINT64 freerdp_settings_get_uint64(WINPR_ATTR_UNUSED const rdpSettings* settings,
-                                   WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_UInt64 id)
+
+UINT64 freerdp_settings_get_uint64(WINPR_ATTR_UNUSED const rdpSettings* settings, WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_UInt64 id)
 {
 	WINPR_ASSERT(settings);
 
@@ -2651,24 +2639,21 @@ UINT64 freerdp_settings_get_uint64(WINPR_ATTR_UNUSED const rdpSettings* settings
 			return settings->ParentWindowId;
 
 		default:
-			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id,
-			         freerdp_settings_get_name_for_key(id),
-			         freerdp_settings_get_type_name_for_key(id));
+			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id, freerdp_settings_get_name_for_key(id), freerdp_settings_get_type_name_for_key(id));
 			WINPR_ASSERT(FALSE);
 			return 0;
 	}
 }
 
-BOOL freerdp_settings_set_uint64(WINPR_ATTR_UNUSED rdpSettings* settings,
-                                 WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_UInt64 id, UINT64 val)
+BOOL freerdp_settings_set_uint64(WINPR_ATTR_UNUSED rdpSettings* settings, WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_UInt64 id, UINT64 val)
 {
 	union
 	{
 		void* v;
 		const void* cv;
-		UINT64 c;
-		const UINT64 cc;
-	} cnv;
+    UINT64 c;
+    const UINT64 cc;
+} cnv;
 	WINPR_ASSERT(settings);
 
 	cnv.c = val;
@@ -2676,48 +2661,43 @@ BOOL freerdp_settings_set_uint64(WINPR_ATTR_UNUSED rdpSettings* settings,
 	switch (id)
 	{
 		case FreeRDP_MonitorOverrideFlags:
-			settings->MonitorOverrideFlags = cnv.c;
+			settings->MonitorOverrideFlags =  cnv.c;
 			break;
 
 		case FreeRDP_ParentWindowId:
-			settings->ParentWindowId = cnv.c;
+			settings->ParentWindowId =  cnv.c;
 			break;
 
 		default:
-			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id,
-			         freerdp_settings_get_name_for_key(id),
-			         freerdp_settings_get_type_name_for_key(id));
+			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id, freerdp_settings_get_name_for_key(id), freerdp_settings_get_type_name_for_key(id));
 			return FALSE;
 	}
 	return TRUE;
 }
 
-INT64 freerdp_settings_get_int64(WINPR_ATTR_UNUSED const rdpSettings* settings,
-                                 WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_Int64 id)
+
+INT64 freerdp_settings_get_int64(WINPR_ATTR_UNUSED const rdpSettings* settings, WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_Int64 id)
 {
 	WINPR_ASSERT(settings);
 
 	switch (id)
 	{
 		default:
-			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id,
-			         freerdp_settings_get_name_for_key(id),
-			         freerdp_settings_get_type_name_for_key(id));
+			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id, freerdp_settings_get_name_for_key(id), freerdp_settings_get_type_name_for_key(id));
 			WINPR_ASSERT(FALSE);
 			return 0;
 	}
 }
 
-BOOL freerdp_settings_set_int64(WINPR_ATTR_UNUSED rdpSettings* settings,
-                                WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_Int64 id, INT64 val)
+BOOL freerdp_settings_set_int64(WINPR_ATTR_UNUSED rdpSettings* settings, WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_Int64 id, INT64 val)
 {
 	union
 	{
 		void* v;
 		const void* cv;
-		INT64 c;
-		const INT64 cc;
-	} cnv;
+    INT64 c;
+    const INT64 cc;
+} cnv;
 	WINPR_ASSERT(settings);
 
 	cnv.c = val;
@@ -2725,16 +2705,14 @@ BOOL freerdp_settings_set_int64(WINPR_ATTR_UNUSED rdpSettings* settings,
 	switch (id)
 	{
 		default:
-			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id,
-			         freerdp_settings_get_name_for_key(id),
-			         freerdp_settings_get_type_name_for_key(id));
+			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id, freerdp_settings_get_name_for_key(id), freerdp_settings_get_type_name_for_key(id));
 			return FALSE;
 	}
 	return TRUE;
 }
 
-const char* freerdp_settings_get_string(WINPR_ATTR_UNUSED const rdpSettings* settings,
-                                        WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_String id)
+
+const char* freerdp_settings_get_string(WINPR_ATTR_UNUSED const rdpSettings* settings, WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_String id)
 {
 	WINPR_ASSERT(settings);
 
@@ -3059,9 +3037,7 @@ const char* freerdp_settings_get_string(WINPR_ATTR_UNUSED const rdpSettings* set
 			return settings->WmClass;
 
 		default:
-			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id,
-			         freerdp_settings_get_name_for_key(id),
-			         freerdp_settings_get_type_name_for_key(id));
+			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id, freerdp_settings_get_name_for_key(id), freerdp_settings_get_type_name_for_key(id));
 			WINPR_ASSERT(FALSE);
 			return NULL;
 	}
@@ -3392,25 +3368,21 @@ char* freerdp_settings_get_string_writable(rdpSettings* settings, FreeRDP_Settin
 			return settings->WmClass;
 
 		default:
-			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id,
-			         freerdp_settings_get_name_for_key(id),
-			         freerdp_settings_get_type_name_for_key(id));
+			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id, freerdp_settings_get_name_for_key(id), freerdp_settings_get_type_name_for_key(id));
 			WINPR_ASSERT(FALSE);
 			return NULL;
 	}
 }
 
-BOOL freerdp_settings_set_string_(WINPR_ATTR_UNUSED rdpSettings* settings,
-                                  WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_String id,
-                                  const char* val, size_t len)
+BOOL freerdp_settings_set_string_(WINPR_ATTR_UNUSED rdpSettings* settings, WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_String id, const char* val, size_t len)
 {
 	union
 	{
 		void* v;
 		const void* cv;
-		char* c;
-		const char* cc;
-	} cnv;
+    char* c;
+    const char* cc;
+} cnv;
 	WINPR_ASSERT(settings);
 
 	cnv.cc = val;
@@ -3736,40 +3708,34 @@ BOOL freerdp_settings_set_string_(WINPR_ATTR_UNUSED rdpSettings* settings,
 			return update_string_(&settings->WmClass, cnv.c, len);
 
 		default:
-			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id,
-			         freerdp_settings_get_name_for_key(id),
-			         freerdp_settings_get_type_name_for_key(id));
+			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id, freerdp_settings_get_name_for_key(id), freerdp_settings_get_type_name_for_key(id));
 			return FALSE;
 	}
 	return TRUE;
 }
 
-BOOL freerdp_settings_set_string_len(rdpSettings* settings, FreeRDP_Settings_Keys_String id,
-                                     const char* val, size_t len)
+
+BOOL freerdp_settings_set_string_len(rdpSettings* settings, FreeRDP_Settings_Keys_String id, const char* val, size_t len)
 {
 	return freerdp_settings_set_string_copy_(settings, id, val, len, TRUE);
 }
 
-BOOL freerdp_settings_set_string(rdpSettings* settings, FreeRDP_Settings_Keys_String id,
-                                 const char* val)
+BOOL freerdp_settings_set_string(rdpSettings* settings, FreeRDP_Settings_Keys_String id, const char* val)
 {
 	size_t len = 0;
-	if (val)
-		len = strlen(val);
+	if (val) len = strlen(val);
 	return freerdp_settings_set_string_copy_(settings, id, val, len, TRUE);
 }
 
-BOOL freerdp_settings_set_string_copy_(WINPR_ATTR_UNUSED rdpSettings* settings,
-                                       WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_String id,
-                                       const char* val, size_t len, BOOL cleanup)
+BOOL freerdp_settings_set_string_copy_(WINPR_ATTR_UNUSED rdpSettings* settings, WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_String id, const char* val, size_t len, BOOL cleanup)
 {
 	union
 	{
 		void* v;
 		const void* cv;
-		char* c;
-		const char* cc;
-	} cnv;
+    char* c;
+    const char* cc;
+} cnv;
 	WINPR_ASSERT(settings);
 
 	cnv.cc = val;
@@ -3807,8 +3773,7 @@ BOOL freerdp_settings_set_string_copy_(WINPR_ATTR_UNUSED rdpSettings* settings,
 			return update_string_copy_(&settings->CardName, cnv.cc, len, cleanup);
 
 		case FreeRDP_CertificateAcceptedFingerprints:
-			return update_string_copy_(&settings->CertificateAcceptedFingerprints, cnv.cc, len,
-			                           cleanup);
+			return update_string_copy_(&settings->CertificateAcceptedFingerprints, cnv.cc, len, cleanup);
 
 		case FreeRDP_CertificateName:
 			return update_string_copy_(&settings->CertificateName, cnv.cc, len, cleanup);
@@ -3871,8 +3836,7 @@ BOOL freerdp_settings_set_string_copy_(WINPR_ATTR_UNUSED rdpSettings* settings,
 			return update_string_copy_(&settings->GatewayAvdAccessAadFormat, cnv.cc, len, cleanup);
 
 		case FreeRDP_GatewayAvdAccessTokenFormat:
-			return update_string_copy_(&settings->GatewayAvdAccessTokenFormat, cnv.cc, len,
-			                           cleanup);
+			return update_string_copy_(&settings->GatewayAvdAccessTokenFormat, cnv.cc, len, cleanup);
 
 		case FreeRDP_GatewayAvdActivityhint:
 			return update_string_copy_(&settings->GatewayAvdActivityhint, cnv.cc, len, cleanup);
@@ -3884,15 +3848,13 @@ BOOL freerdp_settings_set_string_copy_(WINPR_ATTR_UNUSED rdpSettings* settings,
 			return update_string_copy_(&settings->GatewayAvdClientID, cnv.cc, len, cleanup);
 
 		case FreeRDP_GatewayAvdDiagnosticserviceurl:
-			return update_string_copy_(&settings->GatewayAvdDiagnosticserviceurl, cnv.cc, len,
-			                           cleanup);
+			return update_string_copy_(&settings->GatewayAvdDiagnosticserviceurl, cnv.cc, len, cleanup);
 
 		case FreeRDP_GatewayAvdGeo:
 			return update_string_copy_(&settings->GatewayAvdGeo, cnv.cc, len, cleanup);
 
 		case FreeRDP_GatewayAvdHubdiscoverygeourl:
-			return update_string_copy_(&settings->GatewayAvdHubdiscoverygeourl, cnv.cc, len,
-			                           cleanup);
+			return update_string_copy_(&settings->GatewayAvdHubdiscoverygeourl, cnv.cc, len, cleanup);
 
 		case FreeRDP_GatewayAvdScope:
 			return update_string_copy_(&settings->GatewayAvdScope, cnv.cc, len, cleanup);
@@ -3901,8 +3863,7 @@ BOOL freerdp_settings_set_string_copy_(WINPR_ATTR_UNUSED rdpSettings* settings,
 			return update_string_copy_(&settings->GatewayAvdWvdEndpointPool, cnv.cc, len, cleanup);
 
 		case FreeRDP_GatewayAzureActiveDirectory:
-			return update_string_copy_(&settings->GatewayAzureActiveDirectory, cnv.cc, len,
-			                           cleanup);
+			return update_string_copy_(&settings->GatewayAzureActiveDirectory, cnv.cc, len, cleanup);
 
 		case FreeRDP_GatewayDomain:
 			return update_string_copy_(&settings->GatewayDomain, cnv.cc, len, cleanup);
@@ -4013,8 +3974,7 @@ BOOL freerdp_settings_set_string_copy_(WINPR_ATTR_UNUSED rdpSettings* settings,
 			return update_string_copy_(&settings->RedirectionTargetFQDN, cnv.cc, len, cleanup);
 
 		case FreeRDP_RedirectionTargetNetBiosName:
-			return update_string_copy_(&settings->RedirectionTargetNetBiosName, cnv.cc, len,
-			                           cleanup);
+			return update_string_copy_(&settings->RedirectionTargetNetBiosName, cnv.cc, len, cleanup);
 
 		case FreeRDP_RedirectionUsername:
 			return update_string_copy_(&settings->RedirectionUsername, cnv.cc, len, cleanup);
@@ -4038,8 +3998,7 @@ BOOL freerdp_settings_set_string_copy_(WINPR_ATTR_UNUSED rdpSettings* settings,
 			return update_string_copy_(&settings->RemoteApplicationProgram, cnv.cc, len, cleanup);
 
 		case FreeRDP_RemoteApplicationWorkingDir:
-			return update_string_copy_(&settings->RemoteApplicationWorkingDir, cnv.cc, len,
-			                           cleanup);
+			return update_string_copy_(&settings->RemoteApplicationWorkingDir, cnv.cc, len, cleanup);
 
 		case FreeRDP_RemoteAssistancePassStub:
 			return update_string_copy_(&settings->RemoteAssistancePassStub, cnv.cc, len, cleanup);
@@ -4102,13 +4061,12 @@ BOOL freerdp_settings_set_string_copy_(WINPR_ATTR_UNUSED rdpSettings* settings,
 			return update_string_copy_(&settings->WmClass, cnv.cc, len, cleanup);
 
 		default:
-			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id,
-			         freerdp_settings_get_name_for_key(id),
-			         freerdp_settings_get_type_name_for_key(id));
+			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id, freerdp_settings_get_name_for_key(id), freerdp_settings_get_type_name_for_key(id));
 			return FALSE;
 	}
 	return TRUE;
 }
+
 
 void* freerdp_settings_get_pointer_writable(rdpSettings* settings, FreeRDP_Settings_Keys_Pointer id)
 {
@@ -4210,23 +4168,19 @@ void* freerdp_settings_get_pointer_writable(rdpSettings* settings, FreeRDP_Setti
 			return settings->instance;
 
 		default:
-			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id,
-			         freerdp_settings_get_name_for_key(id),
-			         freerdp_settings_get_type_name_for_key(id));
+			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id, freerdp_settings_get_name_for_key(id), freerdp_settings_get_type_name_for_key(id));
 			WINPR_ASSERT(FALSE);
 			return NULL;
 	}
 }
 
-BOOL freerdp_settings_set_pointer(WINPR_ATTR_UNUSED rdpSettings* settings,
-                                  WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_Pointer id,
-                                  const void* val)
+BOOL freerdp_settings_set_pointer(WINPR_ATTR_UNUSED rdpSettings* settings, WINPR_ATTR_UNUSED FreeRDP_Settings_Keys_Pointer id, const void* val)
 {
 	union
 	{
 		void* v;
 		const void* cv;
-	} cnv;
+} cnv;
 	WINPR_ASSERT(settings);
 
 	cnv.cv = val;
@@ -4234,134 +4188,135 @@ BOOL freerdp_settings_set_pointer(WINPR_ATTR_UNUSED rdpSettings* settings,
 	switch (id)
 	{
 		case FreeRDP_BitmapCacheV2CellInfo:
-			settings->BitmapCacheV2CellInfo = (BITMAP_CACHE_V2_CELL_INFO*)cnv.v;
+			settings->BitmapCacheV2CellInfo = (BITMAP_CACHE_V2_CELL_INFO*) cnv.v;
 			break;
 
 		case FreeRDP_ChannelDefArray:
-			settings->ChannelDefArray = (CHANNEL_DEF*)cnv.v;
+			settings->ChannelDefArray = (CHANNEL_DEF*) cnv.v;
 			break;
 
 		case FreeRDP_ClientAutoReconnectCookie:
-			settings->ClientAutoReconnectCookie = (ARC_CS_PRIVATE_PACKET*)cnv.v;
+			settings->ClientAutoReconnectCookie = (ARC_CS_PRIVATE_PACKET*) cnv.v;
 			break;
 
 		case FreeRDP_ClientRandom:
-			settings->ClientRandom = (BYTE*)cnv.v;
+			settings->ClientRandom = (BYTE*) cnv.v;
 			break;
 
 		case FreeRDP_ClientTimeZone:
-			settings->ClientTimeZone = (TIME_ZONE_INFORMATION*)cnv.v;
+			settings->ClientTimeZone = (TIME_ZONE_INFORMATION*) cnv.v;
 			break;
 
 		case FreeRDP_DeviceArray:
-			settings->DeviceArray = (RDPDR_DEVICE**)cnv.v;
+			settings->DeviceArray = (RDPDR_DEVICE**) cnv.v;
 			break;
 
 		case FreeRDP_DynamicChannelArray:
-			settings->DynamicChannelArray = (ADDIN_ARGV**)cnv.v;
+			settings->DynamicChannelArray = (ADDIN_ARGV**) cnv.v;
 			break;
 
 		case FreeRDP_FragCache:
-			settings->FragCache = (GLYPH_CACHE_DEFINITION*)cnv.v;
+			settings->FragCache = (GLYPH_CACHE_DEFINITION*) cnv.v;
 			break;
 
 		case FreeRDP_GlyphCache:
-			settings->GlyphCache = (GLYPH_CACHE_DEFINITION*)cnv.v;
+			settings->GlyphCache = (GLYPH_CACHE_DEFINITION*) cnv.v;
 			break;
 
 		case FreeRDP_LoadBalanceInfo:
-			settings->LoadBalanceInfo = (BYTE*)cnv.v;
+			settings->LoadBalanceInfo = (BYTE*) cnv.v;
 			break;
 
 		case FreeRDP_MonitorDefArray:
-			settings->MonitorDefArray = (rdpMonitor*)cnv.v;
+			settings->MonitorDefArray = (rdpMonitor*) cnv.v;
 			break;
 
 		case FreeRDP_MonitorIds:
-			settings->MonitorIds = (UINT32*)cnv.v;
+			settings->MonitorIds = (UINT32*) cnv.v;
 			break;
 
 		case FreeRDP_OrderSupport:
-			settings->OrderSupport = (BYTE*)cnv.v;
+			settings->OrderSupport = (BYTE*) cnv.v;
 			break;
 
 		case FreeRDP_Password51:
-			settings->Password51 = (BYTE*)cnv.v;
+			settings->Password51 = (BYTE*) cnv.v;
 			break;
 
 		case FreeRDP_RdpServerCertificate:
-			settings->RdpServerCertificate = (rdpCertificate*)cnv.v;
+			settings->RdpServerCertificate = (rdpCertificate*) cnv.v;
 			break;
 
 		case FreeRDP_RdpServerRsaKey:
-			settings->RdpServerRsaKey = (rdpPrivateKey*)cnv.v;
+			settings->RdpServerRsaKey = (rdpPrivateKey*) cnv.v;
 			break;
 
 		case FreeRDP_ReceivedCapabilities:
-			settings->ReceivedCapabilities = (BYTE*)cnv.v;
+			settings->ReceivedCapabilities = (BYTE*) cnv.v;
 			break;
 
 		case FreeRDP_ReceivedCapabilityData:
-			settings->ReceivedCapabilityData = (BYTE**)cnv.v;
+			settings->ReceivedCapabilityData = (BYTE**) cnv.v;
 			break;
 
 		case FreeRDP_ReceivedCapabilityDataSizes:
-			settings->ReceivedCapabilityDataSizes = (UINT32*)cnv.v;
+			settings->ReceivedCapabilityDataSizes = (UINT32*) cnv.v;
 			break;
 
 		case FreeRDP_RedirectionGuid:
-			settings->RedirectionGuid = (BYTE*)cnv.v;
+			settings->RedirectionGuid = (BYTE*) cnv.v;
 			break;
 
 		case FreeRDP_RedirectionPassword:
-			settings->RedirectionPassword = (BYTE*)cnv.v;
+			settings->RedirectionPassword = (BYTE*) cnv.v;
 			break;
 
 		case FreeRDP_RedirectionTargetCertificate:
-			settings->RedirectionTargetCertificate = (rdpCertificate*)cnv.v;
+			settings->RedirectionTargetCertificate = (rdpCertificate*) cnv.v;
 			break;
 
 		case FreeRDP_RedirectionTsvUrl:
-			settings->RedirectionTsvUrl = (BYTE*)cnv.v;
+			settings->RedirectionTsvUrl = (BYTE*) cnv.v;
 			break;
 
 		case FreeRDP_ServerAutoReconnectCookie:
-			settings->ServerAutoReconnectCookie = (ARC_SC_PRIVATE_PACKET*)cnv.v;
+			settings->ServerAutoReconnectCookie = (ARC_SC_PRIVATE_PACKET*) cnv.v;
 			break;
 
 		case FreeRDP_ServerCertificate:
-			settings->ServerCertificate = (BYTE*)cnv.v;
+			settings->ServerCertificate = (BYTE*) cnv.v;
 			break;
 
 		case FreeRDP_ServerLicenseProductIssuers:
-			settings->ServerLicenseProductIssuers = (char**)cnv.v;
+			settings->ServerLicenseProductIssuers = (char**) cnv.v;
 			break;
 
 		case FreeRDP_ServerRandom:
-			settings->ServerRandom = (BYTE*)cnv.v;
+			settings->ServerRandom = (BYTE*) cnv.v;
 			break;
 
 		case FreeRDP_StaticChannelArray:
-			settings->StaticChannelArray = (ADDIN_ARGV**)cnv.v;
+			settings->StaticChannelArray = (ADDIN_ARGV**) cnv.v;
 			break;
 
 		case FreeRDP_TargetNetAddresses:
-			settings->TargetNetAddresses = (char**)cnv.v;
+			settings->TargetNetAddresses = (char**) cnv.v;
 			break;
 
 		case FreeRDP_TargetNetPorts:
-			settings->TargetNetPorts = (UINT32*)cnv.v;
+			settings->TargetNetPorts = (UINT32*) cnv.v;
 			break;
 
 		case FreeRDP_instance:
-			settings->instance = cnv.v;
+			settings->instance =  cnv.v;
 			break;
 
 		default:
-			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id,
-			         freerdp_settings_get_name_for_key(id),
-			         freerdp_settings_get_type_name_for_key(id));
+			WLog_ERR(TAG, "Invalid key index %" PRIuz " [%s|%s]", id, freerdp_settings_get_name_for_key(id), freerdp_settings_get_type_name_for_key(id));
 			return FALSE;
 	}
 	return TRUE;
 }
+
+
+

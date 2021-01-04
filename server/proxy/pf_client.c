@@ -452,9 +452,8 @@ static BOOL pf_client_receive_channel_data_hook(freerdp* instance, UINT16 channe
 			if (channel->front_channel_id == 0)
 				return TRUE;
 
-			return ps->context.peer->SendChannelPacket(
-			    ps->context.peer, WINPR_ASSERTING_INT_CAST(UINT16, channel->front_channel_id),
-			    totalSize, flags, xdata, xsize);
+			return ps->context.peer->SendChannelPacketEx(ps->context.peer, channel->transport, WINPR_ASSERTING_INT_CAST(UINT16, channel->front_channel_id),
+			                                           totalSize, flags, xdata, xsize);
 		case PF_CHANNEL_RESULT_DROP:
 			return TRUE;
 		case PF_CHANNEL_RESULT_ERROR:
@@ -508,10 +507,27 @@ static BOOL sendQueuedChannelData(pClientContext* pc)
 				rc = TRUE;
 			else
 			{
-				WINPR_ASSERT(pc->context.instance->SendChannelPacket);
-				rc = pc->context.instance->SendChannelPacket(pc->context.instance, channelId,
-				                                             ev->total_size, ev->flags, ev->data,
-				                                             ev->data_len);
+				wStream s;
+
+				switch (ev->transport)
+				{
+					case RDP_TRANSPORT_UDP_L:
+					case RDP_TRANSPORT_UDP_R:
+						Stream_StaticConstInit(&s, ev->data, ev->total_size);
+						rc = freerdp_send_udp(pc->context.rdp,
+						                      (ev->transport == RDP_TRANSPORT_UDP_L), NULL, &s);
+						break;
+					case RDP_TRANSPORT_TCP:
+						WINPR_ASSERT(pc->context.instance->SendChannelPacket);
+						rc = pc->context.instance->SendChannelPacket(
+						    pc->context.instance, channelId, ev->total_size, ev->flags, ev->data,
+						    ev->data_len);
+						break;
+					default:
+						WLog_ERR(TAG, "unknown transport type");
+						rc = FALSE;
+						break;
+				}
 			}
 			channel_data_free(ev);
 		}

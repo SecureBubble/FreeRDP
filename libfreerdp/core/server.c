@@ -5,6 +5,7 @@
  * Copyright 2014 Marc-Andre Moreau <marcandre.moreau@gmail.com>
  * Copyright 2015 Thincast Technologies GmbH
  * Copyright 2015 DI (FH) Martin Haimberger <martin.haimberger@thincast.com>
+ * Copyright 2023 David Fort <contact@hardening-consulting.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +20,6 @@
  * limitations under the License.
  */
 
-#include <freerdp/config.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,6 +32,9 @@
 #include <winpr/assert.h>
 #include <winpr/cast.h>
 
+#include "settings.h"
+
+#include <freerdp/config.h>
 #include <freerdp/log.h>
 #include <freerdp/constants.h>
 #include <freerdp/server/channels.h>
@@ -264,6 +266,81 @@ static BOOL wts_read_drdynvc_data(rdpPeerChannel* channel, wStream* s, UINT32 le
 	return ret;
 }
 
+BOOL wts_read_softsync_resp(rdpPeerChannel* channel, wStream* s)
+{
+	// WLog_DBG(TAG, "%s()", __FUNCTION__);
+	// winpr_HexDump(TAG, WLOG_DEBUG, Stream_Pointer(s), Stream_GetRemainingLength(s));
+
+	if (Stream_GetRemainingLength(s) < 5)
+		return FALSE;
+
+	Stream_Seek(s, 1); /* Pad */
+	UINT32 NumberOfTunnels = Stream_Get_UINT32(s);
+
+	if (Stream_GetRemainingLength(s) / 4 < NumberOfTunnels)
+		return FALSE;
+
+	for (UINT16 i = 0; i < NumberOfTunnels; i++)
+	{
+		UINT32 TunnelToSwitch = Stream_Get_UINT32(s);
+
+		(void)TunnelToSwitch;
+	}
+
+	return TRUE;
+}
+
+static BOOL wts_compute_softsync_channels(rdpPeerChannel* channel, wStream* s)
+{
+	//rdpMcs* mcs = channel->client->context->rdp->mcs;
+
+	if (!Stream_EnsureRemainingCapacity(s, 6))
+		return FALSE;
+
+	/* we only support reliable */
+	Stream_Write_UINT32(s, TUNNELTYPE_UDPFECR); /* TunnelType */
+
+	size_t nDVCsPos = Stream_GetPosition(s);
+	Stream_Seek(s, 2); /* skip NumberOfDVCs for now */
+
+	WLog_DBG(TAG, "collecting channels");
+	UINT16 count = 0;
+	for (UINT32 i = 0; i < channel->vcm->dvc_channel_id_seq; i++, count++)
+	{
+		if (!Stream_EnsureRemainingCapacity(s, 4))
+			return FALSE;
+
+		// WLog_DBG(TAG, " * adding '%s', id=%d", mcsChannel->Name, mcsChannel->ChannelId);
+		Stream_Write_UINT32(s, i);
+	}
+
+	wStream sizeStream;
+	Stream_StaticInit(&sizeStream, Stream_Buffer(s) + nDVCsPos, 2);
+	Stream_Write_UINT16(&sizeStream, count); /* NumberOfDVCs */
+	return TRUE;
+}
+
+static BOOL wts_write_softsync_req(rdpPeerChannel* channel, wStream* s)
+{
+	size_t pos1;
+	wStream lengthStream;
+
+	Stream_Write_UINT8(s, (SOFT_SYNC_REQUEST_PDU << 4)); /* cbId, Sp, Cmd */
+	Stream_Zero(s, 1);                                   /* Pad */
+
+	pos1 = Stream_GetPosition(s);
+	Stream_Seek(s, 4); /* skip Length */
+	Stream_Write_UINT16(s, SOFT_SYNC_TCP_FLUSHED | SOFT_SYNC_CHANNEL_LIST_PRESENT); /* Flags */
+	Stream_Write_UINT16(s, 1); /* NumberOfTunnels */
+
+	if (!wts_compute_softsync_channels(channel, s))
+		return FALSE;
+
+	Stream_StaticInit(&lengthStream, Stream_Buffer(s) + pos1, 4);
+	Stream_Write_UINT32(&lengthStream, Stream_GetPosition(s) - pos1);
+	return TRUE;
+}
+
 static void wts_read_drdynvc_close_response(rdpPeerChannel* channel)
 {
 	WINPR_ASSERT(channel);
@@ -295,8 +372,38 @@ static BOOL wts_read_drdynvc_pdu(rdpPeerChannel* channel)
 	Sp = (value & 0x0c) >> 2;
 	cbChId = (value & 0x03) >> 0;
 
-	if (Cmd == CAPABILITY_REQUEST_PDU)
-		return wts_read_drdynvc_capabilities_response(channel, (UINT32)length);
+	switch (Cmd)
+	{
+		case CAPABILITY_REQUEST_PDU:
+		{
+			rdpSettings* settings = channel->client->context->settings;
+
+			if (!wts_read_drdynvc_capabilities_response(channel, length))
+				return FALSE;
+
+			if (settings->SupportMultitransport)
+			{
+				ULONG written;
+				WTSVirtualChannelManager* vcm = channel->vcm;
+				wStream* s = Stream_New(NULL, 1600);
+				BOOL ret;
+
+				if (!wts_write_softsync_req(channel, s))
+					return FALSE;
+
+				ret = WTSVirtualChannelWrite(vcm->drdynvc_channel, (PCHAR)Stream_Buffer(s),
+				                             Stream_GetPosition(s), &written);
+				Stream_Free(s, TRUE);
+				return ret;
+			}
+			return TRUE;
+		}
+		case SOFT_SYNC_REQUEST_PDU:
+			WLog_ERR(TAG, "server not expecting a SOFT_SYNC_REQUEST_PDU");
+			return FALSE;
+		case SOFT_SYNC_RESPONSE_PDU:
+			return wts_read_softsync_resp(channel, channel->receiveData);
+	}
 
 	if (channel->vcm->drdynvc_state == DRDYNVC_STATE_READY)
 	{
@@ -365,7 +472,7 @@ static BOOL wts_read_drdynvc_pdu(rdpPeerChannel* channel)
 
 			case DATA_FIRST_COMPRESSED_PDU:
 			case DATA_COMPRESSED_PDU:
-				WLog_ERR(TAG, "Compressed data not handled");
+				WLog_ERR(TAG, "compressed PDU not handled yet");
 				break;
 
 			case SOFT_SYNC_RESPONSE_PDU:

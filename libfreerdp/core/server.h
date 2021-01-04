@@ -70,6 +70,7 @@ struct rdp_peer_channel
 
 	char channelName[128];
 	CRITICAL_SECTION writeLock;
+	RDP_TRANSPORT_TYPE dvc_transport;
 };
 
 struct WTSVirtualChannelManager
@@ -84,6 +85,7 @@ struct WTSVirtualChannelManager
 	BYTE drdynvc_state;
 	LONG dvc_channel_id_seq;
 	UINT16 dvc_spoken_version;
+	RDP_TRANSPORT_TYPE dvc_default_transport;
 
 	psDVCCreationStatusCallback dvc_creation_status;
 	void* dvc_creation_status_userdata;

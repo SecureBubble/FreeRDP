@@ -69,4 +69,5 @@ extern "C"
 }
 #endif
 
+
 #endif /* FREERDP_CHANNEL_DRDYNVC_H */

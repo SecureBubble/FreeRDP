@@ -55,6 +55,7 @@ extern "C"
 	WINPR_API BOOL GetHandleInformation(HANDLE hObject, LPDWORD lpdwFlags);
 	WINPR_API BOOL SetHandleInformation(HANDLE hObject, DWORD dwMask, DWORD dwFlags);
 
+	/// WINPR_API DWORD winpr_Handle_cleanup(HANDLE handle);
 #endif
 
 #ifdef __cplusplus

@@ -60,6 +60,8 @@ set(${MODULE_PREFIX}_SRCS
     simd.h
     state.h
     state.c
+    bio.c
+    bio.h
     utils.c
     utils.h
     streamdump.c
@@ -117,6 +119,18 @@ set(${MODULE_PREFIX}_SRCS
     rdp.h
     tcp.c
     tcp.h
+	udp.c
+	udp.h
+	udp_peer.c
+	udp_peer.h
+	udpchannel.c
+	udpchannel.h
+	rdpudp.c
+	rdpudp.h
+	rdpudp12.c
+	rdpudp12.h
+	rdpudp3.c
+	rdpudp3.h
     proxy.c
     proxy.h
     tpdu.c

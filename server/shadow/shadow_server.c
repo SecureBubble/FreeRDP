@@ -300,6 +300,20 @@ int shadow_server_parse_command_line(rdpShadowServer* server, int argc, char** a
 				return fail_at(arg, COMMAND_LINE_ERROR);
 			server->maxClientsConnected = val;
 		}
+		CommandLineSwitchCase(arg, "multi-transport")
+		{
+			if (arg->Value)
+			{
+				UINT32 flags = (TRANSPORT_TYPE_UDP_FECR | /*TRANSPORT_TYPE_UDP_FECL |*/
+					     SOFTSYNC_TCP_TO_UDP | TRANSPORT_TYPE_UDP_PREFERRED);
+
+				if (!freerdp_settings_set_bool(settings, FreeRDP_SupportMultitransport,
+						arg->Value ? TRUE : FALSE) ||
+					!freerdp_settings_set_uint32(settings, FreeRDP_MultitransportFlags,
+							flags))
+					return COMMAND_LINE_ERROR;
+			}
+		}
 		CommandLineSwitchCase(arg, "rect")
 		{
 			char* p = NULL;
@@ -625,10 +639,9 @@ static DWORD WINAPI shadow_server_thread(LPVOID arg)
 		DWORD nCount = 0;
 		events[nCount++] = server->StopEvent;
 		nCount += listener->GetEventHandles(listener, &events[nCount], ARRAYSIZE(events) - nCount);
-
 		if (nCount <= 1)
 		{
-			WLog_ERR(TAG, "Failed to get FreeRDP file descriptor");
+			WLog_ERR(TAG, "Failed to get TCP file descriptor");
 			break;
 		}
 
@@ -645,7 +658,7 @@ static DWORD WINAPI shadow_server_thread(LPVOID arg)
 			{
 				if (!listener->CheckFileDescriptor(listener))
 				{
-					WLog_ERR(TAG, "Failed to check FreeRDP file descriptor");
+					WLog_ERR(TAG, "Failed to check TCP file descriptor");
 					running = FALSE;
 				}
 				else
@@ -700,12 +713,24 @@ static BOOL open_port(rdpShadowServer* server, char* address)
 			modaddr++;
 		}
 	}
-	status = server->listener->Open(server->listener, modaddr, (UINT16)server->port);
 
+	status = server->listener->Open(server->listener, modaddr, (UINT16)server->port);
+	if (!status)
+	{
+		WLog_ERR(
+		    TAG,
+		    "Problem creating TCP listener %s:%d. (Port already used or insufficient permissions?)",
+		    modaddr, (UINT16)server->port);
+		return status;
+	}
+
+	status = server->listener->OpenEx(server->listener, modaddr, (UINT16)server->port, TRUE);
 	if (!status)
 	{
 		WLog_ERR(TAG,
-		         "Problem creating TCP listener. (Port already used or insufficient permissions?)");
+		         "Problem creating UDP listener on %s:%d. (Port already used or insufficient "
+		         "permissions?)",
+		         modaddr, (UINT16)server->port);
 	}
 
 	return status;
@@ -986,6 +1011,8 @@ static BOOL shadow_server_check_peer_restrictions(freerdp_listener* listener)
 int shadow_server_init(rdpShadowServer* server)
 {
 	int status = 0;
+	rdpSettings* settings;
+
 	winpr_InitializeSSL(WINPR_SSL_INIT_DEFAULT);
 	WTSRegisterWtsApiFunctionTable(FreeRDP_InitWtsApi());
 
@@ -1006,16 +1033,17 @@ int shadow_server_init(rdpShadowServer* server)
 	if (!shadow_server_init_certificate(server))
 		goto fail;
 
-	server->listener = freerdp_listener_new();
-
+	server->listener = freerdp_listener_new_ex(TRUE, server->settings);
 	if (!server->listener)
 		goto fail;
 
 	server->listener->info = (void*)server;
 	server->listener->CheckPeerAcceptRestrictions = shadow_server_check_peer_restrictions;
 	server->listener->PeerAccepted = shadow_client_accepted;
-	server->subsystem = shadow_subsystem_new();
+	server->listener->NewUdpPeer = shadow_udp_peer_new;
+	server->listener->IdentifyUdpPeer = shadow_identify_udp_peer;
 
+	server->subsystem = shadow_subsystem_new();
 	if (!server->subsystem)
 		goto fail;
 
