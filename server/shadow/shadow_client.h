@@ -26,7 +26,10 @@ extern "C"
 {
 #endif
 
-	BOOL shadow_client_accepted(freerdp_listener* listener, freerdp_peer* peer);
+	BOOL shadow_client_accepted(freerdp_listener* instance, freerdp_peer* peer);
+	BOOL shadow_udp_peer_new(freerdp_listener* listener, ListenerUdpPeer* peer);
+	INT32 shadow_identify_udp_peer(freerdp_listener* listener, UINT32 reqId, const BYTE* cookieHash,
+	                               multiTransportChannel* channel);
 
 #ifdef __cplusplus
 }

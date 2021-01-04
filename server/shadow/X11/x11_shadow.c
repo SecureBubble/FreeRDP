@@ -456,20 +456,19 @@ static void x11_shadow_message_free(UINT32 id, SHADOW_MSG_OUT* msg)
 	switch (id)
 	{
 		case SHADOW_MSG_OUT_POINTER_POSITION_UPDATE_ID:
-			free(msg);
 			break;
 
 		case SHADOW_MSG_OUT_POINTER_ALPHA_UPDATE_ID:
 			free(((SHADOW_MSG_OUT_POINTER_ALPHA_UPDATE*)msg)->xorMaskData);
 			free(((SHADOW_MSG_OUT_POINTER_ALPHA_UPDATE*)msg)->andMaskData);
-			free(msg);
 			break;
 
 		default:
 			WLog_ERR(TAG, "Unknown message id: %" PRIu32 "", id);
-			free(msg);
 			break;
 	}
+
+	free(msg);
 }
 
 static int x11_shadow_pointer_position_update(x11ShadowSubsystem* subsystem)
@@ -484,6 +483,7 @@ static int x11_shadow_pointer_position_update(x11ShadowSubsystem* subsystem)
 
 	templateMsg.xPos = subsystem->common.pointerX;
 	templateMsg.yPos = subsystem->common.pointerY;
+	templateMsg.common.refCount = 0;
 	templateMsg.common.Free = x11_shadow_message_free;
 	server = subsystem->common.server;
 	ArrayList_Lock(server->clients);
@@ -498,7 +498,6 @@ static int x11_shadow_pointer_position_update(x11ShadowSubsystem* subsystem)
 			continue;
 
 		msg = malloc(sizeof(templateMsg));
-
 		if (!msg)
 		{
 			count = -1;
@@ -537,6 +536,7 @@ static int x11_shadow_pointer_alpha_update(x11ShadowSubsystem* subsystem)
 		return -1;
 	}
 
+	msg->common.refCount = 0;
 	msg->common.Free = x11_shadow_message_free;
 	return shadow_client_boardcast_msg(subsystem->common.server, NULL, msgId, (SHADOW_MSG_OUT*)msg,
 	                                   NULL)
@@ -963,7 +963,7 @@ static int x11_shadow_subsystem_process_message(x11ShadowSubsystem* subsystem, w
 	return 1;
 }
 
-static DWORD WINAPI x11_shadow_subsystem_thread(LPVOID arg)
+static DWORD /*WINAPI*/ x11_shadow_subsystem_thread(LPVOID arg)
 {
 	x11ShadowSubsystem* subsystem = (x11ShadowSubsystem*)arg;
 	XEvent xevent;

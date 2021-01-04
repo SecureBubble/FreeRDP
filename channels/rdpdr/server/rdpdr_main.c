@@ -1279,25 +1279,18 @@ static UINT rdpdr_server_receive_io_create_request(RdpdrServerContext* context, 
                                                    WINPR_ATTR_UNUSED UINT32 CompletionId)
 {
 	const WCHAR* path = NULL;
-	UINT32 DesiredAccess = 0;
-	UINT32 AllocationSize = 0;
-	UINT32 FileAttributes = 0;
-	UINT32 SharedAccess = 0;
-	UINT32 CreateDisposition = 0;
-	UINT32 CreateOptions = 0;
-	UINT32 PathLength = 0;
 
 	WINPR_ASSERT(context);
 	if (!Stream_CheckAndLogRequiredLengthWLog(context->priv->log, s, 32))
 		return ERROR_INVALID_DATA;
 
-	Stream_Read_UINT32(s, DesiredAccess);
-	Stream_Read_UINT32(s, AllocationSize);
-	Stream_Read_UINT32(s, FileAttributes);
-	Stream_Read_UINT32(s, SharedAccess);
-	Stream_Read_UINT32(s, CreateDisposition);
-	Stream_Read_UINT32(s, CreateOptions);
-	Stream_Read_UINT32(s, PathLength);
+	UINT32 DesiredAccess = Stream_Get_UINT32(s);
+	UINT32 AllocationSize = Stream_Get_UINT32(s);
+	UINT32 FileAttributes = Stream_Get_UINT32(s);
+	UINT32 SharedAccess = Stream_Get_UINT32(s);
+	UINT32 CreateDisposition = Stream_Get_UINT32(s);
+	UINT32 CreateOptions = Stream_Get_UINT32(s);
+	UINT32 PathLength = Stream_Get_UINT32(s);
 
 	path = rdpdr_read_ustring(context->priv->log, s, PathLength);
 	if (!path && (PathLength > 0))
@@ -1305,7 +1298,16 @@ static UINT rdpdr_server_receive_io_create_request(RdpdrServerContext* context, 
 
 	WLog_Print(context->priv->log, WLOG_WARN,
 	           "[MS-RDPEFS] 2.2.1.4.1 Device Create Request (DR_CREATE_REQ) not implemented");
-	WLog_Print(context->priv->log, WLOG_WARN, "TODO");
+	WLog_Print(context->priv->log, WLOG_WARN, "DesiredAccess=0x%" PRIx32
+			" AllocationSize=0x%" PRIx32
+			" FileAttributes=0x%" PRIx32
+			" SharedAccess=0x%" PRIx32
+			" CreateDisposition=0x%" PRIx32
+			" CreateOptions=0x%" PRIx32
+			" PathLength=0x%" PRIx32,
+			DesiredAccess, AllocationSize, FileAttributes, SharedAccess, CreateDisposition,
+			CreateOptions, PathLength
+			);
 
 	return CHANNEL_RC_OK;
 }
@@ -1395,19 +1397,15 @@ static UINT rdpdr_server_receive_io_device_control_request(RdpdrServerContext* c
                                                            WINPR_ATTR_UNUSED UINT32 FileId,
                                                            WINPR_ATTR_UNUSED UINT32 CompletionId)
 {
-	UINT32 OutputBufferLength = 0;
-	UINT32 InputBufferLength = 0;
-	UINT32 IoControlCode = 0;
-
 	WINPR_ASSERT(context);
 	WINPR_ASSERT(context->priv);
 
 	if (!Stream_CheckAndLogRequiredLengthWLog(context->priv->log, s, 32))
 		return ERROR_INVALID_DATA;
 
-	Stream_Read_UINT32(s, OutputBufferLength);
-	Stream_Read_UINT32(s, InputBufferLength);
-	Stream_Read_UINT32(s, IoControlCode);
+	UINT32 OutputBufferLength = Stream_Get_UINT32(s);
+	UINT32 InputBufferLength = Stream_Get_UINT32(s);
+	UINT32 IoControlCode = Stream_Get_UINT32(s);
 	Stream_Seek(s, 20); /* Padding */
 
 	const BYTE* InputBuffer = Stream_ConstPointer(s);
@@ -1418,7 +1416,7 @@ static UINT rdpdr_server_receive_io_device_control_request(RdpdrServerContext* c
 	WLog_Print(context->priv->log, WLOG_WARN,
 	           "[MS-RDPEFS] 2.2.1.4.5 Device Control Request (DR_CONTROL_REQ) not implemented");
 	WLog_Print(context->priv->log, WLOG_WARN,
-	           "TODO: parse %p [%" PRIu32 "], OutputBufferLength=%" PRIu32,
+	           "TODO: parse ioControlCode=0x%" PRIx32 " %p [%" PRIu32 "], OutputBufferLength=%" PRIu32, IoControlCode,
 	           (const void*)InputBuffer, InputBufferLength, OutputBufferLength);
 
 	return CHANNEL_RC_OK;
@@ -1566,19 +1564,15 @@ static UINT rdpdr_server_receive_io_query_directory_request(RdpdrServerContext* 
                                                             WINPR_ATTR_UNUSED UINT32 FileId,
                                                             WINPR_ATTR_UNUSED UINT32 CompletionId)
 {
-	BYTE InitialQuery = 0;
-	UINT32 FsInformationClass = 0;
-	UINT32 PathLength = 0;
-
 	WINPR_ASSERT(context);
 	WINPR_ASSERT(context->priv);
 
 	if (!Stream_CheckAndLogRequiredLengthWLog(context->priv->log, s, 32))
 		return ERROR_INVALID_DATA;
 
-	Stream_Read_UINT32(s, FsInformationClass);
-	Stream_Read_UINT8(s, InitialQuery);
-	Stream_Read_UINT32(s, PathLength);
+	UINT32 FsInformationClass = Stream_Get_UINT32(s);
+	BYTE InitialQuery = Stream_Get_UINT8(s);
+	UINT32 PathLength = Stream_Get_UINT32(s);
 	Stream_Seek(s, 23); /* Padding */
 
 	const WCHAR* wPath = rdpdr_read_ustring(context->priv->log, s, PathLength);
@@ -1607,8 +1601,6 @@ static UINT rdpdr_server_receive_io_change_directory_request(RdpdrServerContext*
                                                              WINPR_ATTR_UNUSED UINT32 FileId,
                                                              WINPR_ATTR_UNUSED UINT32 CompletionId)
 {
-	BYTE WatchTree = 0;
-	UINT32 CompletionFilter = 0;
 
 	WINPR_ASSERT(context);
 	WINPR_ASSERT(context->priv);
@@ -1616,14 +1608,15 @@ static UINT rdpdr_server_receive_io_change_directory_request(RdpdrServerContext*
 	if (!Stream_CheckAndLogRequiredLengthWLog(context->priv->log, s, 32))
 		return ERROR_INVALID_DATA;
 
-	Stream_Read_UINT8(s, WatchTree);
-	Stream_Read_UINT32(s, CompletionFilter);
+	BYTE WatchTree = Stream_Get_UINT8(s);
+	UINT32 CompletionFilter = Stream_Get_UINT32(s);
 	Stream_Seek(s, 27); /* Padding */
 
 	WLog_Print(context->priv->log, WLOG_WARN,
 	           "[MS-RDPEFS] 2.2.3.3.11 Server Drive NotifyChange Directory Request "
 	           "(DR_DRIVE_NOTIFY_CHANGE_DIRECTORY_REQ) not implemented");
-	WLog_Print(context->priv->log, WLOG_WARN, "TODO");
+	WLog_Print(context->priv->log, WLOG_WARN, "WatchTree=0x%x CompletionFilter=0x%" PRIx32,
+			WatchTree, CompletionFilter);
 
 	return CHANNEL_RC_OK;
 }
@@ -3543,7 +3536,6 @@ static UINT rdpdr_server_drive_rename_file_callback2(RdpdrServerContext* context
                                                      RDPDR_IRP* irp, UINT32 deviceId,
                                                      UINT32 completionId, UINT32 ioStatus)
 {
-	UINT32 length = 0;
 	WINPR_ASSERT(context);
 	WINPR_ASSERT(context->priv);
 	WINPR_ASSERT(irp);
@@ -3555,8 +3547,11 @@ static UINT rdpdr_server_drive_rename_file_callback2(RdpdrServerContext* context
 	if (!Stream_CheckAndLogRequiredLengthWLog(context->priv->log, s, 5))
 		return ERROR_INVALID_DATA;
 
-	Stream_Read_UINT32(s, length); /* Length (4 bytes) */
+	UINT32 length = Stream_Get_UINT32(s); /* Length (4 bytes) */
 	Stream_Seek(s, 1);             /* Padding (1 byte) */
+
+	WINPR_UNUSED(length); // TODO ?
+
 	/* Invoke the rename file completion routine. */
 	context->OnDriveRenameFileComplete(context, irp->CallbackData, ioStatus);
 	/* Setup the IRP. */

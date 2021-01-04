@@ -238,6 +238,7 @@ static BOOL pf_config_load_server(wIniFile* ini, proxyConfig* config)
 	if (!pf_config_get_uint16(ini, section_server, key_port, &config->Port, TRUE))
 		return FALSE;
 
+	config->EnableUdp = pf_config_get_bool(ini, "Server", "EnableUdp", FALSE);
 	return TRUE;
 }
 
@@ -774,6 +775,7 @@ void pf_server_config_print(const proxyConfig* config)
 	CONFIG_PRINT_SECTION(section_server);
 	CONFIG_PRINT_STR(config, Host);
 	CONFIG_PRINT_UINT16(config, Port);
+	CONFIG_PRINT_BOOL(config, EnableUdp);
 
 	if (config->FixedTarget)
 	{

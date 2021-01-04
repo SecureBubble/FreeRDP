@@ -67,6 +67,7 @@ extern "C"
 		proxyChannelDataFn onBackData;
 		proxyChannelContextDtor contextDtor;
 		void* context;
+		RDP_TRANSPORT_TYPE transport;
 	};
 
 	void StaticChannelContext_free(pServerStaticChannelContext* ctx);

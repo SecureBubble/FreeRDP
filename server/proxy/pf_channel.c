@@ -208,6 +208,7 @@ PfChannelResult channelTracker_flushCurrent(ChannelStateTracker* t, BOOL first, 
 		ev.data_len = Stream_GetPosition(currentPacket);
 		ev.flags = flags;
 		ev.total_size = currentPacketSize;
+		ev.transport = channel->transport;
 
 		if (!pdata->pc->sendChannelData)
 			return PF_CHANNEL_RESULT_ERROR;
@@ -217,8 +218,8 @@ PfChannelResult channelTracker_flushCurrent(ChannelStateTracker* t, BOOL first, 
 	}
 
 	ps = pdata->ps;
-	r = ps->context.peer->SendChannelPacket(
-	    ps->context.peer, WINPR_ASSERTING_INT_CAST(UINT16, channel->front_channel_id),
+	r = ps->context.peer->SendChannelPacketEx(
+	    ps->context.peer, channel->transport, WINPR_ASSERTING_INT_CAST(UINT16, channel->front_channel_id),
 	    currentPacketSize, flags, Stream_Buffer(currentPacket), Stream_GetPosition(currentPacket));
 
 	return r ? PF_CHANNEL_RESULT_DROP : PF_CHANNEL_RESULT_ERROR;

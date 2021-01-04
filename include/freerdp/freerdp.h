@@ -49,6 +49,7 @@ extern "C"
 	typedef struct rdp_rdp rdpRdp;
 	typedef struct rdp_rail rdpRail;
 	typedef struct rdp_cache rdpCache;
+	typedef struct rdp_multitransport_channel multiTransportChannel;
 
 	typedef struct rdp_client_context rdpClientContext;
 	typedef struct rdp_client_entry_points_v1 RDP_CLIENT_ENTRY_POINTS_V1;
@@ -177,7 +178,7 @@ extern "C"
 	/** @brief The function is called whenever the connection requires an access token.
 	 *  It differs from \ref pGetAccessToken and is not meant to be implemented by a client
 	 * directly. The client-common library will use this to provide common means to retrieve a token
-	 * and only if that fails the instanc->GetAccessToken callback will be called.
+	 * and only if that fails the instance->GetAccessToken callback will be called.
 	 *
 	 *  @param context The context the function is called for
 	 *  @param tokenType The type of token requested
@@ -318,6 +319,10 @@ extern "C"
 	                                 size_t size);
 	typedef BOOL (*pSendChannelPacket)(freerdp* instance, UINT16 channelId, size_t totalSize,
 	                                   UINT32 flags, const BYTE* data, size_t chunkSize);
+	typedef BOOL (*pSendChannelPacketEx)(freerdp* instance, RDP_TRANSPORT_TYPE transport,
+	                                     UINT16 channelId, size_t totalSize, UINT32 flags,
+	                                     const BYTE* data, size_t chunkSize);
+	typedef BOOL (*pUdpChannelEstablished)(freerdp* instance, multiTransportChannel* channel);
 	typedef BOOL (*pReceiveChannelData)(freerdp* instance, UINT16 channelId, const BYTE* data,
 	                                    size_t size, UINT32 flags, size_t totalSize);
 
@@ -603,7 +608,8 @@ owned by rdpRdp */
 		                                            for \b AccessTokenType authentication */
 		ALIGN64 pRetryDialog RetryDialog; /* (offset 72) Callback for displaying a dialog in case of
 		                                     something needs a retry */
-		UINT64 paddingE[80 - 73];         /* 73 */
+		ALIGN64 pSendChannelPacketEx SendChannelPacketEx; /* (offset 73) remove as unused ???? */
+		UINT64 paddingE[80 - 74];                         /* 74 */
 	};
 
 	struct rdp_channel_handles
@@ -682,6 +688,7 @@ owned by rdpRdp */
 	FREERDP_API BOOL freerdp_send_error_info(rdpRdp* rdp);
 	FREERDP_API BOOL freerdp_get_stats(const rdpRdp* rdp, UINT64* inBytes, UINT64* outBytes,
 	                                   UINT64* inPackets, UINT64* outPackets);
+	FREERDP_API BOOL freerdp_send_udp(rdpRdp* rdp, BOOL lossy, wStream* headers, wStream* payload);
 
 	FREERDP_API void freerdp_get_version(int* major, int* minor, int* revision);
 	FREERDP_API const char* freerdp_get_version_string(void);

@@ -24,29 +24,24 @@
 #include "settings.h"
 #include "rdp.h"
 #include "multitransport.h"
-
-struct rdp_multitransport
-{
-	rdpRdp* rdp;
-
-	MultiTransportRequestCb MtRequest;
-	MultiTransportResponseCb MtResponse;
-
-	/* server-side data */
-	UINT32 reliableReqId;
-
-	BYTE reliableCookie[RDPUDP_COOKIE_LEN];
-	BYTE reliableCookieHash[RDPUDP_COOKIE_HASHLEN];
-};
+#include "udpchannel.h"
 
 enum
 {
-	RDPTUNNEL_ACTION_CREATEREQUEST = 0x00,
-	RDPTUNNEL_ACTION_CREATERESPONSE = 0x01,
-	RDPTUNNEL_ACTION_DATA = 0x02
+	CHANNEL_INDEX_RELIABLE = 0,
+	CHANNEL_INDEX_LOSSY = 1
 };
 
 #define TAG FREERDP_TAG("core.multitransport")
+
+BOOL multitransport_match_reliable(rdpMultitransport* multi, UINT16 reqId, const BYTE* cookie)
+{
+	WINPR_ASSERT(multi);
+	WINPR_ASSERT(cookie);
+
+	return (multi->reliableReqId == reqId) &&
+	       memcmp(cookie, multi->reliableCookie, RDPUDP_COOKIE_LEN) == 0;
+}
 
 state_run_t multitransport_recv_request(rdpMultitransport* multi, wStream* s)
 {
@@ -146,7 +141,7 @@ BOOL multitransport_client_send_response(rdpMultitransport* multi, UINT32 reqId,
 	if (!s)
 		return FALSE;
 
-	if (!Stream_EnsureRemainingCapacity(s, 28))
+	if (!Stream_EnsureRemainingCapacity(s, 8))
 	{
 		Stream_Release(s);
 		return FALSE;
@@ -178,21 +173,55 @@ state_run_t multitransport_recv_response(rdpMultitransport* multi, wStream* s)
 	if (!Stream_CheckAndLogRequiredLength(TAG, s, 8))
 		return STATE_RUN_FAILED;
 
-	UINT32 requestId = 0;
-	UINT32 hr = 0;
-
-	Stream_Read_UINT32(s, requestId); /* requestId (4 bytes) */
-	Stream_Read_UINT32(s, hr);        /* hrResponse (4 bytes) */
+	UINT32 requestId = Stream_Get_UINT32(s); /* requestId (4 bytes) */
+	UINT32 hr = Stream_Get_UINT32(s);        /* hrResponse (4 bytes) */
 
 	state_run_t res = STATE_RUN_SUCCESS;
 	IFCALLRET(multi->MtResponse, res, multi, requestId, hr);
 	return res;
 }
 
-static state_run_t multitransport_no_udp(rdpMultitransport* multi, UINT32 reqId,
-                                         WINPR_ATTR_UNUSED UINT16 reqProto,
-                                         WINPR_ATTR_UNUSED const BYTE* cookie)
+static state_run_t multitransport_udp(rdpMultitransport* multi, UINT32 reqId,
+                                         UINT16 reqProto,
+                                         const BYTE* cookie)
 {
+	int channelIndex;
+	const char* channelTypeStr;
+
+	if (reqProto & INITIATE_REQUEST_PROTOCOL_UDPFECR)
+	{
+		channelIndex = CHANNEL_INDEX_RELIABLE;
+		channelTypeStr = "reliable";
+	}
+	else if (reqProto & INITIATE_REQUEST_PROTOCOL_UDPFECL)
+	{
+		channelIndex = CHANNEL_INDEX_LOSSY;
+		channelTypeStr = "lossy";
+	}
+	else
+	{
+		WLog_ERR(TAG, "invalid requested proto");
+		goto out_error;
+	}
+
+	if (multi->channels[channelIndex])
+	{
+		WLog_ERR(TAG, "error %s channel already set", channelTypeStr);
+		goto out_error;
+	}
+
+	multiTransportChannel* channel = multitransportchannel_client_new(
+	    multi, reqId, !!(reqProto & INITIATE_REQUEST_PROTOCOL_UDPFECL), cookie);
+	if (!channel)
+	{
+		WLog_ERR(TAG, "error creating %s channel", channelTypeStr);
+		goto out_error;
+	}
+
+	multi->channels[channelIndex] = channel;
+	return STATE_RUN_SUCCESS;
+
+out_error:
 	return multitransport_client_send_response(multi, reqId, E_ABORT) ? STATE_RUN_SUCCESS
 	                                                                  : STATE_RUN_FAILED;
 }
@@ -226,14 +255,54 @@ rdpMultitransport* multitransport_new(rdpRdp* rdp, WINPR_ATTR_UNUSED UINT16 prot
 	}
 	else
 	{
-		multi->MtRequest = multitransport_no_udp;
+		multi->MtRequest = multitransport_udp;
 	}
 
 	multi->rdp = rdp;
 	return multi;
 }
 
-void multitransport_free(rdpMultitransport* multitransport)
+void multitransport_free(rdpMultitransport* multi)
 {
-	free(multitransport);
+	for (int i = 0; i < 2; i++)
+	{
+		if (multi->channels[i])
+			multitransportchannel_free(&multi->channels[i]);
+	}
+	free(multi);
+}
+
+DWORD multitransport_get_event_handles(rdpMultitransport* multi, HANDLE* events, DWORD count)
+{
+	DWORD ret = 0;
+	int i;
+
+	for (i = 0; (i < 2) && (ret <= count); i++)
+	{
+		multiTransportChannel* channel = multi->channels[i];
+		if (!channel)
+			continue;
+
+		if (!multitransportchannel_handles(channel, &events[ret], &ret))
+			return 0;
+	}
+
+	return ret;
+}
+
+int multitransport_check_fds(rdpMultitransport* multi)
+{
+	int status = 0;
+	int i;
+
+	for (i = 0; i < 2; i++)
+	{
+		multiTransportChannel* channel = multi->channels[i];
+		if (!channel)
+			continue;
+
+		status = multitransportchannel_checkfds(channel);
+	}
+
+	return status;
 }

@@ -927,7 +927,8 @@ rdpSettings* freerdp_settings_new(DWORD flags)
 	    !freerdp_settings_set_uint32(settings, FreeRDP_AuthenticationLevel, 2) ||
 	    !freerdp_settings_set_uint32(settings, FreeRDP_ChannelCount, 0) ||
 	    !freerdp_settings_set_bool(settings, FreeRDP_CertificateCallbackPreferPEM, FALSE) ||
-	    !freerdp_settings_set_uint32(settings, FreeRDP_KeySpec, AT_KEYEXCHANGE))
+	    !freerdp_settings_set_uint32(settings, FreeRDP_KeySpec, AT_KEYEXCHANGE) ||
+	    !freerdp_settings_set_uint32(settings, FreeRDP_MaxPendingUdpPackets, 30))
 		goto out_fail;
 
 	if (!freerdp_settings_set_pointer_len(settings, FreeRDP_ChannelDefArray, NULL,
@@ -953,7 +954,7 @@ rdpSettings* freerdp_settings_new(DWORD flags)
 		goto out_fail;
 
 	if (!freerdp_settings_set_uint32(settings, FreeRDP_MultitransportFlags,
-	                                 TRANSPORT_TYPE_UDP_FECR))
+	                                 TRANSPORT_TYPE_UDP_FECR | SOFTSYNC_TCP_TO_UDP))
 		goto out_fail;
 	if (!freerdp_settings_set_bool(settings, FreeRDP_SupportMultitransport, TRUE))
 		goto out_fail;
@@ -1544,6 +1545,31 @@ out_fail:
 	WINPR_PRAGMA_DIAG_POP
 	return NULL;
 }
+
+BOOL freerdp_settings_generate_correlationId(rdpSettings* settings)
+{
+	BYTE *tmp = realloc(settings->CorrelationId, 16);
+	if (!tmp)
+		return FALSE;
+
+	settings->CorrelationId = tmp;
+
+	do
+	{
+		/**
+		 * correlationId (16 bytes): An array of sixteen 8-bit, unsigned integers that specifies
+		 * a unique identifier to associate with the connection. The first byte in the array
+		 * SHOULD NOT have a value of 0x00 or 0xF4 and the value 0x0D SHOULD NOT be contained in
+		 * any of the bytes.
+		 */
+		winpr_RAND(settings->CorrelationId, 16);
+	} while (settings->CorrelationId[0] == 0 || settings->CorrelationId[0] == 0xF4 ||
+	         memchr(settings->CorrelationId, 0x0D, 16));
+
+	settings->UseCorrelationId = TRUE;
+	return TRUE;
+}
+
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif

@@ -376,6 +376,7 @@ BOOL freerdp_check_fds(freerdp* instance)
 
 DWORD freerdp_get_event_handles(rdpContext* context, HANDLE* events, DWORD count)
 {
+	HANDLE* targetEvents;
 	DWORD nCount = 0;
 
 	WINPR_ASSERT(context);
@@ -387,6 +388,10 @@ DWORD freerdp_get_event_handles(rdpContext* context, HANDLE* events, DWORD count
 		return 0;
 
 	nCount += WINPR_ASSERTING_INT_CAST(uint32_t, rrc);
+
+	targetEvents = events ? &events[nCount] : NULL;
+	nCount += multitransport_get_event_handles(context->rdp->multitransport, targetEvents,
+	                                           (count - nCount));
 
 	if (events && (nCount < count + 2))
 	{
@@ -596,6 +601,18 @@ static BOOL freerdp_send_channel_packet(freerdp* instance, UINT16 channelId, siz
 	return rdp_channel_send_packet(instance->context->rdp, channelId, totalSize, flags, data,
 	                               chunkSize);
 }
+
+static BOOL freerdp_send_channel_packet_ex(freerdp* instance, RDP_TRANSPORT_TYPE transport, UINT16 channelId, size_t totalSize,
+                                        UINT32 flags, const BYTE* data, size_t chunkSize)
+{
+	WINPR_ASSERT(instance);
+	WINPR_ASSERT(instance->context);
+	WINPR_ASSERT(instance->context->rdp);
+	/* TODO */
+	return rdp_channel_send_packet(instance->context->rdp, channelId, totalSize, flags, data,
+	                               chunkSize);
+}
+
 
 BOOL freerdp_disconnect(freerdp* instance)
 {
@@ -1254,6 +1271,7 @@ freerdp* freerdp_new(void)
 	instance->ContextSize = sizeof(rdpContext);
 	instance->SendChannelData = freerdp_send_channel_data;
 	instance->SendChannelPacket = freerdp_send_channel_packet;
+	instance->SendChannelPacketEx = freerdp_send_channel_packet_ex;
 	instance->ReceiveChannelData = freerdp_channels_data;
 	return instance;
 }

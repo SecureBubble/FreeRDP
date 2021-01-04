@@ -516,6 +516,14 @@ static BOOL pf_server_initialize_peer_connection(freerdp_peer* peer)
 			return FALSE;
 	}
 
+	if (config->EnableUdp)
+	{
+		UINT32 flags = (TRANSPORT_TYPE_UDP_FECR | SOFTSYNC_TCP_TO_UDP | TRANSPORT_TYPE_UDP_PREFERRED);
+		if (!freerdp_settings_set_bool(settings, FreeRDP_SupportMultitransport, TRUE) ||
+			!freerdp_settings_set_uint32(settings, FreeRDP_MultitransportFlags, flags))
+					return FALSE;
+	}
+
 	if (config->RemoteApp)
 	{
 		const UINT32 mask =
@@ -567,6 +575,55 @@ static BOOL pf_server_initialize_peer_connection(freerdp_peer* peer)
 	return TRUE;
 }
 
+/** @brief kind of message sent to the per peer thread */
+typedef enum
+{
+	PROXY_MSG_UDP_PEER = 1
+} ProxyMessageType;
+
+static BOOL pf_peer_treat_msgQueue(proxyPeer* peer)
+{
+	wMessage msg;
+
+	while (peer->doRun && MessageQueue_Peek(peer->msg_queue, &msg, TRUE))
+	{
+		switch (msg.id)
+		{
+			case WMQ_QUIT:
+				peer->doRun = FALSE;
+				break;
+			case PROXY_MSG_UDP_PEER:
+			{
+				/* the listener thread is giving this UDP connection to associated with us */
+				multiTransportChannel* channel = (multiTransportChannel*)msg.wParam;
+				freerdp_peer* rdpPeer = peer->client->context->peer;
+
+				rdpPeer->AssociateUdpConn(rdpPeer, channel);
+				break;
+			}
+
+			default:
+				break;
+		}
+
+		if (msg.Free)
+			msg.Free(&msg);
+	}
+	return TRUE;
+}
+
+static void pf_peer_free_queued_message(void* obj)
+{
+	wMessage* message = (wMessage*)obj;
+
+	WINPR_ASSERT(message);
+	if (message->Free)
+	{
+		message->Free(message);
+		message->Free = NULL;
+	}
+}
+
 /**
  * Handles an incoming client connection, to be run in it's own thread.
  *
@@ -577,11 +634,12 @@ static DWORD WINAPI pf_server_handle_peer(LPVOID arg)
 	HANDLE eventHandles[MAXIMUM_WAIT_OBJECTS] = { 0 };
 	pServerContext* ps = NULL;
 	proxyData* pdata = NULL;
-	peer_thread_args* args = arg;
+	proxyPeer* peer = (proxyPeer*)arg;
+	freerdp_peer* client = peer->client;
+	DWORD baseEventCount = 0;
+	DWORD msgQueueIndex = 0;
 
-	WINPR_ASSERT(args);
-
-	freerdp_peer* client = args->client;
+	WINPR_ASSERT(peer);
 	WINPR_ASSERT(client);
 
 	proxyServer* server = (proxyServer*)client->ContextExtra;
@@ -616,31 +674,34 @@ static DWORD WINAPI pf_server_handle_peer(LPVOID arg)
 	if (!pf_modules_run_hook(pdata->module, HOOK_TYPE_SERVER_SESSION_STARTED, pdata, client))
 		goto out_free_peer;
 
-	while (1)
+	/* these events aren't supposed to change, so we set them just once */
+	WINPR_ASSERT(pdata->abort_event && (pdata->abort_event != INVALID_HANDLE_VALUE));
+	eventHandles[baseEventCount++] = pdata->abort_event;
+	eventHandles[baseEventCount++] = server->stopEvent;
+
+	msgQueueIndex = baseEventCount;
+	eventHandles[baseEventCount++] = MessageQueue_Event(peer->msg_queue);
+
+	while (peer->doRun)
 	{
 		HANDLE ChannelEvent = INVALID_HANDLE_VALUE;
-		DWORD eventCount = 0;
-		{
-			WINPR_ASSERT(client->GetEventHandles);
-			const DWORD tmp = client->GetEventHandles(client, &eventHandles[eventCount],
-			                                          ARRAYSIZE(eventHandles) - eventCount);
+		DWORD eventCount = baseEventCount;
 
-			if (tmp == 0)
-			{
-				PROXY_LOG_ERR(TAG, ps, "Failed to get FreeRDP transport event handles");
-				break;
-			}
-
-			eventCount += tmp;
-		}
-		/* Main client event handling loop */
 		ChannelEvent = WTSVirtualChannelManagerGetEventHandle(ps->vcm);
-
 		WINPR_ASSERT(ChannelEvent && (ChannelEvent != INVALID_HANDLE_VALUE));
-		WINPR_ASSERT(pdata->abort_event && (pdata->abort_event != INVALID_HANDLE_VALUE));
 		eventHandles[eventCount++] = ChannelEvent;
-		eventHandles[eventCount++] = pdata->abort_event;
-		eventHandles[eventCount++] = server->stopEvent;
+
+		WINPR_ASSERT(client->GetEventHandles);
+		const DWORD tmp = client->GetEventHandles(client, &eventHandles[eventCount],
+		                              ARRAYSIZE(eventHandles) - eventCount);
+		if (tmp == 0)
+		{
+			WLog_ERR(TAG, "Failed to get FreeRDP transport event handles");
+			break;
+		}
+		eventCount += tmp;
+
+		/* Main client event handling loop */
 
 		const DWORD status = WaitForMultipleObjects(
 		    eventCount, eventHandles, FALSE, 1000); /* Do periodic polling to avoid client hang */
@@ -649,6 +710,20 @@ static DWORD WINAPI pf_server_handle_peer(LPVOID arg)
 		{
 			PROXY_LOG_ERR(TAG, ps, "WaitForMultipleObjects failed (status: %" PRIu32 ")", status);
 			break;
+		}
+
+		if ((status <= WAIT_OBJECT_0 + 1) &&
+		    WaitForSingleObject(server->stopEvent, 0) == WAIT_OBJECT_0)
+		{
+			WLog_INFO(TAG, "Server shutting down, terminating peer");
+			break;
+		}
+
+		if (status <= (WAIT_OBJECT_0 + msgQueueIndex) &&
+		    WaitForSingleObject(MessageQueue_Event(peer->msg_queue), 0) == WAIT_OBJECT_0)
+		{
+			if (!pf_peer_treat_msgQueue(peer))
+				;
 		}
 
 		WINPR_ASSERT(client->CheckFileDescriptor);
@@ -665,16 +740,10 @@ static DWORD WINAPI pf_server_handle_peer(LPVOID arg)
 		}
 
 		/* only disconnect after checking client's and vcm's file descriptors  */
-		if (proxy_data_shall_disconnect(pdata))
+		if (status == WAIT_OBJECT_0 && proxy_data_shall_disconnect(pdata))
 		{
 			PROXY_LOG_INFO(TAG, ps, "abort event is set, closing connection with peer %s",
 			               client->hostname);
-			break;
-		}
-
-		if (WaitForSingleObject(server->stopEvent, 0) == WAIT_OBJECT_0)
-		{
-			PROXY_LOG_INFO(TAG, ps, "Server shutting down, terminating peer");
 			break;
 		}
 
@@ -734,7 +803,7 @@ out_free_peer:
 
 	{
 		ArrayList_Lock(server->peer_list);
-		ArrayList_Remove(server->peer_list, args->thread);
+		ArrayList_Remove(server->peer_list, peer);
 		count = ArrayList_Count(server->peer_list);
 		ArrayList_Unlock(server->peer_list);
 	}
@@ -746,15 +815,13 @@ out_free_peer:
 #if defined(WITH_DEBUG_EVENTS)
 	DumpEventHandles();
 #endif
-	free(args);
+	free(peer);
 	ExitThread(0);
 	return 0;
 }
 
 static BOOL pf_server_start_peer(freerdp_peer* client)
 {
-	HANDLE hThread = NULL;
-	proxyServer* server = NULL;
 	peer_thread_args* args = calloc(1, sizeof(peer_thread_args));
 	if (!args)
 		return FALSE;
@@ -762,10 +829,10 @@ static BOOL pf_server_start_peer(freerdp_peer* client)
 	WINPR_ASSERT(client);
 	args->client = client;
 
-	server = (proxyServer*)client->ContextExtra;
+	proxyServer* server = (proxyServer*)client->ContextExtra;
 	WINPR_ASSERT(server);
 
-	hThread = CreateThread(NULL, 0, pf_server_handle_peer, args, CREATE_SUSPENDED, NULL);
+	HANDLE hThread = CreateThread(NULL, 0, pf_server_handle_peer, args, CREATE_SUSPENDED, NULL);
 	if (!hThread)
 	{
 		free(args);
@@ -799,6 +866,7 @@ static BOOL pf_server_peer_accepted(freerdp_listener* listener, freerdp_peer* cl
 BOOL pf_server_start(proxyServer* server)
 {
 	WSADATA wsaData;
+	proxyConfig* config;
 
 	WINPR_ASSERT(server);
 
@@ -811,22 +879,44 @@ BOOL pf_server_start(proxyServer* server)
 	WINPR_ASSERT(server->config);
 	WINPR_ASSERT(server->listener);
 	WINPR_ASSERT(server->listener->Open);
-	if (!server->listener->Open(server->listener, server->config->Host, server->config->Port))
+	config = server->config;
+	if (!server->listener->Open(server->listener, config->Host, config->Port))
 	{
 		switch (errno)
 		{
 			case EADDRINUSE:
-				WLog_ERR(TAG, "failed to start listener: address already in use!");
+				WLog_ERR(TAG, "failed to start TCP listener: address already in use!");
 				break;
 			case EACCES:
-				WLog_ERR(TAG, "failed to start listener: insufficient permissions!");
+				WLog_ERR(TAG, "failed to start TCP listener: insufficient permissions!");
 				break;
 			default:
-				WLog_ERR(TAG, "failed to start listener: errno=%d", errno);
+				WLog_ERR(TAG, "failed to start TCP listener: errno=%d", errno);
 				break;
 		}
 
 		goto error;
+	}
+
+	if (config->EnableUdp)
+	{
+		if (!server->listener->OpenEx(server->listener, config->Host, config->Port, TRUE))
+		{
+			switch (errno)
+			{
+				case EADDRINUSE:
+					WLog_ERR(TAG, "failed to start UDP listener: address already in use!");
+					break;
+				case EACCES:
+					WLog_ERR(TAG, "failed to start UDP listener: insufficient permissions!");
+					break;
+				default:
+					WLog_ERR(TAG, "failed to start UDP listener: errno=%d", errno);
+					break;
+			}
+
+			goto error;
+		}
 	}
 
 	return TRUE;
@@ -877,8 +967,7 @@ error:
 
 BOOL pf_server_start_with_peer_socket(proxyServer* server, int peer_fd)
 {
-	struct sockaddr_storage peer_addr;
-	socklen_t len = sizeof(peer_addr);
+	PeerAddr peer_addr;
 	freerdp_peer* client = NULL;
 
 	WINPR_ASSERT(server);
@@ -890,12 +979,12 @@ BOOL pf_server_start_with_peer_socket(proxyServer* server, int peer_fd)
 	if (!client)
 		goto fail;
 
-	if (getpeername(peer_fd, (struct sockaddr*)&peer_addr, &len) != 0)
+	peer_addr.len = sizeof(peer_addr.addr);
+	if (getpeername(peer_fd, (struct sockaddr*)&peer_addr.addr, &peer_addr.len) != 0)
 		goto fail;
 
-	if (!freerdp_peer_set_local_and_hostname(client, &peer_addr))
-		goto fail;
-
+	peer_addr_computation(&peer_addr.addr, &client->local, client->hostname, sizeof(client->hostname),
+	                      FALSE);
 	client->ContextExtra = server;
 
 	if (!pf_server_start_peer(client))
@@ -927,14 +1016,65 @@ static BOOL are_all_required_modules_loaded(proxyModule* module, const proxyConf
 
 static void peer_free(void* obj)
 {
-	HANDLE hdl = (HANDLE)obj;
-	(void)CloseHandle(hdl);
+	proxyPeer* peer = (proxyPeer*)obj;
+
+	/* Threads have been notified about pending termination at this point.
+	 */
+	if (peer->hThread != _GetCurrentThread())
+		WaitForSingleObject(peer->hThread, INFINITE);
+	CloseHandle(peer->hThread);
+}
+
+static BOOL findPeerCb(void* data, size_t index, va_list ap)
+{
+	rdpMultitransport* multi;
+
+	UINT32 reqId = va_arg(ap, UINT32);
+	const BYTE* cookie = va_arg(ap, const BYTE*);
+	multiTransportChannel* channel = va_arg(ap, multiTransportChannel*);
+	proxyPeer* peer = (proxyPeer*)data;
+	rdpContext* context = peer->client->context;
+	rdpSettings* settings = context->settings;
+
+	multi = context->peer->multitransport;
+
+	if (!multitransport_match_reliable(multi, reqId, cookie))
+		return TRUE;
+
+	WLog_DBG(TAG, "connection from %s, found match with proxyPeer %s",
+			freerdp_settings_get_string(settings, FreeRDP_ClientAddress),
+			freerdp_settings_get_string(settings, FreeRDP_ClientHostname)
+	);
+
+	multitransportchannel_setExternalHandling(channel, TRUE);
+
+	if (!MessageQueue_Post(peer->msg_queue, NULL, PROXY_MSG_UDP_PEER, channel, NULL))
+	{
+		WLog_ERR(TAG, "unable to post PROXY_MSG_UDP_PEER");
+		return FALSE;
+	}
+
+	return FALSE;
+}
+
+INT32 pf_server_identify_udp_peer(freerdp_listener* listener, UINT32 reqId, const BYTE* cookieHash,
+                                  multiTransportChannel* channel)
+{
+	INT32 res = ERROR_SUCCESS;
+	proxyServer* server = (proxyServer*)listener->info;
+
+	if (ArrayList_ForEach(server->peer_list, findPeerCb, reqId, cookieHash, channel))
+		res = ERROR_NOT_FOUND;
+
+	return res;
 }
 
 proxyServer* pf_server_new(const proxyConfig* config)
 {
 	wObject* obj = NULL;
 	proxyServer* server = NULL;
+	freerdp_listener* listener;
+	rdpSettings* listenerSettings = NULL;
 
 	WINPR_ASSERT(config);
 
@@ -961,8 +1101,30 @@ proxyServer* pf_server_new(const proxyConfig* config)
 	if (!server->stopEvent)
 		goto out;
 
-	server->listener = freerdp_listener_new();
-	if (!server->listener)
+	if (config->EnableUdp)
+	{
+		UINT32 flags = (TRANSPORT_TYPE_UDP_FECR | SOFTSYNC_TCP_TO_UDP | TRANSPORT_TYPE_UDP_PREFERRED);
+		listenerSettings = freerdp_settings_new(FREERDP_SETTINGS_SERVER_MODE);
+
+		if (!freerdp_settings_set_bool(listenerSettings, FreeRDP_SupportMultitransport, TRUE) ||
+			!freerdp_settings_set_uint32(listenerSettings, FreeRDP_MultitransportFlags, flags))
+			goto out;
+
+		rdpPrivateKey* key = freerdp_key_new_from_file(config->PrivateKeyFile);
+		if (!key)
+			goto out;
+		if (!freerdp_settings_set_pointer_len(listenerSettings, FreeRDP_RdpServerRsaKey, key, 1))
+			goto out;
+
+		rdpCertificate* cert = freerdp_certificate_new_from_file(config->CertificateFile);
+		if (!cert)
+			goto out;
+		if (!freerdp_settings_set_pointer_len(listenerSettings, FreeRDP_RdpServerCertificate, cert, 1))
+			goto out;
+	}
+
+	server->listener = listener = freerdp_listener_new_ex(config->EnableUdp, listenerSettings);
+	if (!listener)
 		goto out;
 
 	server->peer_list = ArrayList_New(FALSE);
@@ -974,8 +1136,12 @@ proxyServer* pf_server_new(const proxyConfig* config)
 
 	obj->fnObjectFree = peer_free;
 
-	server->listener->info = server;
-	server->listener->PeerAccepted = pf_server_peer_accepted;
+	listener->info = server;
+	listener->PeerAccepted = pf_server_peer_accepted;
+	if (config->EnableUdp)
+	{
+		listener->IdentifyUdpPeer = pf_server_identify_udp_peer;
+	}
 
 	if (!pf_modules_add(server->module, pf_config_plugin, (void*)server->config))
 		goto out;

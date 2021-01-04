@@ -2,7 +2,8 @@
 #define TEST_SETTINGS_PROPERTY_LISTS
 
 #define have_bool_list_indices
-static const size_t bool_list_indices[] = {
+static const size_t bool_list_indices[] =
+{
 	FreeRDP_AadSecurity,
 	FreeRDP_AllowCacheWaitingList,
 	FreeRDP_AllowDesktopComposition,
@@ -201,7 +202,8 @@ static const size_t bool_list_indices[] = {
 };
 
 #define have_uint16_list_indices
-static const size_t uint16_list_indices[] = {
+static const size_t uint16_list_indices[] =
+{
 	FreeRDP_CapsGeneralCompressionLevel,
 	FreeRDP_CapsGeneralCompressionTypes,
 	FreeRDP_CapsProtocolVersion,
@@ -218,7 +220,8 @@ static const size_t uint16_list_indices[] = {
 };
 
 #define have_uint32_list_indices
-static const size_t uint32_list_indices[] = {
+static const size_t uint32_list_indices[] =
+{
 	FreeRDP_AcceptedCertLength,
 	FreeRDP_AuthenticationLevel,
 	FreeRDP_AutoReconnectMaxRetries,
@@ -278,6 +281,7 @@ static const size_t uint32_list_indices[] = {
 	FreeRDP_KeyboardType,
 	FreeRDP_LargePointerFlag,
 	FreeRDP_LoadBalanceInfoLength,
+	FreeRDP_MaxPendingUdpPackets,
 	FreeRDP_MonitorAttributeFlags,
 	FreeRDP_MonitorCount,
 	FreeRDP_MonitorDefArraySize,
@@ -319,6 +323,7 @@ static const size_t uint32_list_indices[] = {
 	FreeRDP_RemoteFxCodecId,
 	FreeRDP_RemoteFxCodecMode,
 	FreeRDP_RemoteFxRlgrMode,
+	FreeRDP_RemoteMultitransportFlags,
 	FreeRDP_RemoteWndSupportLevel,
 	FreeRDP_RequestedProtocols,
 	FreeRDP_SelectedProtocol,
@@ -346,7 +351,8 @@ static const size_t uint32_list_indices[] = {
 };
 
 #define have_int32_list_indices
-static const size_t int32_list_indices[] = {
+static const size_t int32_list_indices[] =
+{
 	FreeRDP_MonitorLocalShiftX,
 	FreeRDP_MonitorLocalShiftY,
 	FreeRDP_XPan,
@@ -354,13 +360,15 @@ static const size_t int32_list_indices[] = {
 };
 
 #define have_uint64_list_indices
-static const size_t uint64_list_indices[] = {
+static const size_t uint64_list_indices[] =
+{
 	FreeRDP_MonitorOverrideFlags,
 	FreeRDP_ParentWindowId,
 };
 
 #define have_string_list_indices
-static const size_t string_list_indices[] = {
+static const size_t string_list_indices[] =
+{
 	FreeRDP_AadServerHostname,
 	FreeRDP_AcceptedCert,
 	FreeRDP_ActionScript,
@@ -470,7 +478,8 @@ static const size_t string_list_indices[] = {
 };
 
 #define have_pointer_list_indices
-static const size_t pointer_list_indices[] = {
+static const size_t pointer_list_indices[] =
+{
 	FreeRDP_BitmapCacheV2CellInfo,
 	FreeRDP_ChannelDefArray,
 	FreeRDP_ClientAutoReconnectCookie,
@@ -505,3 +514,4 @@ static const size_t pointer_list_indices[] = {
 };
 
 #endif /* TEST_SETTINGS_PROPERTY_LISTS */
+

@@ -27,6 +27,7 @@
 #include <freerdp/update.h>
 #include <freerdp/autodetect.h>
 #include <freerdp/redirection.h>
+#include <freerdp/multitransport.h>
 
 #include <winpr/sspi.h>
 #include <winpr/ntlm.h>
@@ -37,6 +38,9 @@
 extern "C"
 {
 #endif
+
+	typedef struct rdp_multitransport rdpMultitransport;
+	typedef struct rdp_multitransport_channel multiTransportChannel;
 
 	typedef BOOL (*psPeerContextNew)(freerdp_peer* peer, rdpContext* context);
 	typedef void (*psPeerContextFree)(freerdp_peer* peer, rdpContext* context);
@@ -90,15 +94,16 @@ extern "C"
 	                                            const rdpRedirection* redirection);
 	typedef BOOL (*psPeerAdjustMonitorsLayout)(freerdp_peer* peer);
 	typedef BOOL (*psPeerClientCapabilities)(freerdp_peer* peer);
-
 	typedef BOOL (*psPeerSendChannelData)(freerdp_peer* peer, UINT16 channelId, const BYTE* data,
 	                                      size_t size);
 	typedef BOOL (*psPeerSendChannelPacket)(freerdp_peer* client, UINT16 channelId,
 	                                        size_t totalSize, UINT32 flags, const BYTE* data,
 	                                        size_t chunkSize);
+	typedef BOOL (*psPeerSendChannelPacketEx)(freerdp_peer* client, RDP_TRANSPORT_TYPE transport,
+	                                          UINT16 channelId, size_t totalSize, UINT32 flags,
+	                                          const BYTE* data, size_t chunkSize);
 	typedef BOOL (*psPeerReceiveChannelData)(freerdp_peer* peer, UINT16 channelId, const BYTE* data,
 	                                         size_t size, UINT32 flags, size_t totalSize);
-
 	typedef HANDLE (*psPeerVirtualChannelOpen)(freerdp_peer* peer, const char* name, UINT32 flags);
 	typedef BOOL (*psPeerVirtualChannelClose)(freerdp_peer* peer, HANDLE hChannel);
 	typedef int (*psPeerVirtualChannelRead)(freerdp_peer* peer, HANDLE hChannel, BYTE* buffer,
@@ -109,6 +114,7 @@ extern "C"
 	typedef int (*psPeerVirtualChannelSetData)(freerdp_peer* peer, HANDLE hChannel, void* data);
 	typedef BOOL (*psPeerSetState)(freerdp_peer* peer, CONNECTION_STATE state);
 	typedef BOOL (*psPeerReachedState)(freerdp_peer* peer, CONNECTION_STATE state);
+	typedef BOOL (*psPeerAssociateUdpConn)(freerdp_peer* peer, multiTransportChannel* channel);
 
 	/** @brief the result of the license callback */
 	typedef enum
@@ -137,6 +143,7 @@ extern "C"
 #else
 	UINT64 reservedX[3];
 #endif
+	rdpMultitransport* multitransport; /* TODO: like rdpContext::update ? */
 
 		ALIGN64 void* ContextExtra;
 		ALIGN64 size_t ContextSize;
@@ -216,6 +223,8 @@ extern "C"
 		 * and supplementary creds (NTLM).
 		 */
 		ALIGN64 psPeerRemoteCredentials RemoteCredentials;
+		ALIGN64 psPeerSendChannelPacketEx SendChannelPacketEx;
+		ALIGN64 psPeerAssociateUdpConn AssociateUdpConn;
 	    ALIGN64 int source_port;
 	};
 

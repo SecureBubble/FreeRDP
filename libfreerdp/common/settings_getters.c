@@ -1808,6 +1808,9 @@ UINT32 freerdp_settings_get_uint32(WINPR_ATTR_UNUSED const rdpSettings* settings
 		case FreeRDP_LoadBalanceInfoLength:
 			return settings->LoadBalanceInfoLength;
 
+		case FreeRDP_MaxPendingUdpPackets:
+			return settings->MaxPendingUdpPackets;
+
 		case FreeRDP_MonitorAttributeFlags:
 			return settings->MonitorAttributeFlags;
 
@@ -1930,6 +1933,9 @@ UINT32 freerdp_settings_get_uint32(WINPR_ATTR_UNUSED const rdpSettings* settings
 
 		case FreeRDP_RemoteFxRlgrMode:
 			return settings->RemoteFxRlgrMode;
+
+		case FreeRDP_RemoteMultitransportFlags:
+			return settings->RemoteMultitransportFlags;
 
 		case FreeRDP_RemoteWndSupportLevel:
 			return settings->RemoteWndSupportLevel;
@@ -2273,6 +2279,10 @@ BOOL freerdp_settings_set_uint32(WINPR_ATTR_UNUSED rdpSettings* settings,
 			settings->LoadBalanceInfoLength = cnv.c;
 			break;
 
+		case FreeRDP_MaxPendingUdpPackets:
+			settings->MaxPendingUdpPackets = cnv.c;
+			break;
+
 		case FreeRDP_MonitorAttributeFlags:
 			settings->MonitorAttributeFlags = cnv.c;
 			break;
@@ -2435,6 +2445,10 @@ BOOL freerdp_settings_set_uint32(WINPR_ATTR_UNUSED rdpSettings* settings,
 
 		case FreeRDP_RemoteFxRlgrMode:
 			settings->RemoteFxRlgrMode = cnv.c;
+			break;
+
+		case FreeRDP_RemoteMultitransportFlags:
+			settings->RemoteMultitransportFlags = cnv.c;
 			break;
 
 		case FreeRDP_RemoteWndSupportLevel:

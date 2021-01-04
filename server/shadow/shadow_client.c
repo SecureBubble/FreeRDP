@@ -32,6 +32,7 @@
 
 #include <freerdp/log.h>
 #include <freerdp/channels/drdynvc.h>
+#include <freerdp/multitransport.h>
 
 #include "shadow.h"
 
@@ -1726,6 +1727,7 @@ static BOOL shadow_client_send_bitmap_update(rdpShadowClient* client, BYTE* pSrc
 	if (!(bitmapData = (BITMAP_DATA*)calloc(bitmapUpdate.number, sizeof(BITMAP_DATA))))
 		return FALSE;
 
+	bitmapUpdate.skipCompression = FALSE;
 	bitmapUpdate.rectangles = bitmapData;
 
 	if ((nWidth % 4) != 0)
@@ -2224,6 +2226,17 @@ static int shadow_client_subsystem_process_message(rdpShadowClient* client, wMes
 			break;
 		}
 
+		case SHADOW_MSG_UDP_CONNECTION_ID:
+		{
+			SHADOW_MSG_UDP_CONNECTION* msg = (SHADOW_MSG_UDP_CONNECTION*)message->wParam;
+			freerdp_peer* peer = client->context.peer;
+
+			peer->AssociateUdpConn(peer, msg->channel);
+			/*multitransportchannel_ref(msg->channel);
+			context->peer->multitransport->channels[0] = msg->channel;*/
+			break;
+		}
+
 		default:
 			WLog_ERR(TAG, "Unknown message id: %" PRIu32 "", message->id);
 			break;
@@ -2233,7 +2246,7 @@ static int shadow_client_subsystem_process_message(rdpShadowClient* client, wMes
 	return 1;
 }
 
-static DWORD WINAPI shadow_client_thread(LPVOID arg)
+static DWORD /*WINAPI*/ shadow_client_thread(LPVOID arg)
 {
 	rdpShadowClient* client = (rdpShadowClient*)arg;
 	BOOL rc = FALSE;
@@ -2630,6 +2643,72 @@ BOOL shadow_client_accepted(freerdp_listener* listener, freerdp_peer* peer)
 	}
 
 	return TRUE;
+}
+
+BOOL shadow_udp_peer_new(freerdp_listener* listener, ListenerUdpPeer* peer)
+{
+	rdpShadowServer* server;
+
+	server = (rdpShadowServer*)listener->info;
+	// server->
+	// peer->channel->
+	return TRUE;
+}
+
+static void genericMsgFree(UINT32 id, SHADOW_MSG_OUT* msg)
+{
+	free(msg);
+}
+
+BOOL findPeer(void* data, size_t index, va_list ap)
+{
+	SHADOW_MSG_UDP_CONNECTION* msg;
+	rdpMultitransport* multi;
+
+	UINT32 reqId = va_arg(ap, UINT32);
+	const BYTE* cookie = va_arg(ap, const BYTE*);
+	multiTransportChannel* channel = va_arg(ap, multiTransportChannel*);
+	rdpShadowClient* client = (rdpShadowClient*)data;
+
+	multi = client->context.peer->multitransport;
+
+	if (!multitransport_match_reliable(multi, reqId, cookie))
+		return TRUE;
+
+	multitransportchannel_setExternalHandling(channel, TRUE);
+
+	WLog_DBG(TAG, "found match with shadowClient %s", client->context.settings->ClientHostname);
+	msg = (SHADOW_MSG_UDP_CONNECTION*)calloc(1, sizeof(*msg));
+	if (!msg)
+	{
+		WLog_ERR(TAG, "unable to allocate SHADOW_MSG_UDP_CONNECTION");
+		return FALSE;
+	}
+	msg->common.refCount = 1;
+	msg->common.Free = genericMsgFree;
+	msg->channel = channel;
+
+	if (!MessageQueue_Post(client->MsgQueue, NULL, SHADOW_MSG_UDP_CONNECTION_ID, msg, NULL))
+	{
+		genericMsgFree(SHADOW_MSG_UDP_CONNECTION_ID, &msg->common);
+		WLog_ERR(TAG, "unable to post SHADOW_MSG_UDP_CONNECTION");
+		return FALSE;
+	}
+
+	// TODO: channel->handledExternally = TRUE
+	return FALSE;
+}
+
+INT32 shadow_identify_udp_peer(freerdp_listener* listener, UINT32 reqId, const BYTE* cookieHash,
+                               multiTransportChannel* channel)
+{
+	INT32 res = ERROR_SUCCESS;
+	rdpShadowServer* server = (rdpShadowServer*)listener->info;
+
+	if (ArrayList_ForEach(server->clients, findPeer, reqId, cookieHash, channel))
+		res = ERROR_NOT_FOUND;
+
+	return res;
 }
 
 static void shadow_msg_out_addref(wMessage* message)

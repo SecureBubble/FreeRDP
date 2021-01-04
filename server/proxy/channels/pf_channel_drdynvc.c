@@ -21,7 +21,7 @@
 #include <freerdp/channels/drdynvc.h>
 #include <freerdp/utils/drdynvc.h>
 #include <freerdp/server/proxy/proxy_log.h>
-
+#include <freerdp/utils/pod_arrays.h>
 #include "pf_channel_drdynvc.h"
 #include "../pf_channel.h"
 #include "../proxy_modules.h"
@@ -66,6 +66,7 @@ struct p_server_dynamic_channel_context
 {
 	char* channelName;
 	UINT32 channelId;
+	RDP_TRANSPORT_TYPE transport;
 	PfDynChannelOpenStatus openStatus;
 	pf_utils_channel_mode channelMode;
 	BOOL packetReassembly;
@@ -83,6 +84,8 @@ typedef struct
 	ChannelStateTracker* backTracker;
 	ChannelStateTracker* frontTracker;
 	wLog* log;
+	ArrayUINT32 udpReliableChannels;
+	ArrayUINT32 udpLossyChannels;
 } DynChannelContext;
 
 /** @brief result of dynamic channel packet treatment */
@@ -270,6 +273,7 @@ static DynvcReadResult dynvc_read_varInt(wLog* log, wStream* s, size_t len, UINT
 	}
 	return DYNCVC_READ_OK;
 }
+
 
 static PfChannelResult DynvcTrackerPeekHandleByMode(ChannelStateTracker* tracker,
                                                     DynChannelTrackerState* trackerState,
@@ -684,6 +688,142 @@ static PfChannelResult DynvcTrackerHandleCmd(ChannelStateTracker* tracker,
 	}
 }
 
+
+static const char* get_packet_type(BYTE cmd)
+{
+	switch (cmd)
+	{
+		case CREATE_REQUEST_PDU:
+			return "CREATE_REQUEST_PDU";
+		case DATA_FIRST_PDU:
+			return "DATA_FIRST_PDU";
+		case DATA_PDU:
+			return "DATA_PDU";
+		case CLOSE_REQUEST_PDU:
+			return "CLOSE_REQUEST_PDU";
+		case CAPABILITY_REQUEST_PDU:
+			return "CAPABILITY_REQUEST_PDU";
+		case DATA_FIRST_COMPRESSED_PDU:
+			return "DATA_FIRST_COMPRESSED_PDU";
+		case DATA_COMPRESSED_PDU:
+			return "DATA_COMPRESSED_PDU";
+		case SOFT_SYNC_REQUEST_PDU:
+			return "SOFT_SYNC_REQUEST_PDU";
+		case SOFT_SYNC_RESPONSE_PDU:
+			return "SOFT_SYNC_RESPONSE_PDU";
+		default:
+			return "UNKNOWN";
+	}
+}
+
+static PfChannelResult pf_treat_softsync_channel_list(proxyData* pdata,
+                                                      DynChannelContext* dynChannel, wStream* s,
+                                                      UINT16 ntunnels)
+{
+	UINT16 i;
+	UINT32 j;
+	wHashTable* channels = pdata->ps->channelsByBackId;
+
+	for (i = 0; i < ntunnels; i++)
+	{
+		UINT32 TunnelType;
+		UINT16 NumberOfDVCs;
+
+		if (!Stream_CheckAndLogRequiredLength(DTAG, s, 6))
+			return PF_CHANNEL_RESULT_ERROR;
+
+		Stream_Read_UINT32(s, TunnelType);
+		Stream_Read_UINT16(s, NumberOfDVCs);
+
+		if (Stream_GetRemainingLength(s) / 4 < NumberOfDVCs)
+			return PF_CHANNEL_RESULT_ERROR;
+
+		for (j = 0; j < NumberOfDVCs; j++)
+		{
+			UINT32 reqChannelId;
+			pServerDynamicChannelContext* channel;
+			ArrayUINT32* targetArr = (TunnelType == TUNNELTYPE_UDPFECR)
+			                             ? &dynChannel->udpReliableChannels
+			                             : &dynChannel->udpLossyChannels;
+
+			Stream_Read_UINT32(s, reqChannelId);
+
+			channel =
+			    (pServerDynamicChannelContext*)HashTable_GetItemValue(channels, &reqChannelId);
+			if (channel)
+			{
+				channel->transport =
+				    (TunnelType == TUNNELTYPE_UDPFECR) ? RDP_TRANSPORT_UDP_R : RDP_TRANSPORT_UDP_L;
+				WLog_DBG(DTAG, " * channel '%s' moving to UDP", channel->channelName);
+			}
+			else
+			{
+				WLog_DBG(DTAG, " * %s id=0x%.8" PRIx32,
+				         (TunnelType == TUNNELTYPE_UDPFECR ? "reliable" : "lossy"), reqChannelId);
+			}
+
+			if (!array_uint32_append(targetArr, reqChannelId))
+				return PF_CHANNEL_RESULT_ERROR;
+		}
+	}
+
+	return PF_CHANNEL_RESULT_PASS;
+}
+
+static PfChannelResult pf_treat_softsync_req(proxyData* pdata, DynChannelContext* dynChannel,
+                                             wStream* s)
+{
+	PfChannelResult ret = PF_CHANNEL_RESULT_PASS;
+	UINT32 Length;
+	UINT16 Flags, NumberOfTunnels;
+
+	WLog_DBG(DTAG, "Treating softsync request from back");
+	if (!Stream_CheckAndLogRequiredLength(DTAG, s, 9))
+		return PF_CHANNEL_RESULT_ERROR;
+
+	Stream_Seek(s, 1); /* Pad */
+	Stream_Read_UINT32(s, Length);
+
+	if ((Length < 8) || !Stream_CheckAndLogRequiredLength(DTAG, s, Length - 4))
+		return PF_CHANNEL_RESULT_ERROR;
+
+	Stream_Read_UINT16(s, Flags);
+	Stream_Read_UINT16(s, NumberOfTunnels);
+
+	if (Flags & SOFT_SYNC_CHANNEL_LIST_PRESENT)
+	{
+		wStream channelListStream;
+		wStream* subStream =
+		    Stream_StaticConstInit(&channelListStream, Stream_Pointer(s), Length - 8);
+
+		ret = pf_treat_softsync_channel_list(pdata, dynChannel, subStream, NumberOfTunnels);
+	}
+
+	return ret;
+}
+
+static PfChannelResult pf_treat_softsync_resp(proxyData* pdata, wStream* s)
+{
+	PfChannelResult ret = PF_CHANNEL_RESULT_PASS;
+	UINT16 NumberOfTunnels;
+
+	WLog_DBG(DTAG, "Treating softsync response from front");
+
+	if (!Stream_CheckAndLogRequiredLength(DTAG, s, 5))
+		return PF_CHANNEL_RESULT_ERROR;
+
+	Stream_Seek(s, 1); /* Pad */
+	Stream_Read_UINT32(s, NumberOfTunnels);
+
+	if (Stream_GetRemainingLength(s) / 4 < NumberOfTunnels)
+		return PF_CHANNEL_RESULT_ERROR;
+
+	WLog_DBG(DTAG, "%d tunnels", NumberOfTunnels);
+
+	return ret;
+}
+
+
 static PfChannelResult DynvcTrackerPeekFn(ChannelStateTracker* tracker, BOOL firstPacket,
                                           BOOL lastPacket)
 {
@@ -799,9 +939,12 @@ static void DynChannelContext_free(void* context)
 	DynChannelContext* c = context;
 	if (!c)
 		return;
+
 	channelTracker_free(c->backTracker);
 	channelTracker_free(c->frontTracker);
 	HashTable_Free(c->channels);
+	array_uint32_uninit(&c->udpLossyChannels);
+	array_uint32_uninit(&c->udpReliableChannels);
 	free(c);
 }
 
@@ -854,6 +997,9 @@ static DynChannelContext* DynChannelContext_new(proxyData* pdata,
 		WINPR_ASSERT(vobj);
 		vobj->fnObjectFree = DynamicChannelContext_free;
 	}
+
+	array_uint32_init(&dyn->udpLossyChannels);
+	array_uint32_init(&dyn->udpReliableChannels);
 
 	return dyn;
 

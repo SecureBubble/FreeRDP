@@ -56,6 +56,13 @@ extern "C"
 	} CHANNEL_ENTRY_POINTS_FREERDP;
 	typedef CHANNEL_ENTRY_POINTS_FREERDP* PCHANNEL_ENTRY_POINTS_FREERDP;
 
+	typedef UINT VCAPITYPE VIRTUALCHANNELWRITETRANSPORT(LPVOID pInitHandle, DWORD openHandle,
+		RDP_TRANSPORT_TYPE transport, LPVOID pData, ULONG dataLength, LPVOID pUserData);
+
+	typedef VIRTUALCHANNELWRITETRANSPORT* PVIRTUALCHANNELWRITETRANSPORT;
+
+
+
 	typedef struct
 	{
 		UINT32 cbSize;
@@ -64,6 +71,7 @@ extern "C"
 		PVIRTUALCHANNELOPENEX pVirtualChannelOpenEx;
 		PVIRTUALCHANNELCLOSEEX pVirtualChannelCloseEx;
 		PVIRTUALCHANNELWRITEEX pVirtualChannelWriteEx;
+		PVIRTUALCHANNELWRITETRANSPORT pVirtualChannelWriteTransport;
 
 		/* Extended Fields */
 		UINT32 MagicNumber;  /* identifies FreeRDP */

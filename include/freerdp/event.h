@@ -35,6 +35,8 @@ extern "C"
 #define FREERDP_WINDOW_STATE_FULLSCREEN 3
 #define FREERDP_WINDOW_STATE_ACTIVE 4
 
+	typedef struct rdp_multitransport_channel multiTransportChannel;
+
 	DEFINE_EVENT_BEGIN(WindowStateChange)
 	int state;
 	DEFINE_EVENT_END(WindowStateChange)
@@ -125,6 +127,10 @@ extern "C"
 	UINT32 width;
 	UINT32 height;
 	DEFINE_EVENT_END(GraphicsReset)
+
+	DEFINE_EVENT_BEGIN(UdpChannelEstablished)
+	multiTransportChannel* channel;
+	DEFINE_EVENT_END(UdpChannelEstablished)
 
 #ifdef __cplusplus
 }

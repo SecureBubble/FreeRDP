@@ -721,6 +721,7 @@ extern "C"
 	 */
 	WINPR_ATTR_NODISCARD
 	FREERDP_API UINT32 freerdp_settings_get_codecs_flags(const rdpSettings* settings);
+	FREERDP_API BOOL freerdp_settings_generate_correlationId(rdpSettings* settings);
 
 	/** \brief Parse capability data and apply to settings
 	 *

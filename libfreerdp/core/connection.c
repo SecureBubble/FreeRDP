@@ -427,6 +427,8 @@ BOOL rdp_client_connect(rdpRdp* rdp)
 		                            settings->LoadBalanceInfoLength))
 			return FALSE;
 	}
+	if (settings->UseCorrelationId)
+		nego_set_correlationId(rdp->nego, settings->CorrelationId);
 
 	if (!freerdp_settings_get_bool(settings, FreeRDP_TransportDumpReplay))
 	{
@@ -1209,12 +1211,10 @@ BOOL rdp_client_connect_auto_detect(rdpRdp* rdp, wStream* s, DWORD logLevel)
 			const state_run_t rc = rdp_handle_message_channel(rdp, s, channelId, length);
 			return state_run_success(rc);
 		}
-		else
-		{
-			wLog* log = WLog_Get(TAG);
-			WLog_Print(log, logLevel, "expected messageChannelId=%" PRIu16 ", got %" PRIu16,
-			           messageChannelId, channelId);
-		}
+
+		wLog* log = WLog_Get(TAG);
+		WLog_Print(log, logLevel, "expected messageChannelId=%" PRIu16 ", got %" PRIu16,
+				   messageChannelId, channelId);
 	}
 
 	Stream_SetPosition(s, pos);

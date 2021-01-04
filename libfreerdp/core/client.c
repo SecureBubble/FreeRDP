@@ -610,12 +610,12 @@ const char* freerdp_channels_get_name_by_id(freerdp* instance, UINT16 channelId)
 
 BOOL freerdp_channels_process_message_free(wMessage* message, DWORD type)
 {
-	if (message->id == WMQ_QUIT)
+	switch (message->id)
 	{
+	case WMQ_QUIT:
 		return FALSE;
-	}
-
-	if (message->id == 0)
+	case RDP_TRANSPORT_TCP:
+	case RDP_TRANSPORT_UDP_R:
 	{
 		CHANNEL_OPEN_DATA* pChannelOpenData = NULL;
 		CHANNEL_OPEN_EVENT* item = (CHANNEL_OPEN_EVENT*)message->wParam;
@@ -637,50 +637,73 @@ BOOL freerdp_channels_process_message_free(wMessage* message, DWORD type)
 			    pChannelOpenData->lpUserParam, pChannelOpenData->OpenHandle, type, item->UserData,
 			    item->DataLength, item->DataLength, 0);
 		}
+
+		return TRUE;
+	}
+	case RDP_TRANSPORT_UDP_L:
+	default:
+		return FALSE;
 	}
 
-	return TRUE;
+
 }
 
 static BOOL freerdp_channels_process_message(freerdp* instance, wMessage* message)
 {
 	BOOL ret = TRUE;
 	BOOL rc = FALSE;
+	DWORD freeType = CHANNEL_EVENT_WRITE_CANCELLED;
 
 	WINPR_ASSERT(instance);
 	WINPR_ASSERT(message);
 
-	if (message->id == WMQ_QUIT)
-		goto fail;
-	else if (message->id == 0)
+	switch (message->id)
+	{
+	case WMQ_QUIT:
+		goto out;
+	case RDP_TRANSPORT_TCP:
 	{
 		rdpMcsChannel* channel = NULL;
 		CHANNEL_OPEN_DATA* pChannelOpenData = NULL;
 		CHANNEL_OPEN_EVENT* item = (CHANNEL_OPEN_EVENT*)message->wParam;
 
 		if (!item)
-			goto fail;
+			goto out;
 
 		pChannelOpenData = item->pChannelOpenData;
 		if (pChannelOpenData->flags != 2)
-		{
-			freerdp_channels_process_message_free(message, CHANNEL_EVENT_WRITE_CANCELLED);
-			goto fail;
-		}
-		channel =
-		    freerdp_channels_find_channel_by_name(instance->context->rdp, pChannelOpenData->name);
+			goto out_free;
 
+		channel = freerdp_channels_find_channel_by_name(instance->context->rdp, pChannelOpenData->name);
 		if (channel)
-			ret = instance->SendChannelData(instance, channel->ChannelId, item->Data,
-			                                item->DataLength);
+			ret = instance->SendChannelData(instance, channel->ChannelId, item->Data, item->DataLength);
+		break;
+	}
+	case RDP_TRANSPORT_UDP_R:
+	{
+		wStream s;
+		CHANNEL_OPEN_EVENT* item = (CHANNEL_OPEN_EVENT*)message->wParam;
+
+		Stream_StaticInit(&s, item->Data, item->DataLength);
+		ret = freerdp_send_udp(instance->context->rdp, FALSE, NULL, &s);
+		break;
+	}
+	case RDP_TRANSPORT_UDP_L:
+		WLog_ERR(TAG, "Lossy transport not supported");
+		break;
+	default:
+		WLog_ERR(TAG, "unknown message id");
+		break;
 	}
 
-	if (!freerdp_channels_process_message_free(message, CHANNEL_EVENT_WRITE_COMPLETE))
-		goto fail;
+	freeType = CHANNEL_EVENT_WRITE_COMPLETE;
+out_free:
+	if (!freerdp_channels_process_message_free(message, freeType))
+		goto out;
 
 	rc = ret;
 
-fail:
+out:
 	IFCALL(message->Free, message);
 	return rc;
 }
@@ -1246,9 +1269,8 @@ static UINT VCAPITYPE FreeRDP_VirtualChannelClose(DWORD openHandle)
 	return CHANNEL_RC_OK;
 }
 
-static UINT VCAPITYPE FreeRDP_VirtualChannelWriteEx(LPVOID pInitHandle, DWORD openHandle,
-                                                    LPVOID pData, ULONG dataLength,
-                                                    LPVOID pUserData)
+static UINT VCAPITYPE FreeRDP_VirtualChannelWriteTransport(LPVOID pInitHandle, DWORD openHandle,
+		RDP_TRANSPORT_TYPE transport, LPVOID pData, ULONG dataLength, LPVOID pUserData)
 {
 	rdpChannels* channels = NULL;
 	CHANNEL_INIT_DATA* pChannelInitData = NULL;
@@ -1292,7 +1314,7 @@ static UINT VCAPITYPE FreeRDP_VirtualChannelWriteEx(LPVOID pInitHandle, DWORD op
 	pChannelOpenEvent->UserData = pUserData;
 	pChannelOpenEvent->pChannelOpenData = pChannelOpenData;
 	message.context = channels;
-	message.id = 0;
+	message.id = transport;
 	message.wParam = pChannelOpenEvent;
 	message.lParam = NULL;
 	message.Free = channel_queue_message_free;
@@ -1305,6 +1327,14 @@ static UINT VCAPITYPE FreeRDP_VirtualChannelWriteEx(LPVOID pInitHandle, DWORD op
 
 	return CHANNEL_RC_OK;
 }
+
+static UINT VCAPITYPE FreeRDP_VirtualChannelWriteEx(LPVOID pInitHandle, DWORD openHandle,
+                                                    LPVOID pData, ULONG dataLength,
+                                                    LPVOID pUserData)
+{
+	return FreeRDP_VirtualChannelWriteTransport(pInitHandle, openHandle, RDP_TRANSPORT_TCP, pData, dataLength, pUserData);
+}
+
 
 static UINT VCAPITYPE FreeRDP_VirtualChannelWrite(DWORD openHandle, LPVOID pData, ULONG dataLength,
                                                   LPVOID pUserData)
@@ -1345,7 +1375,7 @@ static UINT VCAPITYPE FreeRDP_VirtualChannelWrite(DWORD openHandle, LPVOID pData
 	pChannelOpenEvent->UserData = pUserData;
 	pChannelOpenEvent->pChannelOpenData = pChannelOpenData;
 	message.context = channels;
-	message.id = 0;
+	message.id = RDP_TRANSPORT_TCP;
 	message.wParam = pChannelOpenEvent;
 	message.lParam = NULL;
 	message.Free = channel_queue_message_free;
@@ -1480,6 +1510,7 @@ int freerdp_channels_client_load_ex(rdpChannels* channels, WINPR_ATTR_UNUSED rdp
 		.pVirtualChannelOpenEx = FreeRDP_VirtualChannelOpenEx,
 		.pVirtualChannelCloseEx = FreeRDP_VirtualChannelCloseEx,
 		.pVirtualChannelWriteEx = FreeRDP_VirtualChannelWriteEx,
+		.pVirtualChannelWriteTransport = FreeRDP_VirtualChannelWriteTransport,
 		.MagicNumber = FREERDP_CHANNEL_MAGIC_NUMBER,
 		.pExtendedData = data,
 		.context = channels->instance->context

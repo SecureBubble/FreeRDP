@@ -39,6 +39,12 @@
 
 #include <freerdp/utils/ringbuffer.h>
 
+typedef struct
+{
+	SOCKET socket;
+	HANDLE hEvent;
+} WINPR_BIO_SIMPLE_SOCKET;
+
 #define BIO_TYPE_TSG 65
 #define BIO_TYPE_SIMPLE 66
 #define BIO_TYPE_BUFFERED 67
@@ -53,6 +59,8 @@
 #define BIO_C_WAIT_READ 1107
 #define BIO_C_WAIT_WRITE 1108
 #define BIO_C_SET_HANDLE 1109
+#define BIO_C_TIMER_EVENT_HANDLE 1110
+#define BIO_C_TIMER_EXEC 1111
 
 static inline long BIO_set_socket(BIO* b, SOCKET s, long c)
 {
@@ -91,9 +99,12 @@ static inline long BIO_wait_write(BIO* b, long c)
 {
 	return BIO_ctrl(b, BIO_C_WAIT_WRITE, c, NULL);
 }
+#define BIO_get_timer_event(b, c) BIO_ctrl(b, BIO_C_TIMER_EVENT_HANDLE, 0, (char*)c)
+#define BIO_handle_timer(b) BIO_ctrl(b, BIO_C_TIMER_EXEC, 0, NULL)
 
 FREERDP_LOCAL BIO_METHOD* BIO_s_simple_socket(void);
 FREERDP_LOCAL BIO_METHOD* BIO_s_buffered_socket(void);
+FREERDP_LOCAL BOOL BIO_poll(BIO* bio, UINT32 timeout, BOOL* fd, BOOL* timer);
 
 FREERDP_LOCAL BOOL freerdp_tcp_set_keep_alive_mode(const rdpSettings* settings, int sockfd);
 
@@ -108,10 +119,14 @@ freerdp_tcp_connect_layer(rdpContext* context, const char* hostname, int port, D
 
 FREERDP_LOCAL char* freerdp_tcp_get_peer_address(SOCKET sockfd);
 
+FREERDP_LOCAL struct addrinfo* freerdp_resolve_host(const char* hostname, int port, int sockType,
+                                                    int ai_flags);
 FREERDP_LOCAL struct addrinfo* freerdp_tcp_resolve_host(const char* hostname, int port,
                                                         int ai_flags);
 FREERDP_LOCAL char* freerdp_tcp_address_to_string(const struct sockaddr_storage* addr, BOOL* pIPv6);
 
 FREERDP_LOCAL BOOL freerdp_tcp_set_nodelay(wLog* log, DWORD level, int sockfd);
+
+FREERDP_LOCAL void BIO_treat_timer(BIO* bio);
 
 #endif /* FREERDP_LIB_CORE_TCP_H */
