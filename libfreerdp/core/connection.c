@@ -431,6 +431,8 @@ BOOL rdp_client_connect(rdpRdp* rdp)
 		                            settings->LoadBalanceInfoLength))
 			return FALSE;
 	}
+	if (settings->UseCorrelationId)
+		nego_set_correlationId(rdp->nego, settings->CorrelationId);
 
 	if (!freerdp_settings_get_bool(settings, FreeRDP_TransportDumpReplay))
 	{

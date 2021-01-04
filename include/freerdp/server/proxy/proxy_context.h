@@ -68,6 +68,7 @@ extern "C"
 		WINPR_ATTR_NODISCARD proxyChannelDataFn onBackData;
 		proxyChannelContextDtor contextDtor;
 		void* context;
+		RDP_TRANSPORT_TYPE transport;
 	};
 
 	FREERDP_API void StaticChannelContext_free(pServerStaticChannelContext* ctx);

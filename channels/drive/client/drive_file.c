@@ -491,8 +491,7 @@ static BOOL drive_file_query_from_handle_information(const DRIVE_FILE* file,
 			Stream_Write_UINT32(output, info->nFileSizeHigh);         /* EndOfFile */
 			Stream_Write_UINT32(output, info->nNumberOfLinks);        /* NumberOfLinks */
 			Stream_Write_UINT8(output, file->delete_pending ? 1 : 0); /* DeletePending */
-			Stream_Write_UINT8(output, (info->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) !=
-			                               0); /* Directory */
+			Stream_Write_UINT8(output, ((info->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)); /* Directory */
 			/* Reserved(2), MUST NOT be added! */
 			break;
 
@@ -557,8 +556,7 @@ static BOOL drive_file_query_from_attributes(const DRIVE_FILE* file,
 			Stream_Write_UINT32(output, attrib->nFileSizeHigh);       /* EndOfFile */
 			Stream_Write_UINT32(output, 0);                           /* NumberOfLinks */
 			Stream_Write_UINT8(output, file->delete_pending ? 1 : 0); /* DeletePending */
-			Stream_Write_UINT8(output, (attrib->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) !=
-			                               0); /* Directory */
+			Stream_Write_UINT8(output, ((attrib->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)); /* Directory */
 			/* Reserved(2), MUST NOT be added! */
 			break;
 

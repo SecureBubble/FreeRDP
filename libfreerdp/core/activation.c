@@ -83,7 +83,7 @@ BOOL rdp_send_server_synchronize_pdu(rdpRdp* rdp)
 	WINPR_ASSERT(rdp);
 	if (!rdp_write_synchronize_pdu(s, rdp->settings))
 	{
-		Stream_Free(s, TRUE);
+		Stream_Release(s);
 		return FALSE;
 	}
 
@@ -108,7 +108,7 @@ BOOL rdp_send_client_synchronize_pdu(rdpRdp* rdp)
 	WINPR_ASSERT(rdp);
 	if (!rdp_write_synchronize_pdu(s, rdp->settings))
 	{
-		Stream_Free(s, TRUE);
+		Stream_Release(s);
 		return FALSE;
 	}
 
@@ -183,7 +183,7 @@ BOOL rdp_send_server_control_cooperate_pdu(rdpRdp* rdp)
 		return FALSE;
 	if (!Stream_CheckAndLogRequiredCapacity(TAG, (s), 8))
 	{
-		Stream_Free(s, TRUE);
+		Stream_Release(s);
 		return FALSE;
 	}
 	Stream_Write_UINT16(s, CTRLACTION_COOPERATE); /* action (2 bytes) */
@@ -202,7 +202,7 @@ BOOL rdp_send_server_control_granted_pdu(rdpRdp* rdp)
 		return FALSE;
 	if (!Stream_CheckAndLogRequiredCapacity(TAG, (s), 8))
 	{
-		Stream_Free(s, TRUE);
+		Stream_Release(s);
 		return FALSE;
 	}
 
@@ -236,7 +236,7 @@ BOOL rdp_send_client_control_pdu(rdpRdp* rdp, UINT16 action)
 		return FALSE;
 	if (!rdp_write_client_control_pdu(s, action, GrantId, ControlId))
 	{
-		Stream_Free(s, TRUE);
+		Stream_Release(s);
 		return FALSE;
 	}
 
@@ -421,7 +421,7 @@ BOOL rdp_send_client_persistent_key_list_pdu(rdpRdp* rdp)
 
 	if (!rdp_write_client_persistent_key_list_pdu(s, &info))
 	{
-		Stream_Free(s, TRUE);
+		Stream_Release(s);
 		free(keyList);
 		return FALSE;
 	}
@@ -529,7 +529,7 @@ BOOL rdp_send_client_font_list_pdu(rdpRdp* rdp, UINT16 flags)
 		return FALSE;
 	if (!rdp_write_client_font_list_pdu(s, flags))
 	{
-		Stream_Free(s, TRUE);
+		Stream_Release(s);
 		return FALSE;
 	}
 
@@ -597,7 +597,7 @@ BOOL rdp_send_server_font_map_pdu(rdpRdp* rdp)
 		return FALSE;
 	if (!Stream_CheckAndLogRequiredCapacity(TAG, (s), 8))
 	{
-		Stream_Free(s, TRUE);
+		Stream_Release(s);
 		return FALSE;
 	}
 	Stream_Write_UINT16(s, 0);                              /* numberEntries (2 bytes) */

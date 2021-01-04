@@ -32,6 +32,7 @@
 
 #include <freerdp/log.h>
 
+#include "../bio.h"
 #include "rpc_bind.h"
 #include "rpc_client.h"
 #include "tsg.h"

@@ -266,10 +266,15 @@ extern "C"
 		MSG_OUT_FREE_FN Free;
 	};
 
-#define SHADOW_MSG_OUT_POINTER_POSITION_UPDATE_ID 2001
-#define SHADOW_MSG_OUT_POINTER_ALPHA_UPDATE_ID 2002
-#define SHADOW_MSG_OUT_AUDIO_OUT_SAMPLES_ID 2003
-#define SHADOW_MSG_OUT_AUDIO_OUT_VOLUME_ID 2004
+/** @brief shadow client message ids */
+enum
+{
+	SHADOW_MSG_OUT_POINTER_POSITION_UPDATE_ID = 2001,
+	SHADOW_MSG_OUT_POINTER_ALPHA_UPDATE_ID = 2002,
+	SHADOW_MSG_OUT_AUDIO_OUT_SAMPLES_ID = 2003,
+	SHADOW_MSG_OUT_AUDIO_OUT_VOLUME_ID = 2004,
+	SHADOW_MSG_UDP_CONNECTION_ID = 2005
+};
 
 	typedef struct
 	{
@@ -306,6 +311,18 @@ extern "C"
 		UINT16 left;
 		UINT16 right;
 	} SHADOW_MSG_OUT_AUDIO_OUT_VOLUME;
+
+struct _SHADOW_MSG_OUT_UDP_CONNECTION
+{
+	SHADOW_MSG_OUT common;
+	multiTransportChannel* channel;
+};
+typedef struct _SHADOW_MSG_OUT_UDP_CONNECTION SHADOW_MSG_UDP_CONNECTION;
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 	FREERDP_API void shadow_subsystem_set_entry_builtin(const char* name);
 	FREERDP_API void shadow_subsystem_set_entry(pfnShadowSubsystemEntry pEntry);

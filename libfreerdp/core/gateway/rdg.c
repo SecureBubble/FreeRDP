@@ -38,6 +38,7 @@
 #include <freerdp/utils/ringbuffer.h>
 #include <freerdp/utils/smartcardlogon.h>
 
+#include "../bio.h"
 #include "rdg.h"
 #include "websocket.h"
 #include "../credssp_auth.h"

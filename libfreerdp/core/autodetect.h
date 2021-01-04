@@ -32,6 +32,9 @@
 
 #include "state.h"
 
+#define TYPE_ID_AUTODETECT_REQUEST 0x00
+#define TYPE_ID_AUTODETECT_RESPONSE 0x01
+
 FREERDP_LOCAL void autodetect_free(rdpAutoDetect* autodetect);
 
 WINPR_ATTR_MALLOC(autodetect_free, 1)

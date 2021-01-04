@@ -35,6 +35,7 @@
 #include <freerdp/client/drdynvc.h>
 #include <freerdp/codec/zgfx.h>
 #include <freerdp/freerdp.h>
+#include <freerdp/utils/pod_arrays.h>
 
 typedef struct drdynvc_plugin drdynvcPlugin;
 
@@ -88,6 +89,7 @@ typedef struct
 	void* pInterface;
 	UINT32 channel_id;
 	char* channel_name;
+	RDP_TRANSPORT_TYPE transportType;
 	IWTSVirtualChannelCallback* channel_callback;
 
 	wStream* dvc_data;
@@ -128,6 +130,9 @@ struct drdynvc_plugin
 	int PriorityCharge2;
 	int PriorityCharge3;
 	rdpContext* rdpcontext;
+	RDP_TRANSPORT_TYPE defaultTransport;
+	ArrayUINT32 udpLossyChannels;
+	ArrayUINT32 udpReliableChannels;
 
 	IWTSVirtualChannelManager* channel_mgr;
 };

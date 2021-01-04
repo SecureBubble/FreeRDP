@@ -71,6 +71,8 @@ int main(int argc, char** argv)
 		  "Clients may view without prompt" },
 		{ "may-interact", COMMAND_LINE_VALUE_BOOL, nullptr, BoolValueTrue, nullptr, -1, nullptr,
 		  "Clients may interact without prompt" },
+		{ "multi-transport", COMMAND_LINE_VALUE_BOOL, nullptr, BoolValueTrue, nullptr, -1, nullptr,
+		  "enable multi-transport" },
 		{ "sec", COMMAND_LINE_VALUE_REQUIRED, "<rdp|tls|nla|ext>", nullptr, nullptr, -1, nullptr,
 		  "force specific protocol security" },
 		{ "sec-rdp", COMMAND_LINE_VALUE_BOOL, nullptr, BoolValueTrue, nullptr, -1, nullptr,

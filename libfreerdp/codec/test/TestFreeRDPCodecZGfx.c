@@ -23,6 +23,10 @@ static const BYTE TEST_FOX_DATA_MULTIPART[] =
     "\x00\x00\x24\x39\x08\x0E\x91\xF8\xD8\x61\x3D\x1E\x44\x06\x43\x79"
     "\x9C\x02";
 
+
+static const BYTE TEST_SINGLE_REAL[] = "\xe0\x24\x09\xe3\x18\x0a\x44\x8c"
+		"\x70\xe9\x8d\xd1\x40\x85\x8c\x60\x02";
+
 static int test_ZGfxCompressFox(void)
 {
 	int rc = -1;
@@ -126,6 +130,62 @@ fail:
 	zgfx_context_free(zgfx);
 	return rc;
 }
+
+static int test_ZGfxDecompressRealSingle(void)
+{
+	int rc = -1;
+	int status;
+	UINT32 Flags;
+	BYTE* pSrcData;
+	UINT32 SrcSize;
+	UINT32 DstSize;
+	BYTE* pDstData = NULL;
+	ZGFX_CONTEXT* zgfx;
+	UINT32 expectedSize;
+
+	zgfx = zgfx_context_new(TRUE);
+	if (!zgfx)
+		return -1;
+
+	SrcSize = sizeof(TEST_SINGLE_REAL) - 1;
+	pSrcData = (const BYTE*)TEST_SINGLE_REAL;
+	Flags = 0;
+	//expectedSize = sizeof(TEST_FOX_DATA) - 1;
+	status = zgfx_decompress(zgfx, pSrcData, SrcSize, &pDstData, &DstSize, Flags);
+	if (status < 0)
+		goto fail;
+
+
+	winpr_HexDump("", WLOG_INFO, pDstData, DstSize);
+#if 0
+	printf("flags: 0x%08" PRIX32 " size: %" PRIu32 "\n", Flags, DstSize);
+
+	if (DstSize != expectedSize)
+	{
+		printf("test_ZGfxDecompressFoxSingle: output size mismatch: Actual: %" PRIu32
+		       ", Expected: %" PRIu32 "\n",
+		       DstSize, expectedSize);
+		goto fail;
+	}
+
+	if (memcmp(pDstData, TEST_FOX_DATA, DstSize) != 0)
+	{
+		printf("test_ZGfxDecompressFoxSingle: output mismatch\n");
+		printf("Actual\n");
+		BitDump(__FUNCTION__, WLOG_INFO, pDstData, DstSize * 8, 0);
+		printf("Expected\n");
+		BitDump(__FUNCTION__, WLOG_INFO, TEST_FOX_DATA, DstSize * 8, 0);
+		goto fail;
+	}
+#endif
+
+	rc = 0;
+fail:
+	free(pDstData);
+	zgfx_context_free(zgfx);
+	return rc;
+}
+
 
 static int test_ZGfxDecompressFoxMultipart(void)
 {
@@ -262,6 +322,9 @@ int TestFreeRDPCodecZGfx(int argc, char* argv[])
 		return -1;
 
 	if (test_ZGfxDecompressFoxSingle() < 0)
+		return -1;
+
+	if (test_ZGfxDecompressRealSingle() < 0)
 		return -1;
 
 	if (test_ZGfxDecompressFoxMultipart() < 0)

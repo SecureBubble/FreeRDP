@@ -41,6 +41,10 @@
  * Maximum expansion of a segment (when compressed size exceeds uncompressed): 1000 bytes
  * Minimum match length: 3 bytes
  */
+enum {
+	ZGFX_TOKEN_LITTERAL = 0,
+	ZGFX_TOKEN_MATCH = 1
+};
 
 typedef struct
 {
@@ -72,47 +76,47 @@ struct S_ZGFX_CONTEXT
 };
 
 static const ZGFX_TOKEN ZGFX_TOKEN_TABLE[] = {
-	// len code vbits type  vbase
-	{ 1, 0, 8, 0, 0 },           // 0
-	{ 5, 17, 5, 1, 0 },          // 10001
-	{ 5, 18, 7, 1, 32 },         // 10010
-	{ 5, 19, 9, 1, 160 },        // 10011
-	{ 5, 20, 10, 1, 672 },       // 10100
-	{ 5, 21, 12, 1, 1696 },      // 10101
-	{ 5, 24, 0, 0, 0x00 },       // 11000
-	{ 5, 25, 0, 0, 0x01 },       // 11001
-	{ 6, 44, 14, 1, 5792 },      // 101100
-	{ 6, 45, 15, 1, 22176 },     // 101101
-	{ 6, 52, 0, 0, 0x02 },       // 110100
-	{ 6, 53, 0, 0, 0x03 },       // 110101
-	{ 6, 54, 0, 0, 0xFF },       // 110110
-	{ 7, 92, 18, 1, 54944 },     // 1011100
-	{ 7, 93, 20, 1, 317088 },    // 1011101
-	{ 7, 110, 0, 0, 0x04 },      // 1101110
-	{ 7, 111, 0, 0, 0x05 },      // 1101111
-	{ 7, 112, 0, 0, 0x06 },      // 1110000
-	{ 7, 113, 0, 0, 0x07 },      // 1110001
-	{ 7, 114, 0, 0, 0x08 },      // 1110010
-	{ 7, 115, 0, 0, 0x09 },      // 1110011
-	{ 7, 116, 0, 0, 0x0A },      // 1110100
-	{ 7, 117, 0, 0, 0x0B },      // 1110101
-	{ 7, 118, 0, 0, 0x3A },      // 1110110
-	{ 7, 119, 0, 0, 0x3B },      // 1110111
-	{ 7, 120, 0, 0, 0x3C },      // 1111000
-	{ 7, 121, 0, 0, 0x3D },      // 1111001
-	{ 7, 122, 0, 0, 0x3E },      // 1111010
-	{ 7, 123, 0, 0, 0x3F },      // 1111011
-	{ 7, 124, 0, 0, 0x40 },      // 1111100
-	{ 7, 125, 0, 0, 0x80 },      // 1111101
-	{ 8, 188, 20, 1, 1365664 },  // 10111100
-	{ 8, 189, 21, 1, 2414240 },  // 10111101
-	{ 8, 252, 0, 0, 0x0C },      // 11111100
-	{ 8, 253, 0, 0, 0x38 },      // 11111101
-	{ 8, 254, 0, 0, 0x39 },      // 11111110
-	{ 8, 255, 0, 0, 0x66 },      // 11111111
-	{ 9, 380, 22, 1, 4511392 },  // 101111100
-	{ 9, 381, 23, 1, 8705696 },  // 101111101
-	{ 9, 382, 24, 1, 17094304 }, // 101111110
+	// prefixLength prefixCode valueBits tokenType valueBase
+	{ 1, 0, 8, ZGFX_TOKEN_LITTERAL, 0 },        // 0
+	{ 5, 17, 5, ZGFX_TOKEN_MATCH, 0 },          // 10001
+	{ 5, 18, 7, ZGFX_TOKEN_MATCH, 32 },         // 10010
+	{ 5, 19, 9, ZGFX_TOKEN_MATCH, 160 },        // 10011
+	{ 5, 20, 10, ZGFX_TOKEN_MATCH, 672 },       // 10100
+	{ 5, 21, 12, ZGFX_TOKEN_MATCH, 1696 },      // 10101
+	{ 5, 24, 0, ZGFX_TOKEN_LITTERAL, 0x00 },    // 11000
+	{ 5, 25, 0, ZGFX_TOKEN_LITTERAL, 0x01 },    // 11001
+	{ 6, 44, 14, ZGFX_TOKEN_MATCH, 5792 },      // 101100
+	{ 6, 45, 15, ZGFX_TOKEN_MATCH, 22176 },     // 101101
+	{ 6, 52, 0, ZGFX_TOKEN_LITTERAL, 0x02 },    // 110100
+	{ 6, 53, 0, ZGFX_TOKEN_LITTERAL, 0x03 },    // 110101
+	{ 6, 54, 0, ZGFX_TOKEN_LITTERAL, 0xFF },    // 110110
+	{ 7, 92, 18, ZGFX_TOKEN_MATCH, 54944 },     // 1011100
+	{ 7, 93, 20, ZGFX_TOKEN_MATCH, 317088 },    // 1011101
+	{ 7, 110, 0, ZGFX_TOKEN_LITTERAL, 0x04 },   // 1101110
+	{ 7, 111, 0, ZGFX_TOKEN_LITTERAL, 0x05 },   // 1101111
+	{ 7, 112, 0, ZGFX_TOKEN_LITTERAL, 0x06 },   // 1110000
+	{ 7, 113, 0, ZGFX_TOKEN_LITTERAL, 0x07 },   // 1110001
+	{ 7, 114, 0, ZGFX_TOKEN_LITTERAL, 0x08 },   // 1110010
+	{ 7, 115, 0, ZGFX_TOKEN_LITTERAL, 0x09 },   // 1110011
+	{ 7, 116, 0, ZGFX_TOKEN_LITTERAL, 0x0A },   // 1110100
+	{ 7, 117, 0, ZGFX_TOKEN_LITTERAL, 0x0B },   // 1110101
+	{ 7, 118, 0, ZGFX_TOKEN_LITTERAL, 0x3A },   // 1110110
+	{ 7, 119, 0, ZGFX_TOKEN_LITTERAL, 0x3B },   // 1110111
+	{ 7, 120, 0, ZGFX_TOKEN_LITTERAL, 0x3C },   // 1111000
+	{ 7, 121, 0, ZGFX_TOKEN_LITTERAL, 0x3D },   // 1111001
+	{ 7, 122, 0, ZGFX_TOKEN_LITTERAL, 0x3E },   // 1111010
+	{ 7, 123, 0, ZGFX_TOKEN_LITTERAL, 0x3F },   // 1111011
+	{ 7, 124, 0, ZGFX_TOKEN_LITTERAL, 0x40 },   // 1111100
+	{ 7, 125, 0, ZGFX_TOKEN_LITTERAL, 0x80 },   // 1111101
+	{ 8, 188, 20, ZGFX_TOKEN_MATCH, 1365664 },  // 10111100
+	{ 8, 189, 21, ZGFX_TOKEN_MATCH, 2414240 },  // 10111101
+	{ 8, 252, 0, ZGFX_TOKEN_LITTERAL, 0x0C },   // 11111100
+	{ 8, 253, 0, ZGFX_TOKEN_LITTERAL, 0x38 },   // 11111101
+	{ 8, 254, 0, ZGFX_TOKEN_LITTERAL, 0x39 },   // 11111110
+	{ 8, 255, 0, ZGFX_TOKEN_LITTERAL, 0x66 },   // 11111111
+	{ 9, 380, 22, ZGFX_TOKEN_MATCH, 4511392 },  // 101111100
+	{ 9, 381, 23, ZGFX_TOKEN_MATCH, 8705696 },  // 101111101
+	{ 9, 382, 24, ZGFX_TOKEN_MATCH, 17094304 }, // 101111110
 	{ 0 }
 };
 
@@ -291,7 +295,7 @@ static inline BOOL zgfx_decompress_segment(ZGFX_CONTEXT* WINPR_RESTRICT zgfx,
 
 			if (inPrefix == ZGFX_TOKEN_TABLE[opIndex].prefixCode)
 			{
-				if (ZGFX_TOKEN_TABLE[opIndex].tokenType == 0)
+				if (ZGFX_TOKEN_TABLE[opIndex].tokenType == ZGFX_TOKEN_LITTERAL)
 				{
 					/* Literal */
 					zgfx_GetBits(zgfx, ZGFX_TOKEN_TABLE[opIndex].valueBits);

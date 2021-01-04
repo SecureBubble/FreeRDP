@@ -2110,6 +2110,7 @@ rdpTls* freerdp_tls_new(rdpContext* context)
 
 	tls->context = context;
 
+
 	if (!freerdp_settings_get_bool(tls->context->settings, FreeRDP_ServerMode))
 	{
 		tls->certificate_store = freerdp_certificate_store_new(tls->context->settings);

@@ -48,6 +48,7 @@
 #include <valgrind/memcheck.h>
 #endif
 
+#include "bio.h"
 #include "tpkt.h"
 #include "fastpath.h"
 #include "transport.h"

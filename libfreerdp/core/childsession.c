@@ -17,8 +17,6 @@
  * limitations under the License.
  */
 
-#include "tcp.h"
-
 #include <winpr/library.h>
 #include <winpr/assert.h>
 #include <winpr/print.h>
@@ -26,6 +24,8 @@
 
 #include <freerdp/utils/ringbuffer.h>
 
+#include "tcp.h"
+#include "bio.h"
 #include "childsession.h"
 
 #define TAG FREERDP_TAG("childsession")

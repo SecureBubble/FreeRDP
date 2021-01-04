@@ -43,6 +43,7 @@ extern "C"
 		/* server */
 		char* Host;
 		UINT16 Port;
+		BOOL EnableUdp;
 
 		/* target */
 		BOOL FixedTarget;

@@ -32,6 +32,7 @@
 
 #include "rdp.h"
 #include "utils.h"
+#include "bio.h"
 
 #if !defined(_WIN32)
 
@@ -94,11 +95,6 @@
 
 /* Simple Socket BIO */
 
-typedef struct
-{
-	SOCKET socket;
-	HANDLE hEvent;
-} WINPR_BIO_SIMPLE_SOCKET;
 
 static int transport_bio_simple_init(BIO* bio, SOCKET socket, int shutdown);
 static int transport_bio_simple_uninit(BIO* bio);
@@ -662,6 +658,87 @@ BIO_METHOD* BIO_s_buffered_socket(void)
 	return bio_methods;
 }
 
+BOOL BIO_poll(BIO* bio, UINT32 timeout, BOOL* fd, BOOL* timer)
+{
+	HANDLE events[2];
+	DWORD status;
+	DWORD nevents;
+
+again:
+	ZeroMemory(events, sizeof(events));
+	nevents = 0;
+	if (timer)
+	{
+		*timer = FALSE;
+		if (BIO_get_timer_event(bio, &events[0]) >= 0 && events[0])
+			nevents++;
+	}
+
+	if (BIO_get_event(bio, &events[nevents]) < 0 || !events[nevents])
+	{
+		WLog_ERR(TAG, "unable to retrieve BIO event");
+		return FALSE;
+	}
+	nevents++;
+
+	status = WaitForMultipleObjectsEx(nevents, events, FALSE, timeout, TRUE);
+	if (nevents == 1)
+	{
+		/* optimize when we only have one fd */
+		switch (status)
+		{
+			case WAIT_OBJECT_0:
+				*fd = TRUE;
+				return TRUE;
+			case WAIT_TIMEOUT:
+				*fd = FALSE;
+				return TRUE;
+			case WAIT_IO_COMPLETION:
+				goto again;
+			default:
+				return FALSE;
+		}
+	}
+
+	/* handle the case with fd + timer polling */
+	switch (status)
+	{
+		case WAIT_TIMEOUT:
+			*fd = FALSE;
+			*timer = FALSE;
+			return TRUE;
+		case WAIT_OBJECT_0:
+			*timer = TRUE;
+			*fd = WaitForSingleObject(events[1], 0) == WAIT_OBJECT_0;
+			return TRUE;
+		case WAIT_OBJECT_0 + 1:
+			*timer = FALSE;
+			*fd = TRUE;
+			return TRUE;
+		case WAIT_IO_COMPLETION:
+			goto again;
+		case WAIT_FAILED:
+		default:
+			*fd = FALSE;
+			*timer = FALSE;
+			return FALSE;
+	}
+
+	return TRUE;
+}
+
+void BIO_treat_timer(BIO* bio)
+{
+	HANDLE timerH = NULL;
+	BIO_get_timer_event(bio, &timerH);
+
+	if (timerH)
+	{
+		//winpr_Handle_cleanup(timerH);
+		BIO_handle_timer(bio);
+	}
+}
+
 char* freerdp_tcp_address_to_string(const struct sockaddr_storage* addr, BOOL* pIPv6)
 {
 	char ipAddress[INET6_ADDRSTRLEN + 1] = WINPR_C_ARRAY_INIT;
@@ -768,14 +845,14 @@ static int freerdp_uds_connect(const char* path)
 
 struct addrinfo* freerdp_tcp_resolve_host(const char* hostname, int port, int ai_flags)
 {
+	return freerdp_resolve_host(hostname, port, SOCK_STREAM, ai_flags);
+}
+
+struct addrinfo* freerdp_resolve_host(const char* hostname, int port, int sockType,
+                                                    int ai_flags)
+{
 	char* service = nullptr;
 	char port_str[16];
-	int status = 0;
-	struct addrinfo hints = WINPR_C_ARRAY_INIT;
-	struct addrinfo* result = nullptr;
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = ai_flags;
 
 	if (port >= 0)
 	{
@@ -783,7 +860,13 @@ struct addrinfo* freerdp_tcp_resolve_host(const char* hostname, int port, int ai
 		service = port_str;
 	}
 
-	status = getaddrinfo(hostname, service, &hints, &result);
+	struct addrinfo hints = { 0 };
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = sockType;
+	hints.ai_flags = ai_flags;
+
+	struct addrinfo* result = nullptr;
+	int status = getaddrinfo(hostname, service, &hints, &result);
 
 	if (status)
 		return nullptr;

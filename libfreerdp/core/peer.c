@@ -36,10 +36,12 @@
 #include <freerdp/streamdump.h>
 #include <freerdp/redirection.h>
 #include <freerdp/crypto/certificate.h>
+#include <freerdp/multitransport.h>
 
 #include "rdp.h"
 #include "peer.h"
 #include "multitransport.h"
+#include "udpchannel.h"
 
 #define TAG FREERDP_TAG("core.peer")
 
@@ -797,8 +799,10 @@ static state_run_t peer_recv_callback_internal(WINPR_ATTR_UNUSED rdpTransport* t
 	rdpRdp* rdp = client->context->rdp;
 	WINPR_ASSERT(rdp);
 
-	rdpSettings* settings = client->context->settings;
-	WINPR_ASSERT(settings);
+	rdpSettings* serverSettings = rdp->context->settings;
+	rdpSettings* peerSettings = client->context->settings;
+	WINPR_ASSERT(serverSettings);
+	WINPR_ASSERT(peerSettings);
 
 	if (client->ReachedState)
 	{
@@ -808,7 +812,7 @@ static state_run_t peer_recv_callback_internal(WINPR_ATTR_UNUSED rdpTransport* t
 	switch (rdp_get_state(rdp))
 	{
 		case CONNECTION_STATE_INITIAL:
-			if (!freerdp_settings_enforce_consistency(settings))
+			if (!freerdp_settings_enforce_consistency(peerSettings))
 				ret = STATE_RUN_FAILED;
 			else if (rdp_server_transition_to_state(rdp, CONNECTION_STATE_NEGO))
 				ret = STATE_RUN_CONTINUE;
@@ -822,13 +826,12 @@ static state_run_t peer_recv_callback_internal(WINPR_ATTR_UNUSED rdpTransport* t
 			else
 			{
 				const UINT32 SelectedProtocol = nego_get_selected_protocol(rdp->nego);
-
-				settings->RdstlsSecurity = (SelectedProtocol & PROTOCOL_RDSTLS) != 0;
-				settings->NlaSecurity = (SelectedProtocol & PROTOCOL_HYBRID) != 0;
-				settings->TlsSecurity = (SelectedProtocol & PROTOCOL_SSL) != 0;
-				settings->RdpSecurity = (SelectedProtocol == PROTOCOL_RDP) != 0;
-
+				peerSettings->RdstlsSecurity = (SelectedProtocol & PROTOCOL_RDSTLS) != 0;
+				peerSettings->NlaSecurity = (SelectedProtocol & PROTOCOL_HYBRID) != 0;
+				peerSettings->TlsSecurity = (SelectedProtocol & PROTOCOL_SSL) != 0;
+				peerSettings->RdpSecurity = (SelectedProtocol == PROTOCOL_RDP) != 0;
 				client->authenticated = FALSE;
+
 				if (SelectedProtocol & PROTOCOL_HYBRID)
 				{
 					SEC_WINNT_AUTH_IDENTITY_INFO* identity =
@@ -956,8 +959,8 @@ static state_run_t peer_recv_callback_internal(WINPR_ATTR_UNUSED rdpTransport* t
 			break;
 
 		case CONNECTION_STATE_MULTITRANSPORT_BOOTSTRAPPING_REQUEST:
-			if (settings->SupportMultitransport &&
-			    ((settings->MultitransportFlags & INITIATE_REQUEST_PROTOCOL_UDPFECR) != 0))
+			if (peerSettings->SupportMultitransport &&
+			    ((peerSettings->MultitransportFlags & INITIATE_REQUEST_PROTOCOL_UDPFECR) != 0))
 			{
 				/* only UDP reliable for now, nobody does lossy UDP (MS-RDPUDP only) these days */
 				ret = multitransport_server_request(rdp->multitransport,
@@ -995,7 +998,7 @@ static state_run_t peer_recv_callback_internal(WINPR_ATTR_UNUSED rdpTransport* t
 			break;
 
 		case CONNECTION_STATE_CAPABILITIES_EXCHANGE_MONITOR_LAYOUT:
-			if (freerdp_settings_get_bool(settings, FreeRDP_SupportMonitorLayoutPdu))
+			if (freerdp_settings_get_bool(serverSettings, FreeRDP_SupportMonitorLayoutPdu))
 			{
 				MONITOR_DEF* monitors = nullptr;
 
@@ -1007,10 +1010,12 @@ static state_run_t peer_recv_callback_internal(WINPR_ATTR_UNUSED rdpTransport* t
 
 				/* client supports the monitorLayout PDU, let's send him the monitors if any */
 				ret = STATE_RUN_SUCCESS;
-				if (freerdp_settings_get_uint32(settings, FreeRDP_MonitorCount) == 0)
+				if (freerdp_settings_get_uint32(peerSettings, FreeRDP_MonitorCount) == 0)
 				{
-					const UINT32 w = freerdp_settings_get_uint32(settings, FreeRDP_DesktopWidth);
-					const UINT32 h = freerdp_settings_get_uint32(settings, FreeRDP_DesktopHeight);
+					const UINT32 w =
+					    freerdp_settings_get_uint32(peerSettings, FreeRDP_DesktopWidth);
+					const UINT32 h =
+					    freerdp_settings_get_uint32(peerSettings, FreeRDP_DesktopHeight);
 					const rdpMonitor primary = { .x = 0,
 						                         .y = 0,
 						                         .width = WINPR_ASSERTING_INT_CAST(int32_t, w),
@@ -1023,22 +1028,22 @@ static state_run_t peer_recv_callback_internal(WINPR_ATTR_UNUSED rdpTransport* t
 						                                             ORIENTATION_LANDSCAPE,
 						                                         .desktopScaleFactor = 100,
 						                                         .deviceScaleFactor = 100 } };
-					if (!freerdp_settings_set_pointer_array(settings, FreeRDP_MonitorDefArray, 0,
-					                                        &primary))
+					if (!freerdp_settings_set_pointer_array(peerSettings, FreeRDP_MonitorDefArray,
+					                                        0, &primary))
 						ret = STATE_RUN_FAILED;
-					else if (!freerdp_settings_set_uint32(settings, FreeRDP_MonitorCount, 1))
+					else if (!freerdp_settings_set_uint32(peerSettings, FreeRDP_MonitorCount, 1))
 						ret = STATE_RUN_FAILED;
 				}
 				if (state_run_failed(ret))
 				{
 				}
 				else if (!display_convert_rdp_monitor_to_monitor_def(
-				             settings->MonitorCount, settings->MonitorDefArray, &monitors))
+				             peerSettings->MonitorCount, peerSettings->MonitorDefArray, &monitors))
 				{
 					ret = STATE_RUN_FAILED;
 				}
-				else if (!freerdp_display_send_monitor_layout(rdp->context, settings->MonitorCount,
-				                                              monitors))
+				else if (!freerdp_display_send_monitor_layout(rdp->context,
+				                                              peerSettings->MonitorCount, monitors))
 				{
 					ret = STATE_RUN_FAILED;
 				}
@@ -1109,7 +1114,7 @@ static state_run_t peer_recv_callback_internal(WINPR_ATTR_UNUSED rdpTransport* t
 				ret = peer_unexpected_client_message(rdp, FINALIZE_CS_CONTROL_REQUEST_PDU);
 			break;
 		case CONNECTION_STATE_FINALIZATION_PERSISTENT_KEY_LIST:
-			if (freerdp_settings_get_bool(settings, FreeRDP_BitmapCachePersistEnabled) &&
+			if (freerdp_settings_get_bool(peerSettings, FreeRDP_BitmapCachePersistEnabled) &&
 			    !rdp_finalize_is_flag_set(rdp, FINALIZE_DEACTIVATE_REACTIVATE))
 			{
 				ret = peer_recv_pdu(client, s);
@@ -1284,15 +1289,39 @@ fail:
 	return rc;
 }
 
-static BOOL freerdp_peer_send_channel_packet(freerdp_peer* client, UINT16 channelId,
-                                             size_t totalSize, UINT32 flags, const BYTE* data,
-                                             size_t chunkSize)
+static BOOL freerdp_peer_send_channel_packet_ex(freerdp_peer* client, RDP_TRANSPORT_TYPE transport,
+                                                UINT16 channelId, size_t totalSize, UINT32 flags,
+                                                const BYTE* data, size_t chunkSize)
 {
 	WINPR_ASSERT(client);
 	WINPR_ASSERT(client->context);
 	WINPR_ASSERT(client->context->rdp);
-	return rdp_channel_send_packet(client->context->rdp, channelId, totalSize, flags, data,
-	                               chunkSize);
+
+	switch (transport)
+	{
+		case RDP_TRANSPORT_TCP:
+			return rdp_channel_send_packet(client->context->rdp, channelId, totalSize, flags, data,
+			                               chunkSize);
+		case RDP_TRANSPORT_UDP_R:
+		{
+			wStream s;
+			Stream_StaticConstInit(&s, data, chunkSize);
+			return freerdp_send_udp(client->context->rdp, FALSE, NULL, &s);
+		}
+		case RDP_TRANSPORT_UDP_L:
+			WLog_ERR(TAG, "lossy UDP transport not implemented yet");
+			return FALSE;
+		default:
+			return FALSE;
+	}
+}
+
+static BOOL freerdp_peer_send_channel_packet(freerdp_peer* client, UINT16 channelId,
+                                             size_t totalSize, UINT32 flags, const BYTE* data,
+                                             size_t chunkSize)
+{
+	return freerdp_peer_send_channel_packet_ex(client, RDP_TRANSPORT_TCP, channelId, totalSize,
+	                                           flags, data, chunkSize);
 }
 
 static BOOL freerdp_peer_is_write_blocked(freerdp_peer* peer)
@@ -1342,6 +1371,23 @@ static LicenseCallbackResult freerdp_peer_nolicense(freerdp_peer* peer,
 	}
 
 	return LICENSE_CB_COMPLETED;
+}
+
+static BOOL freerdp_peer_associate_udp_connection(freerdp_peer* peer,
+                                                  multiTransportChannel* channel)
+{
+	rdpRdp* rdp = peer->context->rdp;
+
+	if (rdp_get_state(rdp) != CONNECTION_STATE_MULTITRANSPORT_BOOTSTRAPPING_RESPONSE)
+	{
+		WLog_ERR(TAG, "expecting a UDP connection only when bootstrapping multitransport");
+		return FALSE;
+	}
+
+	multitransportchannel_ref(channel);
+	channel->multiTransport = peer->multitransport;
+	peer->multitransport->channels[0] = channel;
+	return TRUE;
 }
 
 BOOL freerdp_peer_context_new(freerdp_peer* client)
@@ -1489,6 +1535,7 @@ freerdp_peer* freerdp_peer_new(int sockfd)
 		client->SendChannelData = freerdp_peer_send_channel_data;
 		client->SendChannelPacket = freerdp_peer_send_channel_packet;
 		client->SendServerRedirection = freerdp_peer_send_server_redirection_pdu;
+		// TODO: client->SendChannelPacketEx = freerdp_peer_send_channel_packet_ex;
 		client->IsWriteBlocked = freerdp_peer_is_write_blocked;
 		client->DrainOutputBuffer = freerdp_peer_drain_output_buffer;
 		client->HasMoreToRead = freerdp_peer_has_more_to_read;
@@ -1586,6 +1633,7 @@ BOOL freerdp_peer_context_new_ex(freerdp_peer* client, const rdpSettings* settin
 	context->update = rdp->update;
 	context->settings = rdp->settings;
 	context->autodetect = rdp->autodetect;
+	client->multitransport = rdp->multitransport;
 	update_register_server_callbacks(rdp->update);
 	autodetect_register_server_callbacks(rdp->autodetect);
 
@@ -1608,6 +1656,7 @@ BOOL freerdp_peer_context_new_ex(freerdp_peer* client, const rdpSettings* settin
 	client->DrainOutputBuffer = freerdp_peer_drain_output_buffer;
 	client->HasMoreToRead = freerdp_peer_has_more_to_read;
 	client->LicenseCallback = freerdp_peer_nolicense;
+	client->AssociateUdpConn = freerdp_peer_associate_udp_connection;
 	IFCALLRET(client->ContextNew, ret, client, client->context);
 
 	if (!ret)

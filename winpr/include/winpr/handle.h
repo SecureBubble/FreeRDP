@@ -59,6 +59,7 @@ extern "C"
 	WINPR_ATTR_NODISCARD
 	WINPR_API BOOL SetHandleInformation(HANDLE hObject, DWORD dwMask, DWORD dwFlags);
 
+	/// WINPR_API DWORD winpr_Handle_cleanup(HANDLE handle);
 #endif
 
 #ifdef __cplusplus

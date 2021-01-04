@@ -30,6 +30,15 @@
 #include <freerdp/server/proxy/proxy_config.h>
 #include "proxy_modules.h"
 
+struct proxy_peer
+{
+	HANDLE hThread;
+	wMessageQueue* msg_queue;
+	freerdp_peer* client;
+	BOOL doRun;
+};
+typedef struct proxy_peer proxyPeer;
+
 struct proxy_server
 {
 	proxyModule* module;
