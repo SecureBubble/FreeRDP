@@ -301,6 +301,12 @@ static void bubble_request_exec_app(BubbleClientContext* context)
 
         wStream* data_in = NULL;
         if (settings->RemoteApplicationMode) {
+		if (strlen(settings->RemoteApplicationProgram) <= 2)
+		{
+			WLog_ERR(TAG, "bubble: remote application is invalid");
+			return ERROR_INTERNAL_ERROR;
+		}
+
 		const char* app_to_execute = (const char*)(settings->RemoteApplicationProgram + 2);
 		//const char* app_to_execute = "notepad";
 
