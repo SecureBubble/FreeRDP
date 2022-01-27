@@ -53,6 +53,7 @@
 #include <freerdp/server/rdpgfx.h>
 #include <freerdp/server/disp.h>
 #include <freerdp/server/gfxredir.h>
+#include <freerdp/server/bubcli.h>
 
 extern void freerdp_channels_dummy(void);
 
@@ -73,6 +74,7 @@ void freerdp_channels_dummy(void)
 #ifdef WITH_CHANNEL_GFXREDIR
 	GfxRedirServerContext* gfxredir;
 #endif // WITH_CHANNEL_GFXREDIR
+	BubcliServerContext* bubcli;
 	audin = audin_server_context_new(NULL);
 	audin_server_context_free(audin);
 	rdpsnd = rdpsnd_server_context_new(NULL);
@@ -101,6 +103,8 @@ void freerdp_channels_dummy(void)
 	gfxredir = gfxredir_server_context_new(NULL);
 	gfxredir_server_context_free(gfxredir);
 #endif // WITH_CHANNEL_GFXREDIR
+	bubcli = bubcli_server_context_new(NULL);
+	bubcli_server_context_free(bubcli);
 }
 
 /**
