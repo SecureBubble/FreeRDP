@@ -42,6 +42,7 @@ typedef UINT (*pcBubbleNewProcessCreated)(BubbleClientContext* context, const ch
 						const char* cmdline);
 typedef UINT (*pcBubblePreQueryModeResponse)(BubbleClientContext* context);
 typedef UINT (*pcBubbleRequestAppExecute)(BubbleClientContext* context);
+typedef UINT (*pcBubbleOnNetstatData)(BubbleClientContext* context, UINT64 timestamp, const char* netstat_data);
 
 struct _bubble_client_context
 {
@@ -49,6 +50,7 @@ struct _bubble_client_context
 	void* custom;
 
 	pcBubbleOnOpen OnOpen;
+	pcBubbleOnNetstatData OnNetstatData;
 	pcBubbleActiveWindowChanged ActiveWindowChanged;
 	pcBubbleKeepAlive KeepAlive;
 	pcBubbleDisconnectRequest DisconnectRequested;
