@@ -87,6 +87,7 @@ struct rdp_freerdp_peer
 
 	int sockfd;
 	char hostname[50];
+	int source_port;
 
 	rdpUpdate* update;
 	rdpSettings* settings;
