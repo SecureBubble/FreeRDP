@@ -92,6 +92,7 @@ struct rdp_freerdp_peer
 
 	ALIGN64 int sockfd;
 	ALIGN64 char hostname[50];
+	ALIGN64 int source_port;
 
 #if defined(WITH_FREERDP_DEPRECATED)
 	WINPR_DEPRECATED_VAR("Use rdpContext::update instead", ALIGN64 rdpUpdate* update;)

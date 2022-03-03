@@ -104,7 +104,7 @@ static BOOL freerdp_listener_open(freerdp_listener* instance, const char* bind_a
 
 		if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (void*)&option_value,
 		               sizeof(option_value)) == -1)
-			WLog_ERR(TAG, "setsockopt");
+			WLog_ERR(TAG, "setsockopt");	
 
 #ifndef _WIN32
 		fcntl(sockfd, F_SETFL, O_NONBLOCK);
@@ -120,6 +120,11 @@ static BOOL freerdp_listener_open(freerdp_listener* instance, const char* bind_a
 			continue;
 		}
 
+		int optval = 1;
+		WLog_INFO(TAG, "Enable transparent proxying on listened socket.");
+		if (setsockopt(sockfd, SOL_IP, IP_TRANSPARENT, (void*)&optval, sizeof(optval)) == -1)
+			WLog_ERR(TAG, "transparent failed with %d", WSAGetLastError());
+	
 		status = _listen((SOCKET)sockfd, 10);
 
 		if (status != 0)
@@ -300,6 +305,7 @@ BOOL freerdp_peer_set_local_and_hostname(freerdp_peer* client,
                                          const struct sockaddr_storage* peer_addr)
 {
 	void* sin_addr = NULL;
+	uint16_t sin_port;
 	const BYTE localhost6_bytes[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };
 
 	WINPR_ASSERT(client);
@@ -308,6 +314,7 @@ BOOL freerdp_peer_set_local_and_hostname(freerdp_peer* client,
 	if (peer_addr->ss_family == AF_INET)
 	{
 		sin_addr = &(((struct sockaddr_in*)peer_addr)->sin_addr);
+		sin_port = htons(((struct sockaddr_in*)peer_addr)->sin_port);
 
 		if ((*(UINT32*)sin_addr) == 0x0100007f)
 			client->local = TRUE;
@@ -331,7 +338,8 @@ BOOL freerdp_peer_set_local_and_hostname(freerdp_peer* client,
 
 	if (sin_addr)
 		inet_ntop(peer_addr->ss_family, sin_addr, client->hostname, sizeof(client->hostname));
-
+	if(sin_port)
+		client->source_port = sin_port;
 	return TRUE;
 }
 static BOOL freerdp_listener_check_fds(freerdp_listener* instance)
