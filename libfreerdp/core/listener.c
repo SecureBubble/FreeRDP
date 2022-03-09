@@ -119,12 +119,16 @@ static BOOL freerdp_listener_open(freerdp_listener* instance, const char* bind_a
 			closesocket((SOCKET)sockfd);
 			continue;
 		}
-
-		int optval = 1;
-		WLog_INFO(TAG, "Enable transparent proxying on listened socket.");
-		if (setsockopt(sockfd, SOL_IP, IP_TRANSPARENT, (void*)&optval, sizeof(optval)) == -1)
-			WLog_ERR(TAG, "transparent failed with %d", WSAGetLastError());
-	
+		
+		// WLog_INFO(TAG, "transparent_enabled: %d", transparent_enabled);
+		// if (transparent_enabled)
+		// {
+		// 	int optval = 1;
+		// 	WLog_INFO(TAG, "Enable transparent proxying on listened socket.");
+		// 	if (setsockopt(sockfd, SOL_IP, IP_TRANSPARENT, (void*)&optval, sizeof(optval)) == -1)
+		// 		WLog_ERR(TAG, "transparent failed with %d", WSAGetLastError());
+		// }
+		
 		status = _listen((SOCKET)sockfd, 10);
 
 		if (status != 0)
