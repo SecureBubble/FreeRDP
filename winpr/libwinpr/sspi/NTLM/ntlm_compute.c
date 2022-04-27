@@ -78,12 +78,8 @@ BOOL ntlm_read_version_info(wStream* s, NTLM_VERSION_INFO* versionInfo)
 	WINPR_ASSERT(s);
 	WINPR_ASSERT(versionInfo);
 
-	if (Stream_GetRemainingLength(s) < 8)
-	{
-		WLog_ERR(TAG, "NTLM_VERSION_INFO short header %" PRIuz ", expected %" PRIuz,
-		         Stream_GetRemainingLength(s), 8);
+	if (!Stream_CheckAndLogRequiredLength(TAG, s, 8))
 		return FALSE;
-	}
 
 	Stream_Read_UINT8(s, versionInfo->ProductMajorVersion); /* ProductMajorVersion (1 byte) */
 	Stream_Read_UINT8(s, versionInfo->ProductMinorVersion); /* ProductMinorVersion (1 byte) */
@@ -145,12 +141,8 @@ static BOOL ntlm_read_ntlm_v2_client_challenge(wStream* s, NTLMv2_CLIENT_CHALLEN
 	WINPR_ASSERT(s);
 	WINPR_ASSERT(challenge);
 
-	if (Stream_GetRemainingLength(s) < 28)
-	{
-		WLog_ERR(TAG, "NTLMv2_CLIENT_CHALLENGE expected 28bytes, got %" PRIuz "bytes",
-		         Stream_GetRemainingLength(s));
+	if (!Stream_CheckAndLogRequiredLength(TAG, s, 28))
 		return FALSE;
-	}
 
 	Stream_Read_UINT8(s, challenge->RespType);
 	Stream_Read_UINT8(s, challenge->HiRespType);
@@ -203,13 +195,10 @@ static BOOL ntlm_write_ntlm_v2_client_challenge(wStream* s,
 	Stream_Write(s, challenge->ClientChallenge, 8);
 	Stream_Write_UINT32(s, challenge->Reserved3);
 	length = ntlm_av_pair_list_length(challenge->AvPairs, challenge->cbAvPairs);
-	if (Stream_GetRemainingCapacity(s) < length)
-	{
-		WLog_ERR(TAG,
-		         "NTLMv2_CLIENT_CHALLENGE::AvPairs expected %" PRIu32 "bytes, have %" PRIuz "bytes",
-		         length, Stream_GetRemainingCapacity(s));
+
+	if (!Stream_CheckAndLogRequiredLength(TAG, s, length))
 		return FALSE;
-	}
+
 	Stream_Write(s, challenge->AvPairs, length);
 	return TRUE;
 }
@@ -219,13 +208,9 @@ BOOL ntlm_read_ntlm_v2_response(wStream* s, NTLMv2_RESPONSE* response)
 	WINPR_ASSERT(s);
 	WINPR_ASSERT(response);
 
-	if (Stream_GetRemainingLength(s) < 16)
-	{
-		WLog_ERR(TAG, "NTLMv2_RESPONSE expected 16bytes, have %" PRIuz "bytes",
-		         Stream_GetRemainingLength(s));
-
+	if (!Stream_CheckAndLogRequiredLength(TAG, s, 16))
 		return FALSE;
-	}
+
 	Stream_Read(s, response->Response, 16);
 	return ntlm_read_ntlm_v2_client_challenge(s, &(response->Challenge));
 }
@@ -278,10 +263,11 @@ void ntlm_generate_timestamp(NTLM_CONTEXT* context)
 		ntlm_current_time(context->Timestamp);
 }
 
-static int ntlm_fetch_ntlm_v2_hash(NTLM_CONTEXT* context, BYTE* hash)
+static BOOL ntlm_fetch_ntlm_v2_hash(NTLM_CONTEXT* context, BYTE* hash)
 {
-	WINPR_SAM* sam;
-	WINPR_SAM_ENTRY* entry;
+	BOOL rc = FALSE;
+	WINPR_SAM* sam = NULL;
+	WINPR_SAM_ENTRY* entry = NULL;
 	SSPI_CREDENTIALS* credentials;
 
 	WINPR_ASSERT(context);
@@ -291,48 +277,39 @@ static int ntlm_fetch_ntlm_v2_hash(NTLM_CONTEXT* context, BYTE* hash)
 	sam = SamOpen(context->SamFile, TRUE);
 
 	if (!sam)
-		return -1;
+		goto fail;
 
 	entry = SamLookupUserW(
-	    sam, (LPWSTR)credentials->identity.User, credentials->identity.UserLength * 2,
-	    (LPWSTR)credentials->identity.Domain, credentials->identity.DomainLength * 2);
+	    sam, (LPWSTR)credentials->identity.User, credentials->identity.UserLength * sizeof(WCHAR),
+	    (LPWSTR)credentials->identity.Domain, credentials->identity.DomainLength * sizeof(WCHAR));
 
-	if (entry)
+	if (!entry)
 	{
+		entry = SamLookupUserW(sam, (LPWSTR)credentials->identity.User,
+		                       credentials->identity.UserLength * sizeof(WCHAR), NULL, 0);
+	}
+
+	if (!entry)
+		goto fail;
+
 #ifdef WITH_DEBUG_NTLM
 		WLog_VRB(TAG, "NTLM Hash:");
 		winpr_HexDump(TAG, WLOG_DEBUG, entry->NtHash, 16);
 #endif
-		NTOWFv2FromHashW(entry->NtHash, (LPWSTR)credentials->identity.User,
-		                 credentials->identity.UserLength * 2, (LPWSTR)credentials->identity.Domain,
-		                 credentials->identity.DomainLength * 2, (BYTE*)hash);
-		SamFreeEntry(sam, entry);
-		SamClose(sam);
-		return 1;
-	}
+	    NTOWFv2FromHashW(entry->NtHash, (LPWSTR)credentials->identity.User,
+	                     credentials->identity.UserLength * sizeof(WCHAR),
+	                     (LPWSTR)credentials->identity.Domain,
+	                     credentials->identity.DomainLength * sizeof(WCHAR), (BYTE*)hash);
 
-	entry = SamLookupUserW(sam, (LPWSTR)credentials->identity.User,
-	                       credentials->identity.UserLength * 2, NULL, 0);
+	    rc = TRUE;
 
-	if (entry)
-	{
-#ifdef WITH_DEBUG_NTLM
-		WLog_VRB(TAG, "NTLM Hash:");
-		winpr_HexDump(TAG, WLOG_DEBUG, entry->NtHash, 16);
-#endif
-		NTOWFv2FromHashW(entry->NtHash, (LPWSTR)credentials->identity.User,
-		                 credentials->identity.UserLength * 2, (LPWSTR)credentials->identity.Domain,
-		                 credentials->identity.DomainLength * 2, (BYTE*)hash);
-		SamFreeEntry(sam, entry);
-		SamClose(sam);
-		return 1;
-	}
-	else
-	{
-		SamClose(sam);
+fail:
+	SamFreeEntry(sam, entry);
+	SamClose(sam);
+	if (!rc)
 		WLog_ERR(TAG, "Error: Could not find user in SAM database");
-		return 0;
-	}
+
+	return rc;
 }
 
 static int ntlm_convert_password_hash(NTLM_CONTEXT* context, BYTE* hash)

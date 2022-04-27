@@ -37,16 +37,16 @@
 
 static UINT32 ChannelId_Hash(const void* key)
 {
-	const UINT32* v = (const UINT32*)key;
-	return *v;
+	const UINT64* v = (const UINT64*)key;
+	return (*v & 0xFFFFFFFF) + (*v >> 32);
 }
 
-static BOOL ChannelId_Compare(const UINT32* v1, const UINT32* v2)
+static BOOL ChannelId_Compare(const UINT64* v1, const UINT64* v2)
 {
 	return (*v1 == *v2);
 }
 
-pServerChannelContext* ChannelContext_new(pServerContext* ps, const char* name, UINT32 id)
+pServerChannelContext* ChannelContext_new(pServerContext* ps, const char* name, UINT64 id)
 {
 	pServerChannelContext* ret = calloc(1, sizeof(*ret));
 	if (!ret)
@@ -55,6 +55,7 @@ pServerChannelContext* ChannelContext_new(pServerContext* ps, const char* name, 
 		return NULL;
 	}
 
+	ret->openStatus = CHANNEL_OPENSTATE_OPENED;
 	ret->channel_id = id;
 	ret->channel_name = _strdup(name);
 	if (!ret->channel_name)
@@ -72,6 +73,8 @@ void ChannelContext_free(pServerChannelContext* ctx)
 {
 	if (!ctx)
 		return;
+
+	IFCALL(ctx->contextDtor,ctx->context);
 
 	free(ctx->channel_name);
 	free(ctx);
@@ -229,8 +232,7 @@ BOOL pf_context_copy_settings(rdpSettings* dst, const rdpSettings* src)
 		 * it must be freed before setting it to NULL to avoid a memory leak!
 		 */
 
-		if (!freerdp_settings_set_pointer_len(dst, FreeRDP_RdpServerRsaKey, NULL,
-		                                      sizeof(rdpRsaKey)))
+		if (!freerdp_settings_set_pointer_len(dst, FreeRDP_RdpServerRsaKey, NULL, 1))
 			goto out_fail;
 	}
 
@@ -352,7 +354,7 @@ void proxy_data_abort_connect(proxyData* pdata)
 	WINPR_ASSERT(pdata->abort_event);
 	SetEvent(pdata->abort_event);
 	if (pdata->pc)
-		freerdp_abort_connect(pdata->pc->context.instance);
+		freerdp_abort_connect_context(&pdata->pc->context);
 }
 
 BOOL proxy_data_shall_disconnect(proxyData* pdata)
