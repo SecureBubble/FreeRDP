@@ -38,9 +38,9 @@ static BOOL similar(const BYTE* src, const BYTE* dst, size_t size)
 static BOOL similarRGB(const BYTE* src, const BYTE* dst, size_t size, UINT32 format, BOOL use444)
 {
 	size_t x;
-	const UINT32 bpp = GetBytesPerPixel(format);
+	const UINT32 bpp = FreeRDPGetBytesPerPixel(format);
 	BYTE fill = PADDING_FILL_VALUE;
-	if (!ColorHasAlpha(format))
+	if (!FreeRDPColorHasAlpha(format))
 		fill = 0xFF;
 
 	for (x = 0; x < size; x++)
@@ -49,12 +49,12 @@ static BOOL similarRGB(const BYTE* src, const BYTE* dst, size_t size, UINT32 for
 		UINT32 sColor, dColor;
 		BYTE sR, sG, sB, sA;
 		BYTE dR, dG, dB, dA;
-		sColor = ReadColor(src, format);
-		dColor = ReadColor(dst, format);
+		sColor = FreeRDPReadColor(src, format);
+		dColor = FreeRDPReadColor(dst, format);
 		src += bpp;
 		dst += bpp;
-		SplitColor(sColor, format, &sR, &sG, &sB, &sA, NULL);
-		SplitColor(dColor, format, &dR, &dG, &dB, &dA, NULL);
+		FreeRDPSplitColor(sColor, format, &sR, &sG, &sB, &sA, NULL);
+		FreeRDPSplitColor(dColor, format, &dR, &dG, &dB, &dA, NULL);
 
 		if ((abs(sR - dR) > maxDiff) || (abs(sG - dG) > maxDiff) || (abs(sB - dB) > maxDiff))
 		{
@@ -174,6 +174,11 @@ static void free_padding(void* src, size_t padding)
  * Combine them and check, if the data is at the expected position. */
 static BOOL TestPrimitiveYUVCombine(primitives_t* prims, prim_size_t roi)
 {
+	union
+	{
+		const BYTE** cpv;
+		BYTE** pv;
+	} cnv;
 	UINT32 x, y, i;
 	UINT32 awidth, aheight;
 	BOOL rc = FALSE;
@@ -251,15 +256,17 @@ static BOOL TestPrimitiveYUVCombine(primitives_t* prims, prim_size_t roi)
 
 	PROFILER_ENTER(yuvCombine)
 
-	if (prims->YUV420CombineToYUV444(AVC444_LUMA, (const BYTE**)luma, lumaStride, roi.width,
-	                                 roi.height, yuv, yuvStride, &rect) != PRIMITIVES_SUCCESS)
+	cnv.pv = luma;
+	if (prims->YUV420CombineToYUV444(AVC444_LUMA, cnv.cpv, lumaStride, roi.width, roi.height, yuv,
+	                                 yuvStride, &rect) != PRIMITIVES_SUCCESS)
 	{
 		PROFILER_EXIT(yuvCombine)
 		goto fail;
 	}
 
-	if (prims->YUV420CombineToYUV444(AVC444_CHROMAv1, (const BYTE**)chroma, chromaStride, roi.width,
-	                                 roi.height, yuv, yuvStride, &rect) != PRIMITIVES_SUCCESS)
+	cnv.pv = chroma;
+	if (prims->YUV420CombineToYUV444(AVC444_CHROMAv1, cnv.cpv, chromaStride, roi.width, roi.height,
+	                                 yuv, yuvStride, &rect) != PRIMITIVES_SUCCESS)
 	{
 		PROFILER_EXIT(yuvCombine)
 		goto fail;
@@ -285,8 +292,9 @@ static BOOL TestPrimitiveYUVCombine(primitives_t* prims, prim_size_t roi)
 
 	PROFILER_ENTER(yuvSplit)
 
-	if (prims->YUV444SplitToYUV420((const BYTE**)yuv, yuvStride, pmain, lumaStride, paux,
-	                               chromaStride, &roi) != PRIMITIVES_SUCCESS)
+	cnv.pv = yuv;
+	if (prims->YUV444SplitToYUV420(cnv.cpv, yuvStride, pmain, lumaStride, paux, chromaStride,
+	                               &roi) != PRIMITIVES_SUCCESS)
 	{
 		PROFILER_EXIT(yuvSplit)
 		goto fail;
@@ -371,6 +379,11 @@ fail:
 
 static BOOL TestPrimitiveYUV(primitives_t* prims, prim_size_t roi, BOOL use444)
 {
+	union
+	{
+		const BYTE** cpv;
+		BYTE** pv;
+	} cnv;
 	BOOL res = FALSE;
 	UINT32 x, y;
 	UINT32 awidth, aheight;
@@ -501,11 +514,11 @@ static BOOL TestPrimitiveYUV(primitives_t* prims, prim_size_t roi, BOOL use444)
 			goto loop_fail;
 		}
 
+		cnv.pv = yuv;
 		if (use444)
 		{
 			PROFILER_ENTER(yuv444ToRGB)
-			rc = prims->YUV444ToRGB_8u_P3AC4R((const BYTE**)yuv, yuv_step, rgb_dst, stride,
-			                                  DstFormat, &roi);
+			rc = prims->YUV444ToRGB_8u_P3AC4R(cnv.cpv, yuv_step, rgb_dst, stride, DstFormat, &roi);
 			PROFILER_EXIT(yuv444ToRGB)
 
 			if (rc != PRIMITIVES_SUCCESS)
@@ -524,8 +537,8 @@ static BOOL TestPrimitiveYUV(primitives_t* prims, prim_size_t roi, BOOL use444)
 		{
 			PROFILER_ENTER(yuv420ToRGB)
 
-			if (prims->YUV420ToRGB_8u_P3AC4R((const BYTE**)yuv, yuv_step, rgb_dst, stride,
-			                                 DstFormat, &roi) != PRIMITIVES_SUCCESS)
+			if (prims->YUV420ToRGB_8u_P3AC4R(cnv.cpv, yuv_step, rgb_dst, stride, DstFormat, &roi) !=
+			    PRIMITIVES_SUCCESS)
 			{
 				PROFILER_EXIT(yuv420ToRGB)
 				goto fail;
@@ -769,7 +782,7 @@ static BOOL TestPrimitiveRgbToLumaChroma(primitives_t* prims, prim_size_t roi, U
 
 	for (x = 0; x < sizeof(formats) / sizeof(formats[0]); x++)
 	{
-		pstatus_t rc;
+		pstatus_t rc = -1;
 		const UINT32 DstFormat = formats[x];
 		printf("Testing destination color format %s\n", FreeRDPGetColorFormatName(DstFormat));
 		PROFILER_CREATE(rgbToYUV444, "RGBToYUV444-generic")

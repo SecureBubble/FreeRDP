@@ -1407,9 +1407,10 @@ static BOOL ends_with(const char* str, const char* ext)
 
 /**
  * parses a string value with the format <v1>x<v2>
- * @param input: input string
- * @param v1: pointer to output v1
- * @param v2: pointer to output v2
+ *
+ * @param input input string
+ * @param v1 pointer to output v1
+ * @param v2 pointer to output v2
  * @return if the parsing was successful
  */
 static BOOL parseSizeValue(const char* input, unsigned long* v1, unsigned long* v2)
@@ -2196,6 +2197,10 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 		}
 		CommandLineSwitchCase(arg, "gt")
 		{
+			if ((arg->Flags & COMMAND_LINE_VALUE_PRESENT) == 0)
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+
+			WINPR_ASSERT(arg->Value);
 			if (_stricmp(arg->Value, "rpc") == 0)
 			{
 				if (!freerdp_settings_set_bool(settings, FreeRDP_GatewayRpcTransport, TRUE) ||
@@ -3515,7 +3520,8 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 	arg = CommandLineFindArgumentA(largs, "smartcard-logon");
 	if (arg->Flags & COMMAND_LINE_ARGUMENT_PRESENT)
 	{
-		FillMemory(arg->Value, strlen(arg->Value), '*');
+		if (arg->Flags & COMMAND_LINE_VALUE_PRESENT)
+			FillMemory(arg->Value, strlen(arg->Value), '*');
 	}
 
 	arg = CommandLineFindArgumentA(largs, "gp");

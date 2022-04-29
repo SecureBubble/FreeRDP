@@ -227,6 +227,8 @@ static NTLM_CONTEXT* ntlm_ContextNew(void)
 
 			status = RegQueryValueExA(hKey, "WorkstationName", NULL, &dwType, (BYTE*)workstation,
 			                          &dwSize);
+			if (status != ERROR_SUCCESS)
+				WLog_WARN(TAG, "[%s]: Key ''WorkstationName' not found", __FUNCTION__);
 			workstation[dwSize] = '\0';
 
 			if (ntlm_SetContextWorkstation(context, workstation) < 0)
@@ -466,7 +468,7 @@ ntlm_AcceptSecurityContext(PCredHandle phCredential, PCtxtHandle phContext, PSec
 
 			return SEC_E_OUT_OF_SEQUENCE;
 		}
-		break;
+
 		case NTLM_STATE_AUTHENTICATE:
 		{
 			if (!pInput)
@@ -498,7 +500,7 @@ ntlm_AcceptSecurityContext(PCredHandle phCredential, PCtxtHandle phContext, PSec
 
 			return status;
 		}
-		break;
+
 		default:
 			break;
 	}

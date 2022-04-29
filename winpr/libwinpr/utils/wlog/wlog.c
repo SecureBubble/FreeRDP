@@ -20,6 +20,7 @@
 #include <winpr/config.h>
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
 
 #include <winpr/crt.h>
@@ -374,8 +375,8 @@ BOOL WLog_PrintMessageVA(wLog* log, DWORD type, DWORD level, size_t line, const 
 			{
 				char formattedLogMessage[WLOG_MAX_STRING_SIZE] = { 0 };
 
-				if (wvsnprintfx(formattedLogMessage, WLOG_MAX_STRING_SIZE - 1, message.FormatString,
-				                args) < 0)
+				if (vsnprintf(formattedLogMessage, WLOG_MAX_STRING_SIZE - 1, message.FormatString,
+				              args) < 0)
 					return FALSE;
 
 				message.TextString = formattedLogMessage;
@@ -790,16 +791,15 @@ LONG WLog_GetFilterLogLevel(wLog* log)
 
 static BOOL WLog_ParseName(wLog* log, LPCSTR name)
 {
+	const char* cp = name;
 	char* p;
-	size_t count;
+	size_t count = 1;
 	LPSTR names;
-	count = 1;
-	p = (char*)name;
 
-	while ((p = strchr(p, '.')) != NULL)
+	while ((cp = strchr(cp, '.')) != NULL)
 	{
 		count++;
-		p++;
+		cp++;
 	}
 
 	names = _strdup(name);

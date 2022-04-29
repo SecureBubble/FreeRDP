@@ -1,6 +1,6 @@
 /* ============================================================================================================
  * this file has been generated using
- * tools/asn_parser_generator.py --input=libfreerdp/core/credssp.asn1 --output-kind=impls
+ * ./tools/asn_parser_generator.py --input=libfreerdp/core/credssp.asn1 --output-kind=impls
  * --output=libfreerdp/core/tscredentials.c
  *
  * /!\ If you want to modify this file you'd probably better change asn_parser_generator.py or the
@@ -844,6 +844,7 @@ BOOL ber_read_nla_TSRemoteGuardPackageCred_array(wStream* s, TSRemoteGuardPackag
 			free(retItems);
 			return FALSE;
 		}
+		retItems = tmpRet;
 
 		memcpy(&retItems[ret], item, sizeof(*item));
 		free(item);

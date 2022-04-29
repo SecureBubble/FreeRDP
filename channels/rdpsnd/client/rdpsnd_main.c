@@ -123,6 +123,10 @@ struct rdpsnd_plugin
 	HANDLE thread;
 	wMessageQueue* queue;
 	BOOL initialized;
+
+	UINT16 wVersion;
+	UINT32 volume;
+	BOOL applyVolume;
 };
 
 static const char* rdpsnd_is_dyn_str(BOOL dynamic)
@@ -268,9 +272,9 @@ static UINT rdpsnd_send_client_audio_formats(rdpsndPlugin* rdpsnd)
 static UINT rdpsnd_recv_server_audio_formats_pdu(rdpsndPlugin* rdpsnd, wStream* s)
 {
 	UINT16 index;
-	UINT16 wVersion;
 	UINT16 wNumberOfFormats;
 	UINT ret = ERROR_BAD_LENGTH;
+
 	WINPR_ASSERT(rdpsnd);
 	audio_formats_free(rdpsnd->ServerFormats, rdpsnd->NumberOfServerFormats);
 	rdpsnd->NumberOfServerFormats = 0;
@@ -286,7 +290,7 @@ static UINT rdpsnd_recv_server_audio_formats_pdu(rdpsndPlugin* rdpsnd, wStream* 
 	Stream_Seek_UINT16(s); /* wDGramPort */
 	Stream_Read_UINT16(s, wNumberOfFormats);
 	Stream_Read_UINT8(s, rdpsnd->cBlockNo); /* cLastBlockConfirmed */
-	Stream_Read_UINT16(s, wVersion);        /* wVersion */
+	Stream_Read_UINT16(s, rdpsnd->wVersion); /* wVersion */
 	Stream_Seek_UINT8(s);                   /* bPad */
 	rdpsnd->NumberOfServerFormats = wNumberOfFormats;
 
@@ -313,7 +317,7 @@ static UINT rdpsnd_recv_server_audio_formats_pdu(rdpsndPlugin* rdpsnd, wStream* 
 
 	if (ret == CHANNEL_RC_OK)
 	{
-		if (wVersion >= CHANNEL_VERSION_WIN_7)
+		if (rdpsnd->wVersion >= CHANNEL_VERSION_WIN_7)
 			ret = rdpsnd_send_quality_mode_pdu(rdpsnd);
 	}
 
@@ -377,6 +381,20 @@ static UINT rdpsnd_recv_training_pdu(rdpsndPlugin* rdpsnd, wStream* s)
 	return rdpsnd_send_training_confirm_pdu(rdpsnd, wTimeStamp, wPackSize);
 }
 
+static BOOL rdpsnd_apply_volume(rdpsndPlugin* rdpsnd)
+{
+	WINPR_ASSERT(rdpsnd);
+
+	if (rdpsnd->isOpen && rdpsnd->applyVolume && rdpsnd->device)
+	{
+		BOOL rc = IFCALLRESULT(TRUE, rdpsnd->device->SetVolume, rdpsnd->device, rdpsnd->volume);
+		if (!rc)
+			return FALSE;
+		rdpsnd->applyVolume = FALSE;
+	}
+	return TRUE;
+}
+
 static BOOL rdpsnd_ensure_device_is_open(rdpsndPlugin* rdpsnd, UINT32 wFormatNo,
                                          const AUDIO_FORMAT* format)
 {
@@ -426,7 +444,7 @@ static BOOL rdpsnd_ensure_device_is_open(rdpsndPlugin* rdpsnd, UINT32 wFormatNo,
 		rdpsnd->totalPlaySize = 0;
 	}
 
-	return TRUE;
+	return rdpsnd_apply_volume(rdpsnd);
 }
 
 /**
@@ -707,7 +725,7 @@ static void rdpsnd_recv_close_pdu(rdpsndPlugin* rdpsnd)
  */
 static UINT rdpsnd_recv_volume_pdu(rdpsndPlugin* rdpsnd, wStream* s)
 {
-	BOOL rc = FALSE;
+	BOOL rc = TRUE;
 	UINT32 dwVolume;
 
 	if (!Stream_CheckAndLogRequiredLength(TAG, s, 4))
@@ -716,8 +734,10 @@ static UINT rdpsnd_recv_volume_pdu(rdpsndPlugin* rdpsnd, wStream* s)
 	Stream_Read_UINT32(s, dwVolume);
 	WLog_Print(rdpsnd->log, WLOG_DEBUG, "%s Volume: 0x%08" PRIX32 "",
 	           rdpsnd_is_dyn_str(rdpsnd->dynamic), dwVolume);
-	if (rdpsnd->device)
-		rc = IFCALLRESULT(FALSE, rdpsnd->device->SetVolume, rdpsnd->device, dwVolume);
+
+	rdpsnd->volume = dwVolume;
+	rdpsnd->applyVolume = TRUE;
+	rc = rdpsnd_apply_volume(rdpsnd);
 
 	if (!rc)
 	{
@@ -1665,6 +1685,12 @@ static UINT rdpsnd_plugin_initialize(IWTSPlugin* pPlugin, IWTSVirtualChannelMana
 	rdpsnd->listener_callback->channel_mgr = pChannelMgr;
 	status = pChannelMgr->CreateListener(pChannelMgr, RDPSND_DVC_CHANNEL_NAME, 0,
 	                                     &rdpsnd->listener_callback->iface, &(rdpsnd->listener));
+	if (status != CHANNEL_RC_OK)
+	{
+		WLog_ERR(TAG, "%s CreateListener failed!", rdpsnd_is_dyn_str(TRUE));
+		return status;
+	}
+
 	rdpsnd->listener->pInterface = rdpsnd->iface.pInterface;
 	status = rdpsnd_virtual_channel_event_initialized(rdpsnd);
 
@@ -1712,6 +1738,12 @@ UINT rdpsnd_DVCPluginEntry(IDRDYNVC_ENTRY_POINTS* pEntryPoints)
 
 	if (!rdpsnd)
 	{
+		union
+		{
+			const void* cev;
+			void* ev;
+		} cnv;
+
 		rdpsnd = allocatePlugin();
 		if (!rdpsnd)
 		{
@@ -1726,8 +1758,9 @@ UINT rdpsnd_DVCPluginEntry(IDRDYNVC_ENTRY_POINTS* pEntryPoints)
 		rdpsnd->dynamic = TRUE;
 
 		/* user data pointer is not const, cast to avoid warning. */
+		cnv.cev = pEntryPoints->GetPluginData(pEntryPoints);
 		WINPR_ASSERT(pEntryPoints->GetPluginData);
-		rdpsnd->channelEntryPoints.pExtendedData = (void*)pEntryPoints->GetPluginData(pEntryPoints);
+		rdpsnd->channelEntryPoints.pExtendedData = cnv.ev;
 
 		error = pEntryPoints->RegisterPlugin(pEntryPoints, RDPSND_CHANNEL_NAME, &rdpsnd->iface);
 	}

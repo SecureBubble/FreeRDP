@@ -759,7 +759,7 @@ static BOOL nego_read_request_token_or_cookie(rdpNego* nego, wStream* s)
 		Stream_Seek(s, 17);
 	}
 
-	while ((remain = Stream_GetRemainingLength(s)) >= 2)
+	while (Stream_GetRemainingLength(s) >= 2)
 	{
 		Stream_Read_UINT16(s, crlf);
 
@@ -773,7 +773,6 @@ static BOOL nego_read_request_token_or_cookie(rdpNego* nego, wStream* s)
 	{
 		Stream_Rewind(s, 2);
 		len = Stream_GetPosition(s) - pos;
-		remain = Stream_GetRemainingLength(s);
 		Stream_Write_UINT16(s, 0);
 
 		if (strnlen((char*)str, len) == len)
@@ -1240,8 +1239,6 @@ BOOL nego_send_negotiation_response(rdpNego* nego)
 	settings = context->settings;
 	WINPR_ASSERT(settings);
 
-	status = TRUE;
-
 	s = Stream_New(NULL, 512);
 
 	if (!s)
@@ -1263,7 +1260,6 @@ BOOL nego_send_negotiation_response(rdpNego* nego)
 		Stream_Write_UINT16(s, 8);    /* RDP_NEG_DATA length (8) */
 		Stream_Write_UINT32(s, errorCode);
 		length += 8;
-		status = FALSE;
 	}
 	else
 	{

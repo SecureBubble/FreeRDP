@@ -167,16 +167,29 @@ void* ArrayList_GetItem(wArrayList* arrayList, size_t index)
  * Sets the element at the specified index.
  */
 
-void ArrayList_SetItem(wArrayList* arrayList, size_t index, const void* obj)
+BOOL ArrayList_SetItem(wArrayList* arrayList, size_t index, const void* obj)
 {
 	WINPR_ASSERT(arrayList);
-	if (index < arrayList->size)
+	if (index >= arrayList->size)
+		return FALSE;
+
+	if (arrayList->object.fnObjectNew)
 	{
-		if (arrayList->object.fnObjectNew)
-			arrayList->array[index] = arrayList->object.fnObjectNew(obj);
-		else
-			arrayList->array[index] = (void*)obj;
+		arrayList->array[index] = arrayList->object.fnObjectNew(obj);
+		if (obj && !arrayList->array[index])
+			return FALSE;
 	}
+	else
+	{
+		union
+		{
+			const void* cpv;
+			void* pv;
+		} cnv;
+		cnv.cpv = obj;
+		arrayList->array[index] = cnv.pv;
+	}
+	return TRUE;
 }
 
 /**
@@ -310,8 +323,7 @@ BOOL ArrayList_Append(wArrayList* arrayList, const void* obj)
 		goto out;
 
 	index = arrayList->size++;
-	ArrayList_SetItem(arrayList, index, obj);
-	rc = TRUE;
+	rc = ArrayList_SetItem(arrayList, index, obj);
 out:
 
 	ArrayList_Unlock_Conditional(arrayList);

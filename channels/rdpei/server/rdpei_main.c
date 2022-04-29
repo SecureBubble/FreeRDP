@@ -31,7 +31,6 @@
 #include <freerdp/channels/rdpei.h>
 #include <freerdp/server/rdpei.h>
 
-/** @brief */
 enum RdpEiState
 {
 	STATE_INITIAL,
@@ -342,7 +341,7 @@ static UINT read_pen_frame(RdpeiServerContext* context, wStream* s, RDPINPUT_PEN
 		return ERROR_INTERNAL_ERROR;
 	}
 
-	frame->contacts = contact = calloc(frame->contactCount, sizeof(RDPINPUT_CONTACT_DATA));
+	frame->contacts = contact = calloc(frame->contactCount, sizeof(RDPINPUT_PEN_CONTACT));
 	if (!frame->contacts)
 	{
 		WLog_ERR(TAG, "calloc failed!");

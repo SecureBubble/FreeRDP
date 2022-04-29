@@ -80,15 +80,7 @@ typedef struct
 
 static BOOL PipeIsHandled(HANDLE handle)
 {
-	WINPR_PIPE* pPipe = (WINPR_PIPE*)handle;
-
-	if (!pPipe || (pPipe->Type != HANDLE_TYPE_ANONYMOUS_PIPE))
-	{
-		SetLastError(ERROR_INVALID_HANDLE);
-		return FALSE;
-	}
-
-	return TRUE;
+	return WINPR_HANDLE_IS_HANDLED(handle, HANDLE_TYPE_ANONYMOUS_PIPE, FALSE);
 }
 
 static int PipeGetFd(HANDLE handle)
@@ -209,15 +201,7 @@ static HANDLE_OPS ops = { PipeIsHandled,
 
 static BOOL NamedPipeIsHandled(HANDLE handle)
 {
-	WINPR_NAMED_PIPE* pPipe = (WINPR_NAMED_PIPE*)handle;
-
-	if (!pPipe || (pPipe->Type != HANDLE_TYPE_NAMED_PIPE) || (pPipe == INVALID_HANDLE_VALUE))
-	{
-		SetLastError(ERROR_INVALID_HANDLE);
-		return FALSE;
-	}
-
-	return TRUE;
+	return WINPR_HANDLE_IS_HANDLED(handle, HANDLE_TYPE_NAMED_PIPE, TRUE);
 }
 
 static int NamedPipeGetFd(HANDLE handle)
@@ -434,7 +418,15 @@ BOOL NamedPipeWrite(PVOID Object, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite,
 		/* synchronous behavior */
 		lpOverlapped->Internal = 1;
 		lpOverlapped->InternalHigh = (ULONG_PTR)nNumberOfBytesToWrite;
-		lpOverlapped->Pointer = (PVOID)lpBuffer;
+		{
+			union
+			{
+				LPCVOID cpv;
+				PVOID pv;
+			} cnv;
+			cnv.cpv = lpBuffer;
+			lpOverlapped->Pointer = cnv.pv;
+		}
 		SetEvent(lpOverlapped->hEvent);
 #endif
 	}
@@ -509,10 +501,10 @@ BOOL CreatePipe(PHANDLE hReadPipe, PHANDLE hWritePipe, LPSECURITY_ATTRIBUTES lpP
 	pReadPipe->fd = pipe_fd[0];
 	pWritePipe->fd = pipe_fd[1];
 	WINPR_HANDLE_SET_TYPE_AND_MODE(pReadPipe, HANDLE_TYPE_ANONYMOUS_PIPE, WINPR_FD_READ);
-	pReadPipe->ops = &ops;
+	pReadPipe->common.ops = &ops;
 	*((ULONG_PTR*)hReadPipe) = (ULONG_PTR)pReadPipe;
 	WINPR_HANDLE_SET_TYPE_AND_MODE(pWritePipe, HANDLE_TYPE_ANONYMOUS_PIPE, WINPR_FD_READ);
-	pWritePipe->ops = &ops;
+	pWritePipe->common.ops = &ops;
 	*((ULONG_PTR*)hWritePipe) = (ULONG_PTR)pWritePipe;
 	return TRUE;
 }
@@ -616,7 +608,7 @@ HANDLE CreateNamedPipeA(LPCSTR lpName, DWORD dwOpenMode, DWORD dwPipeMode, DWORD
 	pNamedPipe->dwFlagsAndAttributes = dwOpenMode;
 	pNamedPipe->clientfd = -1;
 	pNamedPipe->ServerMode = TRUE;
-	pNamedPipe->ops = &namedOps;
+	pNamedPipe->common.ops = &namedOps;
 
 	for (index = 0; index < ArrayList_Count(g_NamedPipeServerSockets); index++)
 	{

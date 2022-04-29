@@ -2512,7 +2512,10 @@ static CACHE_GLYPH_ORDER* update_read_cache_glyph_order(rdpUpdate* update, wStre
 	UINT32 i;
 	CACHE_GLYPH_ORDER* cache_glyph_order = calloc(1, sizeof(CACHE_GLYPH_ORDER));
 
-	if (!cache_glyph_order || !update || !s)
+	WINPR_ASSERT(update);
+	WINPR_ASSERT(s);
+
+	if (!cache_glyph_order)
 		goto fail;
 
 	if (!Stream_CheckAndLogRequiredLength(TAG, s, 2))
@@ -4033,7 +4036,7 @@ static BOOL read_altsec_order(wStream* s, BYTE orderType, rdpAltSecUpdate* altse
 
 static BOOL update_recv_altsec_order(rdpUpdate* update, wStream* s, BYTE flags)
 {
-	BYTE orderType = flags >>= 2; /* orderType is in higher 6 bits of flags field */
+	BYTE orderType = flags >> 2; /* orderType is in higher 6 bits of flags field */
 	BOOL rc = FALSE;
 	rdp_update_internal* up = update_cast(update);
 	rdpContext* context = update->context;

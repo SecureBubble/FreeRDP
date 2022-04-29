@@ -892,8 +892,8 @@ static BOOL parseKerberosDeltat(const char* value, INT32* dest, const char* mess
 	*dest = 0;
 	do
 	{
-		INT32 factor;
-		INT32 maxValue;
+		INT32 factor = 0;
+		INT32 maxValue = 0;
 
 		switch (*value)
 		{
@@ -913,6 +913,9 @@ static BOOL parseKerberosDeltat(const char* value, INT32* dest, const char* mess
 				factor = 1;
 				maxValue = 60;
 				break;
+			default:
+				WLog_ERR(TAG, "invalid value for unit %c when parsing %s", *value, message);
+				return FALSE;
 		}
 
 		if ((maxValue > 0) && (v > maxValue))
@@ -2009,9 +2012,9 @@ BOOL nla_read_ts_password_creds(rdpNla* nla, wStream* s)
 	size_t userLen = 0;
 	size_t domainLen = 0;
 	size_t passwordLen = 0;
-	WCHAR* user = NULL;
-	WCHAR* domain = NULL;
-	WCHAR* password = NULL;
+	const WCHAR* user = NULL;
+	const WCHAR* domain = NULL;
+	const WCHAR* password = NULL;
 
 	WINPR_ASSERT(nla);
 	WINPR_ASSERT(s);
@@ -2044,7 +2047,7 @@ BOOL nla_read_ts_password_creds(rdpNla* nla, wStream* s)
 
 	domainLen = length / sizeof(WCHAR);
 	if (length > 0)
-		domain = Stream_Pointer(s);
+		domain = Stream_PointerAs(s, const WCHAR);
 
 	if (!Stream_SafeSeek(s, length))
 		return FALSE;
@@ -2055,7 +2058,7 @@ BOOL nla_read_ts_password_creds(rdpNla* nla, wStream* s)
 
 	userLen = length / sizeof(WCHAR);
 	if (length > 0)
-		user = Stream_Pointer(s);
+		user = Stream_PointerAs(s, const WCHAR);
 
 	if (!Stream_SafeSeek(s, length))
 		return FALSE;
@@ -2066,7 +2069,7 @@ BOOL nla_read_ts_password_creds(rdpNla* nla, wStream* s)
 
 	passwordLen = length / sizeof(WCHAR);
 	if (length > 0)
-		password = Stream_Pointer(s);
+		password = Stream_PointerAs(s, const WCHAR);
 
 	if (!Stream_SafeSeek(s, length))
 		return FALSE;
@@ -2135,18 +2138,20 @@ static BOOL nla_encode_ts_credentials(rdpNla* nla)
 	{
 		TSSmartCardCreds_t smartcardCreds = { 0 };
 		TSCspDataDetail_t cspData = { 0 };
+		char* Password = freerdp_settings_get_string_writable(settings, FreeRDP_Password);
 
-		smartcardCreds.pin = settings->Password ? settings->Password : "";
+		smartcardCreds.pin = Password ? Password : "";
 
 		/*smartcardCreds.userHint = settings->UserHint;
 		smartcardCreds.domainHint = settings->DomainHint;*/
 		smartcardCreds.cspData = &cspData;
 
 		cspData.keySpec = freerdp_settings_get_uint32(settings, FreeRDP_KeySpec);
-		cspData.cspName = freerdp_settings_get_string(settings, FreeRDP_CspName);
-		cspData.readerName = freerdp_settings_get_string(settings, FreeRDP_ReaderName);
-		cspData.cardName = freerdp_settings_get_string(settings, FreeRDP_CardName);
-		cspData.containerName = freerdp_settings_get_string(settings, FreeRDP_ContainerName);
+		cspData.cspName = freerdp_settings_get_string_writable(settings, FreeRDP_CspName);
+		cspData.readerName = freerdp_settings_get_string_writable(settings, FreeRDP_ReaderName);
+		cspData.cardName = freerdp_settings_get_string_writable(settings, FreeRDP_CardName);
+		cspData.containerName =
+		    freerdp_settings_get_string_writable(settings, FreeRDP_ContainerName);
 
 		length = ber_sizeof_nla_TSSmartCardCreds(&smartcardCreds);
 		credsContentStream = Stream_New(NULL, length);

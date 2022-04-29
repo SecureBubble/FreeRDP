@@ -827,11 +827,6 @@ static BOOL device_already_plugged(rdpdrPlugin* rdpdr, const hotplug_dev* device
 	return !rc;
 }
 
-/**
- * Function description
- *
- * @return 0 on success, otherwise a Win32 error code
- */
 struct hotplug_delete_arg
 {
 	hotplug_dev* dev_array;
@@ -960,7 +955,6 @@ static DWORD WINAPI drive_hotplug_thread_func(LPVOID arg)
 {
 	rdpdrPlugin* rdpdr;
 	UINT error = 0;
-	DWORD status;
 	rdpdr = (rdpdrPlugin*)arg;
 
 	WINPR_ASSERT(rdpdr);
@@ -970,7 +964,7 @@ static DWORD WINAPI drive_hotplug_thread_func(LPVOID arg)
 	if (!rdpdr->stopEvent)
 		goto out;
 
-	while ((status = WaitForSingleObject(rdpdr->stopEvent, 1000)) == WAIT_TIMEOUT)
+	while (WaitForSingleObject(rdpdr->stopEvent, 1000) == WAIT_TIMEOUT)
 	{
 		error = handle_hotplug(rdpdr);
 		switch (error)
@@ -1228,11 +1222,6 @@ static UINT rdpdr_process_server_clientid_confirm(rdpdrPlugin* rdpdr, wStream* s
 	return CHANNEL_RC_OK;
 }
 
-/**
- * Function description
- *
- * @return 0 on success, otherwise a Win32 error code
- */
 struct device_announce_arg
 {
 	rdpdrPlugin* rdpdr;

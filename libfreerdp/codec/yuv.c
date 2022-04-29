@@ -80,7 +80,8 @@ static INLINE BOOL avc420_yuv_to_rgb(const BYTE* pYUVData[3], const UINT32 iStri
 
 	const INT32 width = rect->right - rect->left;
 	const INT32 height = rect->bottom - rect->top;
-	BYTE* pDstPoint = pDstData + rect->top * nDstStep + rect->left * GetBytesPerPixel(DstFormat);
+	BYTE* pDstPoint =
+	    pDstData + rect->top * nDstStep + rect->left * FreeRDPGetBytesPerPixel(DstFormat);
 
 	pYUVPoint[0] = pYUVData[0] + rect->top * iStride[0] + rect->left;
 	pYUVPoint[1] = pYUVData[1] + rect->top / 2 * iStride[1] + rect->left / 2;
@@ -111,7 +112,8 @@ static INLINE BOOL avc444_yuv_to_rgb(const BYTE* pYUVData[3], const UINT32 iStri
 
 	const INT32 width = rect->right - rect->left;
 	const INT32 height = rect->bottom - rect->top;
-	BYTE* pDstPoint = pDstData + rect->top * nDstStep + rect->left * GetBytesPerPixel(DstFormat);
+	BYTE* pDstPoint =
+	    pDstData + rect->top * nDstStep + rect->left * FreeRDPGetBytesPerPixel(DstFormat);
 
 	pYUVPoint[0] = pYUVData[0] + rect->top * iStride[0] + rect->left;
 	pYUVPoint[1] = pYUVData[1] + rect->top * iStride[1] + rect->left;
@@ -282,10 +284,18 @@ static INLINE YUV_PROCESS_WORK_PARAM pool_decode_param(const RECTANGLE_16* rect,
 static BOOL submit_object(PTP_WORK* work_object, PTP_WORK_CALLBACK cb, const void* param,
                           YUV_CONTEXT* context)
 {
+	union
+	{
+		const void* cpv;
+		void* pv;
+	} cnv;
+
+	cnv.cpv = param;
+
 	if (!work_object || !param || !context)
 		return FALSE;
 
-	*work_object = CreateThreadpoolWork(cb, (void*)param, &context->ThreadPoolEnv);
+	*work_object = CreateThreadpoolWork(cb, cnv.pv, &context->ThreadPoolEnv);
 	if (!*work_object)
 		return FALSE;
 
@@ -606,7 +616,7 @@ static void CALLBACK yuv420_encode_work_callback(PTP_CALLBACK_INSTANCE instance,
 	roi.width = param->rect.right - param->rect.left;
 	roi.height = param->rect.bottom - param->rect.top;
 	src = param->pSrcData + param->nSrcStep * param->rect.top +
-	      param->rect.left * GetBytesPerPixel(param->SrcFormat);
+	      param->rect.left * FreeRDPGetBytesPerPixel(param->SrcFormat);
 	pYUVData[0] = param->pYUVLumaData[0] + param->rect.top * param->iStride[0] + param->rect.left;
 	pYUVData[1] =
 	    param->pYUVLumaData[1] + param->rect.top / 2 * param->iStride[1] + param->rect.left / 2;
@@ -637,7 +647,7 @@ static void CALLBACK yuv444v1_encode_work_callback(PTP_CALLBACK_INSTANCE instanc
 	roi.width = param->rect.right - param->rect.left;
 	roi.height = param->rect.bottom - param->rect.top;
 	src = param->pSrcData + param->nSrcStep * param->rect.top +
-	      param->rect.left * GetBytesPerPixel(param->SrcFormat);
+	      param->rect.left * FreeRDPGetBytesPerPixel(param->SrcFormat);
 	pYUVLumaData[0] =
 	    param->pYUVLumaData[0] + param->rect.top * param->iStride[0] + param->rect.left;
 	pYUVLumaData[1] =
@@ -674,7 +684,7 @@ static void CALLBACK yuv444v2_encode_work_callback(PTP_CALLBACK_INSTANCE instanc
 	roi.width = param->rect.right - param->rect.left;
 	roi.height = param->rect.bottom - param->rect.top;
 	src = param->pSrcData + param->nSrcStep * param->rect.top +
-	      param->rect.left * GetBytesPerPixel(param->SrcFormat);
+	      param->rect.left * FreeRDPGetBytesPerPixel(param->SrcFormat);
 	pYUVLumaData[0] =
 	    param->pYUVLumaData[0] + param->rect.top * param->iStride[0] + param->rect.left;
 	pYUVLumaData[1] =
