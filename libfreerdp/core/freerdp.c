@@ -507,12 +507,17 @@ BOOL freerdp_disconnect(freerdp* instance)
 
 BOOL freerdp_disconnect_before_reconnect(freerdp* instance)
 {
+	WINPR_ASSERT(instance);
+	return freerdp_disconnect_before_reconnect_context(instance->context);
+}
+
+BOOL freerdp_disconnect_before_reconnect_context(rdpContext* context)
+{
 	rdpRdp* rdp;
 
-	WINPR_ASSERT(instance);
-	WINPR_ASSERT(instance->context);
+	WINPR_ASSERT(context);
 
-	rdp = instance->context->rdp;
+	rdp = context->rdp;
 	return rdp_client_disconnect_and_clear(rdp);
 }
 
@@ -1133,4 +1138,10 @@ BOOL freerdp_channels_from_mcs(rdpSettings* settings, const rdpContext* context)
 {
 	WINPR_ASSERT(context);
 	return rdp_channels_from_mcs(settings, context->rdp);
+}
+
+HANDLE freerdp_abort_event(rdpContext* context)
+{
+	WINPR_ASSERT(context);
+	return utils_get_abort_event(context->rdp);
 }
