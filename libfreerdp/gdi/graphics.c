@@ -50,7 +50,7 @@ HGDI_BITMAP gdi_create_bitmap(rdpGdi* gdi, UINT32 nWidth, UINT32 nHeight, UINT32
 		return NULL;
 
 	nDstStep = nWidth * FreeRDPGetBytesPerPixel(gdi->dstFormat);
-	pDstData = _aligned_malloc(nHeight * nDstStep * 1ULL, 16);
+	pDstData = winpr_aligned_malloc(nHeight * nDstStep * 1ULL, 16);
 
 	if (!pDstData)
 		return NULL;
@@ -61,7 +61,7 @@ HGDI_BITMAP gdi_create_bitmap(rdpGdi* gdi, UINT32 nWidth, UINT32 nHeight, UINT32
 	if (!freerdp_image_copy(pDstData, gdi->dstFormat, nDstStep, 0, 0, nWidth, nHeight, pSrcData,
 	                        SrcFormat, nSrcStep, 0, 0, &gdi->palette, FREERDP_FLIP_NONE))
 	{
-		_aligned_free(pDstData);
+		winpr_aligned_free(pDstData);
 		return NULL;
 	}
 
@@ -112,7 +112,7 @@ static void gdi_Bitmap_Free(rdpContext* context, rdpBitmap* bitmap)
 
 		gdi_DeleteObject((HGDIOBJECT)gdi_bitmap->bitmap);
 		gdi_DeleteDC(gdi_bitmap->hdc);
-		_aligned_free(bitmap->data);
+		winpr_aligned_free(bitmap->data);
 	}
 
 	free(bitmap);
@@ -131,6 +131,7 @@ static BOOL gdi_Bitmap_Decompress(rdpContext* context, rdpBitmap* bitmap, const 
                                   UINT32 DstWidth, UINT32 DstHeight, UINT32 bpp, UINT32 length,
                                   BOOL compressed, UINT32 codecId)
 {
+	int status;
 	UINT32 SrcSize = length;
 	rdpGdi* gdi = context->gdi;
 	UINT32 size = DstWidth * DstHeight;
@@ -144,14 +145,54 @@ static BOOL gdi_Bitmap_Decompress(rdpContext* context, rdpBitmap* bitmap, const 
 
 	size *= FreeRDPGetBytesPerPixel(bitmap->format);
 	bitmap->length = size;
-	bitmap->data = (BYTE*)_aligned_malloc(bitmap->length, 16);
+	bitmap->data = (BYTE*)winpr_aligned_malloc(bitmap->length, 16);
 
 	if (!bitmap->data)
 		return FALSE;
 
 	if (compressed)
 	{
-		if (bpp < 32)
+		if ((codecId == RDP_CODEC_ID_REMOTEFX) || (codecId == RDP_CODEC_ID_IMAGE_REMOTEFX))
+		{
+			REGION16 invalidRegion;
+			region16_init(&invalidRegion);
+
+			if (!freerdp_client_codecs_prepare(context->codecs, FREERDP_CODEC_REMOTEFX, gdi->width,
+			                                   gdi->height))
+				return FALSE;
+
+			if (!rfx_process_message(context->codecs->rfx, pSrcData, SrcSize, bitmap->left,
+			                              bitmap->top, bitmap->data, bitmap->format, gdi->stride, gdi->height,
+			                              &invalidRegion))
+			{
+				WLog_ERR(TAG, "rfx_process_message failure");
+				return FALSE;
+			}
+
+			status = 1;
+		}
+		else if (codecId == RDP_CODEC_ID_NSCODEC)
+		{
+			if (!freerdp_client_codecs_prepare(context->codecs, FREERDP_CODEC_NSCODEC, gdi->width,
+			                                   gdi->height))
+				return FALSE;
+
+			status = nsc_process_message(context->codecs->nsc, 32, DstWidth, DstHeight, pSrcData,
+			                             SrcSize, bitmap->data, bitmap->format, 0, 0, 0, DstWidth,
+			                             DstHeight, FREERDP_FLIP_VERTICAL);
+
+			if (status < 1)
+			{
+				WLog_ERR(TAG, "nsc_process_message failure");
+				return FALSE;
+			}
+
+			return freerdp_image_copy(bitmap->data, bitmap->format, 0, 0, 0, DstWidth, DstHeight,
+			                          pSrcData, PIXEL_FORMAT_XRGB32, 0, 0, 0,
+			                          &gdi->palette,
+			                          FREERDP_FLIP_VERTICAL);
+		}
+		else if (bpp < 32)
 		{
 			if (!interleaved_decompress(context->codecs->interleaved, pSrcData, SrcSize, DstWidth,
 			                            DstHeight, bpp, bitmap->data, bitmap->format, 0, 0, 0,
@@ -242,7 +283,7 @@ static BOOL gdi_Glyph_New(rdpContext* context, rdpGlyph* glyph)
 	if (!gdi_glyph->bitmap)
 	{
 		gdi_DeleteDC(gdi_glyph->hdc);
-		_aligned_free(data);
+		winpr_aligned_free(data);
 		return FALSE;
 	}
 

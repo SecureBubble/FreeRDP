@@ -16,12 +16,19 @@
 # limitations under the License.
 
 if (NOT FREERDP_UNIFIED_BUILD)
-	cmake_minimum_required(VERSION 3.4)
+	cmake_minimum_required(VERSION 3.9)
 	project(WinPR LANGUAGES C)
 
-	set(CMAKE_C_STANDARD 99)
+	set(CMAKE_C_STANDARD 11)
 	set(CMAKE_C_STANDARD_REQUIRED ON)
 	set(CMAKE_C_EXTENSIONS ON)
+
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT supported OUTPUT error)
+    if (supported)
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+    endif()
+
 
 	set(CMAKE_COLOR_MAKEFILE ON)
 	option(WITH_LIBRARY_VERSIONING "Use library version triplet" ON)
@@ -68,6 +75,13 @@ elseif(WITH_GSSAPI)
 	else()
 		message(WARNING "Kerberos version not detected")
 	endif()
+endif()
+
+# This option MUST be off to avoid symbol conflicts when loading an external SSPI module library
+option(SSPI_DLL "Define and export SSPI API symbols for usage as a Windows SSPI DLL replacement" OFF)
+
+if(SSPI_DLL)
+	add_definitions("-DSSPI_DLL")
 endif()
 
 include(CMakeDependentOption)
