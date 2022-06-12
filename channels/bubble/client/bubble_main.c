@@ -211,13 +211,21 @@ static UINT bubble_handle_process_created(BubbleClientContext* context, wStream*
 		return ERROR_INTERNAL_ERROR;
 	}
 
-	WLog_INFO(TAG, "new process: time=%d, proc_id=%d, proc_name=%s, cmdline=%s", timestamp, proc_id,
-	          proc_name, cmdline);
+	char* proc_hash = bubble_read_string(s);
+	if (!proc_hash)
+	{
+		free(proc_name);
+		return ERROR_INTERNAL_ERROR;
+	}
 
-	IFCALLRET(context->NewProcessCreated, error, context, proc_name, cmdline);
+	WLog_INFO(TAG, "new process: time=%d, proc_id=%d, proc_name=%s, cmdline=%s, hash=%s", timestamp, proc_id,
+	          proc_name, cmdline, proc_hash);
+
+	IFCALLRET(context->NewProcessCreated, error, context, proc_name, cmdline, proc_hash);
 
 	free(proc_name);
 	free(cmdline);
+	free(proc_hash);
 	return error;
 }
 

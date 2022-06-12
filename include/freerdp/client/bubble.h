@@ -39,7 +39,7 @@ typedef UINT (*pcBubbleDisconnectRequest)(BubbleClientContext* context);
 typedef UINT (*pcBubbleInputFocusChanged)(BubbleClientContext* context, BOOL is_password);
 typedef UINT (*pcBubbleUacWindowState)(BubbleClientContext* context, BOOL is_shown);
 typedef UINT (*pcBubbleNewProcessCreated)(BubbleClientContext* context, const char* process_name, 
-						const char* cmdline);
+						const char* cmdline, const char* process_hash);
 typedef UINT (*pcBubblePreQueryModeResponse)(BubbleClientContext* context);
 typedef UINT (*pcBubbleRequestAppExecute)(BubbleClientContext* context);
 typedef UINT (*pcBubbleOnNetstatData)(BubbleClientContext* context, UINT64 timestamp, const char* netstat_data);
