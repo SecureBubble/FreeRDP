@@ -171,6 +171,7 @@ static BOOL wts_read_drdynvc_capabilities_response(rdpPeerChannel* channel, UINT
 static BOOL wts_read_drdynvc_create_response(rdpPeerChannel* channel, wStream* s, UINT32 length)
 {
 	UINT32 CreationStatus;
+	BOOL status = TRUE;
 
 	WINPR_ASSERT(channel);
 	WINPR_ASSERT(s);
@@ -191,7 +192,12 @@ static BOOL wts_read_drdynvc_create_response(rdpPeerChannel* channel, wStream* s
 		channel->dvc_open_state = DVC_OPEN_STATE_SUCCEEDED;
 	}
 
-	return TRUE;
+	IFCALLRET(channel->vcm->dvc_creation_status, status, channel->vcm->dvc_creation_status_userdata,
+	          channel->channelId, (INT32)CreationStatus);
+	if (!status)
+		WLog_ERR(TAG, "vcm->dvc_creation_status failed!");
+
+	return status;
 }
 
 static BOOL wts_read_drdynvc_data_first(rdpPeerChannel* channel, wStream* s, int cbLen,
@@ -294,13 +300,13 @@ static BOOL wts_read_drdynvc_pdu(rdpPeerChannel* channel)
 		BOOL haveChannelId;
 		switch (Cmd)
 		{
-		case SOFT_SYNC_REQUEST_PDU:
-		case SOFT_SYNC_RESPONSE_PDU:
-			haveChannelId = FALSE;
-			break;
-		default:
-			haveChannelId = TRUE;
-			break;
+			case SOFT_SYNC_REQUEST_PDU:
+			case SOFT_SYNC_RESPONSE_PDU:
+				haveChannelId = FALSE;
+				break;
+			default:
+				haveChannelId = TRUE;
+				break;
 		}
 
 		if (haveChannelId)
@@ -341,7 +347,8 @@ static BOOL wts_read_drdynvc_pdu(rdpPeerChannel* channel)
 				break;
 
 			case SOFT_SYNC_RESPONSE_PDU:
-				WLog_ERR(TAG, "SoftSync response not handled yet(and rather strange to receive that packet as our code doesn't send SoftSync requests");
+				WLog_ERR(TAG, "SoftSync response not handled yet(and rather strange to receive "
+				              "that packet as our code doesn't send SoftSync requests");
 				break;
 
 			case SOFT_SYNC_REQUEST_PDU:
@@ -522,14 +529,18 @@ void WTSVirtualChannelManagerGetFileDescriptor(HANDLE hServer, void** fds, int* 
 }
 #endif
 
-static BOOL WTSVirtualChannelManagerOpen(WTSVirtualChannelManager* vcm)
+BOOL WTSVirtualChannelManagerOpen(HANDLE hServer)
 {
+	WTSVirtualChannelManager* vcm = (WTSVirtualChannelManager*)hServer;
+	const freerdp_peer* client;
+
 	if (!vcm)
 		return FALSE;
 
 	WINPR_ASSERT(vcm->client);
+	client = vcm->client;
 
-	if ((vcm->drdynvc_state == DRDYNVC_STATE_NONE) && vcm->client->activated)
+	if (vcm->drdynvc_state == DRDYNVC_STATE_NONE)
 	{
 		rdpPeerChannel* channel;
 		UINT32 dynvc_caps;
@@ -566,7 +577,7 @@ BOOL WTSVirtualChannelManagerCheckFileDescriptorEx(HANDLE hServer, BOOL autoOpen
 
 	if (autoOpen)
 	{
-		if (!WTSVirtualChannelManagerOpen(vcm))
+		if (!WTSVirtualChannelManagerOpen(hServer))
 			return FALSE;
 	}
 
@@ -683,6 +694,17 @@ BYTE WTSVirtualChannelManagerGetDrdynvcState(HANDLE hServer)
 	return vcm->drdynvc_state;
 }
 
+void WTSVirtualChannelManagerSetDVCCreationCallback(HANDLE hServer, psDVCCreationStatusCallback cb,
+                                                    void* userdata)
+{
+	WTSVirtualChannelManager* vcm = hServer;
+
+	WINPR_ASSERT(vcm);
+
+	vcm->dvc_creation_status = cb;
+	vcm->dvc_creation_status_userdata = userdata;
+}
+
 UINT16 WTSChannelGetId(freerdp_peer* client, const char* channel_name)
 {
 	rdpMcsChannel* channel;
@@ -697,6 +719,15 @@ UINT16 WTSChannelGetId(freerdp_peer* client, const char* channel_name)
 		return 0;
 
 	return channel->ChannelId;
+}
+
+UINT32 WTSChannelGetIdByHandle(HANDLE hChannelHandle)
+{
+	rdpPeerChannel* channel = hChannelHandle;
+
+	WINPR_ASSERT(channel);
+
+	return channel->channelId;
 }
 
 BOOL WTSChannelSetHandleByName(freerdp_peer* client, const char* channel_name, void* handle)

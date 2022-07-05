@@ -530,7 +530,6 @@ static void transport_bio_error_log(rdpTransport* transport, LPCSTR biofunc, BIO
                                     LPCSTR func, DWORD line)
 {
 	unsigned long sslerr;
-	char* buf;
 	int saveerrno;
 	DWORD level;
 
@@ -550,21 +549,15 @@ static void transport_bio_error_log(rdpTransport* transport, LPCSTR biofunc, BIO
 		return;
 	}
 
-	buf = malloc(120);
-
-	if (buf)
-	{
-		const char* fmt = "%s returned an error: %s";
-
 		while ((sslerr = ERR_get_error()))
 		{
-			ERR_error_string_n(sslerr, buf, 120);
-			WLog_PrintMessage(transport->log, WLOG_MESSAGE_TEXT, level, line, file, func, fmt,
-			                  biofunc, buf);
-		}
+		    char buf[120] = { 0 };
+		    const char* fmt = "%s returned an error: %s";
 
-		free(buf);
-	}
+		    ERR_error_string_n(sslerr, buf, 120);
+		    WLog_PrintMessage(transport->log, WLOG_MESSAGE_TEXT, level, line, file, func, fmt,
+		                      biofunc, buf);
+	    }
 }
 
 static SSIZE_T transport_read_layer(rdpTransport* transport, BYTE* data, size_t bytes)
@@ -592,6 +585,7 @@ static SSIZE_T transport_read_layer(rdpTransport* transport, BYTE* data, size_t 
 	{
 		const SSIZE_T tr = (SSIZE_T)bytes - read;
 		int r = (int)((tr > INT_MAX) ? INT_MAX : tr);
+		ERR_clear_error();
 		int status = BIO_read(transport->frontBio, data + read, r);
 
 		if (freerdp_shall_disconnect_context(context))
@@ -887,6 +881,8 @@ static int transport_default_write(rdpTransport* transport, wStream* s)
 	if (!s)
 		return -1;
 
+	Stream_AddRef(s);
+
 	rdp = context->rdp;
 	if (!rdp)
 		goto fail;
@@ -907,6 +903,7 @@ static int transport_default_write(rdpTransport* transport, wStream* s)
 
 	while (length > 0)
 	{
+		ERR_clear_error();
 		status = BIO_write(transport->frontBio, Stream_Pointer(s), length);
 
 		if (status <= 0)

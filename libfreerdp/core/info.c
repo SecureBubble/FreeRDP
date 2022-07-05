@@ -45,11 +45,13 @@ static const char* const INFO_TYPE_LOGON_STRINGS[4] = { "Logon Info V1", "Logon 
 
 /* This define limits the length of the strings in the label field. */
 #define MAX_LABEL_LENGTH 40
-static struct
+struct info_flags_t
 {
 	UINT32 flag;
 	const char* label;
-} const info_flags[] = {
+};
+
+static const struct info_flags_t info_flags[] = {
 	{ INFO_MOUSE, "INFO_MOUSE" },
 	{ INFO_DISABLECTRLALTDEL, "INFO_DISABLECTRLALTDEL" },
 	{ INFO_AUTOLOGON, "INFO_AUTOLOGON" },
@@ -122,12 +124,8 @@ static BOOL rdp_read_info_null_string(UINT32 flags, wStream* s, size_t cbLen, CH
 static char* rdp_info_package_flags_description(UINT32 flags)
 {
 	char* result;
-	size_t maximum_size = 1; /* Reserve space for the terminating '\0' by strcat if all flags set */
+	size_t maximum_size = 1 + MAX_LABEL_LENGTH * ARRAYSIZE(info_flags);
 	size_t i;
-	size_t size;
-
-	for (i = 0; i < ARRAYSIZE(info_flags); i++)
-		maximum_size += strnlen(info_flags[i].label, MAX_LABEL_LENGTH) + 1;
 
 	result = calloc(maximum_size, sizeof(char));
 
@@ -136,17 +134,12 @@ static char* rdp_info_package_flags_description(UINT32 flags)
 
 	for (i = 0; i < ARRAYSIZE(info_flags); i++)
 	{
-		if (info_flags[i].flag & flags)
+		const struct info_flags_t* cur = &info_flags[i];
+		if (cur->flag & flags)
 		{
-			strcat(result, info_flags[i].label);
-			strcat(result, "|");
+			winpr_str_append(cur->label, result, maximum_size, "|");
 		}
 	}
-
-	size = strnlen(result, maximum_size);
-
-	if (size > 0)
-		result[size - 1] = '\0'; /* remove last "|" */
 
 	return result;
 }
@@ -502,7 +495,6 @@ static BOOL rdp_write_extended_info_packet(rdpRdp* rdp, wStream* s)
 
 	if (settings->EarlyCapabilityFlags & RNS_UD_CS_SUPPORT_DYNAMIC_TIME_ZONE)
 	{
-		int rc;
 		WCHAR DynamicDSTTimeZoneKeyName[254] = { 0 };
 		LPWSTR ptr = DynamicDSTTimeZoneKeyName;
 
@@ -531,7 +523,8 @@ fail:
 static BOOL rdp_read_info_string(UINT32 flags, wStream* s, size_t cbLenNonNull, CHAR** dst,
                                  size_t max)
 {
-	union {
+	union
+	{
 		char c;
 		WCHAR w;
 		BYTE b[2];
@@ -780,7 +773,8 @@ static BOOL rdp_write_info_packet(rdpRdp* rdp, wStream* s)
 		if (((flags & INFO_PASSWORD_IS_SC_PIN) == 0) && settings->RedirectionPassword &&
 		    (settings->RedirectionPasswordLength > 0))
 		{
-			union {
+			union
+			{
 				BYTE* bp;
 				WCHAR* wp;
 			} ptrconv;
@@ -983,7 +977,8 @@ static BOOL rdp_recv_logon_info_v1(rdpRdp* rdp, wStream* s, logon_info* info)
 {
 	UINT32 cbDomain;
 	UINT32 cbUserName;
-	union {
+	union
+	{
 		BYTE* bp;
 		WCHAR* wp;
 	} ptrconv;
@@ -1081,7 +1076,7 @@ static BOOL rdp_recv_logon_info_v2(rdpRdp* rdp, wStream* s, logon_info* info)
 	if (!Stream_CheckAndLogRequiredLength(TAG, s, logonInfoV2TotalSize))
 		return FALSE;
 
-	Stream_Read_UINT16(s, Version);         /* Version (2 bytes) */
+	Stream_Read_UINT16(s, Version); /* Version (2 bytes) */
 	if (Version != SAVE_SESSION_PDU_VERSION_ONE)
 	{
 		WLog_WARN(TAG, "LogonInfoV2::Version expected %" PRIu16 " bytes, got %" PRIu16,
@@ -1112,9 +1107,9 @@ static BOOL rdp_recv_logon_info_v2(rdpRdp* rdp, wStream* s, logon_info* info)
 		}
 	}
 
-	Stream_Read_UINT32(s, info->sessionId); /* SessionId (4 bytes) */
-	Stream_Read_UINT32(s, cbDomain);        /* cbDomain (4 bytes) */
-	Stream_Read_UINT32(s, cbUserName);      /* cbUserName (4 bytes) */
+	Stream_Read_UINT32(s, info->sessionId);  /* SessionId (4 bytes) */
+	Stream_Read_UINT32(s, cbDomain);         /* cbDomain (4 bytes) */
+	Stream_Read_UINT32(s, cbUserName);       /* cbUserName (4 bytes) */
 	Stream_Seek(s, logonInfoV2ReservedSize); /* pad (558 bytes) */
 
 	/* cbDomain is the size in bytes of the Unicode character data in the Domain field.

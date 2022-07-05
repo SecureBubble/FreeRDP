@@ -31,6 +31,7 @@
 #include <openssl/crypto.h>
 #include <openssl/conf.h>
 #include <openssl/pem.h>
+#include <openssl/err.h>
 #include <openssl/rsa.h>
 #include <openssl/pkcs12.h>
 #include <openssl/x509v3.h>
@@ -100,6 +101,7 @@ static char* makecert_read_str(BIO* bio, size_t* pOffset)
 
 		length = new_len;
 		x509_str = new_str;
+		ERR_clear_error();
 #if OPENSSL_VERSION_NUMBER >= 0x10101000L
 		status = BIO_read_ex(bio, &x509_str[offset], length - offset, &readBytes);
 #else

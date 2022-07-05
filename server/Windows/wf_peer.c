@@ -20,6 +20,7 @@
 
 #include <freerdp/config.h>
 
+#include <winpr/assert.h>
 #include <winpr/tchar.h>
 #include <winpr/stream.h>
 #include <winpr/windows.h>
@@ -45,8 +46,11 @@
 
 static DWORD WINAPI wf_peer_main_loop(LPVOID lpParam);
 
-static BOOL wf_peer_context_new(freerdp_peer* client, wfPeerContext* context)
+static BOOL wf_peer_context_new(freerdp_peer* client, rdpContext* ctx)
 {
+	wfPeerContext* context = (wfPeerContext*)ctx;
+	WINPR_ASSERT(context);
+
 	if (!(context->info = wf_info_get_instance()))
 		return FALSE;
 
@@ -65,8 +69,11 @@ static BOOL wf_peer_context_new(freerdp_peer* client, wfPeerContext* context)
 	return TRUE;
 }
 
-static void wf_peer_context_free(freerdp_peer* client, wfPeerContext* context)
+static void wf_peer_context_free(freerdp_peer* client, rdpContext* ctx)
 {
+	wfPeerContext* context = (wfPeerContext*)ctx;
+	WINPR_ASSERT(context);
+
 	wf_info_peer_unregister(context->info, context);
 
 	if (context->rdpsnd)
@@ -125,7 +132,8 @@ static BOOL wf_peer_post_connect(freerdp_peer* client)
 		    */
 		settings->DesktopWidth = wfi->servscreen_width;
 		settings->DesktopHeight = wfi->servscreen_height;
-		settings->ColorDepth = wfi->bitsPerPixel;
+		if (!freerdp_settings_set_uint32(settings, FreeRDP_ColorDepth, wfi->bitsPerPixel))
+			return FALSE;
 
 		WINPR_ASSERT(client->context->update);
 		WINPR_ASSERT(client->context->update->DesktopResize);
@@ -263,7 +271,8 @@ DWORD WINAPI wf_peer_main_loop(LPVOID lpParam)
 	WINPR_ASSERT(settings);
 
 	settings->RemoteFxCodec = TRUE;
-	settings->ColorDepth = 32;
+	if (!freerdp_settings_set_uint32(settings, FreeRDP_ColorDepth, 32))
+		goto fail_peer_init;
 	settings->NSCodec = FALSE;
 	settings->JpegCodec = FALSE;
 

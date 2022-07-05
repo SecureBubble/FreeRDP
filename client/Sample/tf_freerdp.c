@@ -158,11 +158,6 @@ static BOOL tf_pre_connect(freerdp* instance)
 	PubSub_SubscribeChannelDisconnected(instance->context->pubSub,
 	                                    tf_OnChannelDisconnectedEventHandler);
 
-	/* Load all required plugins / channels / libraries specified by current
-	 * settings. */
-	if (!freerdp_client_load_addins(instance->context->channels, settings))
-		return FALSE;
-
 	/* TODO: Any code your client requires */
 	return TRUE;
 }

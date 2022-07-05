@@ -303,14 +303,35 @@ static BOOL pf_client_pre_connect(freerdp* instance)
 
 	PubSub_SubscribeErrorInfo(instance->context->pubSub, pf_client_on_error_info);
 	PubSub_SubscribeActivated(instance->context->pubSub, pf_client_on_activated);
+	if (!pf_client_use_peer_load_balance_info(pc))
+		return FALSE;
+
+	return pf_modules_run_hook(pc->pdata->module, HOOK_TYPE_CLIENT_PRE_CONNECT, pc->pdata, pc);
+}
+
+static BOOL pf_client_load_channels(freerdp* instance)
+{
+	pClientContext* pc;
+	pServerContext* ps;
+	const proxyConfig* config;
+	rdpSettings* settings;
+
+	WINPR_ASSERT(instance);
+	pc = (pClientContext*)instance->context;
+	WINPR_ASSERT(pc);
+	WINPR_ASSERT(pc->pdata);
+	ps = pc->pdata->ps;
+	WINPR_ASSERT(ps);
+	WINPR_ASSERT(ps->pdata);
+	config = ps->pdata->config;
+	WINPR_ASSERT(config);
+	settings = instance->context->settings;
+	WINPR_ASSERT(settings);
 	/**
 	 * Load all required plugins / channels / libraries specified by current
 	 * settings.
 	 */
 	PROXY_LOG_INFO(TAG, pc, "Loading addins");
-
-	if (!pf_client_use_peer_load_balance_info(pc))
-		return FALSE;
 
 	if (!pf_client_load_rdpsnd(pc))
 	{
@@ -371,7 +392,7 @@ static BOOL pf_client_pre_connect(freerdp* instance)
 				return FALSE;
 		}
 	}
-	return pf_modules_run_hook(pc->pdata->module, HOOK_TYPE_CLIENT_PRE_CONNECT, pc->pdata, pc);
+	return pf_modules_run_hook(pc->pdata->module, HOOK_TYPE_CLIENT_LOAD_CHANNELS, pc->pdata, pc);
 }
 
 static BOOL pf_client_receive_channel_data_hook(freerdp* instance, UINT16 channelId,
@@ -381,7 +402,7 @@ static BOOL pf_client_receive_channel_data_hook(freerdp* instance, UINT16 channe
 	pClientContext* pc;
 	pServerContext* ps;
 	proxyData* pdata;
-	pServerChannelContext* channel;
+	pServerStaticChannelContext* channel;
 	UINT16 server_channel_id;
 	UINT64 channelId64 = channelId;
 
@@ -405,12 +426,12 @@ static BOOL pf_client_receive_channel_data_hook(freerdp* instance, UINT16 channe
 	WINPR_ASSERT(channel->onBackData);
 	switch (channel->onBackData(pdata, channel, xdata, xsize, flags, totalSize))
 	{
-	case PF_CHANNEL_RESULT_PASS:
-		break;
-	case PF_CHANNEL_RESULT_DROP:
-		return TRUE;
-	case PF_CHANNEL_RESULT_ERROR:
-		return FALSE;
+		case PF_CHANNEL_RESULT_PASS:
+			break;
+		case PF_CHANNEL_RESULT_DROP:
+			return TRUE;
+		case PF_CHANNEL_RESULT_ERROR:
+			return FALSE;
 	}
 
 	server_channel_id = WTSChannelGetId(ps->context.peer, channel->channel_name);
@@ -421,7 +442,8 @@ static BOOL pf_client_receive_channel_data_hook(freerdp* instance, UINT16 channe
 	if (server_channel_id == 0)
 		return TRUE;
 
-	return ps->context.peer->SendChannelPacket(ps->context.peer, server_channel_id, totalSize, flags, xdata, xsize);
+	return ps->context.peer->SendChannelPacket(ps->context.peer, server_channel_id, totalSize,
+	                                           flags, xdata, xsize);
 }
 
 static BOOL pf_client_on_server_heartbeat(freerdp* instance, BYTE period, BYTE count1, BYTE count2)
@@ -942,6 +964,7 @@ static BOOL pf_client_client_new(freerdp* instance, rdpContext* context)
 	if (!instance || !context)
 		return FALSE;
 
+	instance->LoadChannels = pf_client_load_channels;
 	instance->PreConnect = pf_client_pre_connect;
 	instance->PostConnect = pf_client_post_connect;
 	instance->PostDisconnect = pf_client_post_disconnect;

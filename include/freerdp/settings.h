@@ -129,6 +129,7 @@ typedef enum
 /* Early Capability Flags (Server to Client) */
 #define RNS_UD_SC_EDGE_ACTIONS_SUPPORTED 0x00000001
 #define RNS_UD_SC_DYNAMIC_DST_SUPPORTED 0x00000002
+#define RNS_UD_SC_EDGE_ACTIONS_SUPPORTED_V2 0x00000004
 
 /* Cluster Information Flags */
 #define REDIRECTION_SUPPORTED 0x00000001
@@ -190,14 +191,14 @@ typedef enum
 #define NEG_MEMBLT_INDEX 0x03
 #define NEG_MEM3BLT_INDEX 0x04
 #define NEG_ATEXTOUT_INDEX 0x05
-#define NEG_AEXTTEXTOUT_INDEX 0x06 /* Must be ignored */
+#define NEG_AEXTTEXTOUT_INDEX 0x06  /* Must be ignored */
 #define NEG_DRAWNINEGRID_INDEX 0x07 /* Must be ignored */
 #define NEG_LINETO_INDEX 0x08
 #define NEG_MULTI_DRAWNINEGRID_INDEX 0x09
 #define NEG_OPAQUE_RECT_INDEX 0x0A /* Must be ignored */
 #define NEG_SAVEBITMAP_INDEX 0x0B
-#define NEG_WTEXTOUT_INDEX 0x0C  /* Must be ignored */
-#define NEG_MEMBLT_V2_INDEX 0x0D /* Must be ignored */
+#define NEG_WTEXTOUT_INDEX 0x0C   /* Must be ignored */
+#define NEG_MEMBLT_V2_INDEX 0x0D  /* Must be ignored */
 #define NEG_MEM3BLT_V2_INDEX 0x0E /* Must be ignored */
 #define NEG_MULTIDSTBLT_INDEX 0x0F
 #define NEG_MULTIPATBLT_INDEX 0x10
@@ -636,6 +637,7 @@ typedef struct
 #define FreeRDP_FIPSMode (1104)
 #define FreeRDP_TlsSecLevel (1105)
 #define FreeRDP_SspiModule (1106)
+#define FreeRDP_EnforceTLSv1_2 (1107)
 #define FreeRDP_MstscCookieMode (1152)
 #define FreeRDP_CookieMaxLength (1153)
 #define FreeRDP_PreconnectionId (1154)
@@ -680,6 +682,7 @@ typedef struct
 #define FreeRDP_KerberosRenewableLifeTime (1348)
 #define FreeRDP_KerberosCache (1349)
 #define FreeRDP_KerberosArmor (1350)
+#define FreeRDP_KerberosKeytab (1351)
 #define FreeRDP_IgnoreCertificate (1408)
 #define FreeRDP_CertificateName (1409)
 #define FreeRDP_CertificateFile (1410)
@@ -803,6 +806,7 @@ typedef struct
 #define FreeRDP_BitmapCachePersistEnabled (2500)
 #define FreeRDP_BitmapCacheV2NumCells (2501)
 #define FreeRDP_BitmapCacheV2CellInfo (2502)
+#define FreeRDP_BitmapCachePersistFile (2503)
 #define FreeRDP_ColorPointerFlag (2560)
 #define FreeRDP_PointerCacheSize (2561)
 #define FreeRDP_KeyboardRemappingList (2622)
@@ -995,21 +999,21 @@ struct rdp_settings
 	UINT64 padding0384[384 - 323];      /* 323 */
 
 	/* Client Monitor Data */
-	ALIGN64 UINT32 MonitorCount;         /*    384 */
-	ALIGN64 UINT32 MonitorDefArraySize;  /*    385 */
-	ALIGN64 rdpMonitor* MonitorDefArray; /*    386 */
-	ALIGN64 BOOL SpanMonitors;           /*    387 */
-	ALIGN64 BOOL UseMultimon;            /*    388 */
-	ALIGN64 BOOL ForceMultimon;          /*    389 */
-	ALIGN64 UINT32 DesktopPosX;          /*    390 */
-	ALIGN64 UINT32 DesktopPosY;          /*    391 */
-	ALIGN64 BOOL ListMonitors;           /*    392 */
-	ALIGN64 UINT32* MonitorIds;          /*    393 */
-	ALIGN64 UINT32 NumMonitorIds;        /*    394 */
-	ALIGN64 UINT32 MonitorLocalShiftX;   /*395 */
-	ALIGN64 UINT32 MonitorLocalShiftY;   /*    396 */
-	ALIGN64 BOOL HasMonitorAttributes;   /*    397 */
-	ALIGN64 UINT32 MonitorFlags;         /* 398 */
+	ALIGN64 UINT32 MonitorCount;          /*    384 */
+	ALIGN64 UINT32 MonitorDefArraySize;   /*    385 */
+	ALIGN64 rdpMonitor* MonitorDefArray;  /*    386 */
+	ALIGN64 BOOL SpanMonitors;            /*    387 */
+	ALIGN64 BOOL UseMultimon;             /*    388 */
+	ALIGN64 BOOL ForceMultimon;           /*    389 */
+	ALIGN64 UINT32 DesktopPosX;           /*    390 */
+	ALIGN64 UINT32 DesktopPosY;           /*    391 */
+	ALIGN64 BOOL ListMonitors;            /*    392 */
+	ALIGN64 UINT32* MonitorIds;           /*    393 */
+	ALIGN64 UINT32 NumMonitorIds;         /*    394 */
+	ALIGN64 UINT32 MonitorLocalShiftX;    /*395 */
+	ALIGN64 UINT32 MonitorLocalShiftY;    /*    396 */
+	ALIGN64 BOOL HasMonitorAttributes;    /*    397 */
+	ALIGN64 UINT32 MonitorFlags;          /* 398 */
 	ALIGN64 UINT32 MonitorAttributeFlags; /* 399 */
 	UINT64 padding0448[448 - 400];        /* 400 */
 
@@ -1053,9 +1057,9 @@ struct rdp_settings
 	UINT64 padding0768[768 - 722];       /* 722 */
 
 	/* Client Info (Extra) */
-	ALIGN64 BOOL IPv6Enabled;      /* 768 */
-	ALIGN64 char* ClientAddress;   /* 769 */
-	ALIGN64 char* ClientDir;       /* 770 */
+	ALIGN64 BOOL IPv6Enabled;       /* 768 */
+	ALIGN64 char* ClientAddress;    /* 769 */
+	ALIGN64 char* ClientDir;        /* 770 */
 	ALIGN64 UINT32 ClientSessionId; /*  */
 	UINT64 padding0832[832 - 772];  /* 772 */
 
@@ -1121,7 +1125,8 @@ struct rdp_settings
 	ALIGN64 BOOL FIPSMode;                     /* 1104 */
 	ALIGN64 UINT32 TlsSecLevel;                /* 1105 */
 	ALIGN64 char* SspiModule;                  /* 1106 */
-	UINT64 padding1152[1152 - 1107];           /* 1107 */
+	ALIGN64 BOOL EnforceTLSv1_2;               /* 1107 */
+	UINT64 padding1152[1152 - 1108];           /* 1108 */
 
 	/* Connection Cookie */
 	ALIGN64 BOOL MstscCookieMode;      /* 1152 */
@@ -1185,7 +1190,8 @@ struct rdp_settings
 	ALIGN64 char* KerberosRenewableLifeTime; /* 1348 */
 	ALIGN64 char* KerberosCache;             /* 1349 */
 	ALIGN64 char* KerberosArmor;             /* 1350 */
-	UINT64 padding1408[1408 - 1351];         /* 1351 */
+	ALIGN64 char* KerberosKeytab;            /* 1351 */
+	UINT64 padding1408[1408 - 1352];         /* 1352 */
 
 	/* Server Certificate */
 	ALIGN64 BOOL IgnoreCertificate;                /* 1408 */
@@ -1374,7 +1380,8 @@ struct rdp_settings
 	ALIGN64 BOOL BitmapCachePersistEnabled;                   /* 2500 */
 	ALIGN64 UINT32 BitmapCacheV2NumCells;                     /* 2501 */
 	ALIGN64 BITMAP_CACHE_V2_CELL_INFO* BitmapCacheV2CellInfo; /* 2502 */
-	UINT64 padding2560[2560 - 2503];                          /* 2503 */
+	ALIGN64 char* BitmapCachePersistFile;                     /* 2503 */
+	UINT64 padding2560[2560 - 2504];                          /* 2504 */
 
 	/* Pointer Capabilities */
 	ALIGN64 BOOL ColorPointerFlag;   /* 2560 */
@@ -1704,6 +1711,8 @@ extern "C"
 #endif
 
 	FREERDP_API void freerdp_dynamic_channel_collection_free(rdpSettings* settings);
+	FREERDP_API void freerdp_capability_buffer_free(rdpSettings* settings);
+	FREERDP_API BOOL freerdp_capability_buffer_copy(rdpSettings* settings, const rdpSettings* src);
 
 	FREERDP_API void freerdp_target_net_addresses_free(rdpSettings* settings);
 	FREERDP_API BOOL freerdp_target_net_addresses_copy(rdpSettings* settings, char** addresses,
@@ -1809,6 +1818,9 @@ extern "C"
 	FREERDP_API SSIZE_T freerdp_settings_get_type_for_key(size_t key);
 	FREERDP_API const char* freerdp_settings_get_name_for_key(size_t key);
 	FREERDP_API UINT32 freerdp_settings_get_codecs_flags(const rdpSettings* settings);
+
+	FREERDP_API char* freerdp_rail_support_flags_to_string(UINT32 flags, char* buffer,
+	                                                       size_t length);
 
 #ifdef __cplusplus
 }

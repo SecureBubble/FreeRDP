@@ -183,6 +183,9 @@ BOOL freerdp_settings_get_bool(const rdpSettings* settings, size_t id)
 		case FreeRDP_EncomspVirtualChannel:
 			return settings->EncomspVirtualChannel;
 
+		case FreeRDP_EnforceTLSv1_2:
+			return settings->EnforceTLSv1_2;
+
 		case FreeRDP_ExtSecurity:
 			return settings->ExtSecurity;
 
@@ -771,6 +774,10 @@ BOOL freerdp_settings_set_bool(rdpSettings* settings, size_t id, BOOL val)
 
 		case FreeRDP_EncomspVirtualChannel:
 			settings->EncomspVirtualChannel = cnv.c;
+			break;
+
+		case FreeRDP_EnforceTLSv1_2:
+			settings->EnforceTLSv1_2 = cnv.c;
 			break;
 
 		case FreeRDP_ExtSecurity:
@@ -2361,6 +2368,9 @@ const char* freerdp_settings_get_string(const rdpSettings* settings, size_t id)
 		case FreeRDP_AuthenticationServiceClass:
 			return settings->AuthenticationServiceClass;
 
+		case FreeRDP_BitmapCachePersistFile:
+			return settings->BitmapCachePersistFile;
+
 		case FreeRDP_CardName:
 			return settings->CardName;
 
@@ -2450,6 +2460,9 @@ const char* freerdp_settings_get_string(const rdpSettings* settings, size_t id)
 
 		case FreeRDP_KerberosKdc:
 			return settings->KerberosKdc;
+
+		case FreeRDP_KerberosKeytab:
+			return settings->KerberosKeytab;
 
 		case FreeRDP_KerberosLifeTime:
 			return settings->KerberosLifeTime;
@@ -2622,6 +2635,9 @@ char* freerdp_settings_get_string_writable(rdpSettings* settings, size_t id)
 		case FreeRDP_AuthenticationServiceClass:
 			return settings->AuthenticationServiceClass;
 
+		case FreeRDP_BitmapCachePersistFile:
+			return settings->BitmapCachePersistFile;
+
 		case FreeRDP_CardName:
 			return settings->CardName;
 
@@ -2711,6 +2727,9 @@ char* freerdp_settings_get_string_writable(rdpSettings* settings, size_t id)
 
 		case FreeRDP_KerberosKdc:
 			return settings->KerberosKdc;
+
+		case FreeRDP_KerberosKeytab:
+			return settings->KerberosKeytab;
 
 		case FreeRDP_KerberosLifeTime:
 			return settings->KerberosLifeTime;
@@ -2893,6 +2912,9 @@ BOOL freerdp_settings_set_string_(rdpSettings* settings, size_t id, const char* 
 		case FreeRDP_AuthenticationServiceClass:
 			return update_string(&settings->AuthenticationServiceClass, cnv.cc, len, cleanup);
 
+		case FreeRDP_BitmapCachePersistFile:
+			return update_string(&settings->BitmapCachePersistFile, cnv.cc, len, cleanup);
+
 		case FreeRDP_CardName:
 			return update_string(&settings->CardName, cnv.cc, len, cleanup);
 
@@ -2982,6 +3004,9 @@ BOOL freerdp_settings_set_string_(rdpSettings* settings, size_t id, const char* 
 
 		case FreeRDP_KerberosKdc:
 			return update_string(&settings->KerberosKdc, cnv.cc, len, cleanup);
+
+		case FreeRDP_KerberosKeytab:
+			return update_string(&settings->KerberosKeytab, cnv.cc, len, cleanup);
 
 		case FreeRDP_KerberosLifeTime:
 			return update_string(&settings->KerberosLifeTime, cnv.cc, len, cleanup);

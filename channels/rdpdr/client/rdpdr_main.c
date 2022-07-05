@@ -165,7 +165,7 @@ static UINT rdpdr_send_device_list_remove_request(rdpdrPlugin* rdpdr, UINT32 cou
 	WINPR_ASSERT(rdpdr);
 	WINPR_ASSERT(ids || (count == 0));
 
-	s = Stream_New(NULL, count * sizeof(UINT32) + 8);
+	s = StreamPool_Take(rdpdr->pool, count * sizeof(UINT32) + 8);
 
 	if (!s)
 	{
@@ -1137,7 +1137,7 @@ static UINT rdpdr_send_client_announce_reply(rdpdrPlugin* rdpdr)
 
 	WINPR_ASSERT(rdpdr);
 
-	s = Stream_New(NULL, 12);
+	s = StreamPool_Take(rdpdr->pool, 12);
 
 	if (!s)
 	{
@@ -1174,7 +1174,8 @@ static UINT rdpdr_send_client_name_request(rdpdrPlugin* rdpdr)
 
 	computerNameLenW = ConvertToUnicode(CP_UTF8, 0, rdpdr->computerName, -1, &computerNameW, 0) * 2;
 	WINPR_ASSERT(computerNameLenW >= 0);
-	s = Stream_New(NULL, 16U + (size_t)computerNameLenW);
+
+	s = StreamPool_Take(rdpdr->pool, 16U + (size_t)computerNameLenW);
 
 	if (!s)
 	{
@@ -1260,7 +1261,7 @@ static BOOL device_announce(ULONG_PTR key, void* element, void* data)
 
 		if (!Stream_EnsureRemainingCapacity(arg->s, 20 + data_len))
 		{
-			Stream_Free(arg->s, TRUE);
+			Stream_Release(arg->s);
 			WLog_ERR(TAG, "Stream_EnsureRemainingCapacity failed!");
 			return FALSE;
 		}
@@ -1305,7 +1306,7 @@ static UINT rdpdr_send_device_list_announce_request(rdpdrPlugin* rdpdr, BOOL use
 	WINPR_ASSERT(rdpdr);
 	WINPR_ASSERT(rdpdr->devman);
 
-	s = Stream_New(NULL, 256);
+	s = StreamPool_Take(rdpdr->pool, 256);
 
 	if (!s)
 	{
@@ -1342,7 +1343,7 @@ static UINT dummy_irp_response(rdpdrPlugin* rdpdr, wStream* s)
 	WINPR_ASSERT(rdpdr);
 	WINPR_ASSERT(s);
 
-	output = Stream_New(NULL, 256); // RDPDR_DEVICE_IO_RESPONSE_LENGTH
+	output = StreamPool_Take(rdpdr->pool, 256); // RDPDR_DEVICE_IO_RESPONSE_LENGTH
 	if (!output)
 	{
 		WLog_ERR(TAG, "Stream_New failed!");
@@ -1375,7 +1376,7 @@ static UINT rdpdr_process_irp(rdpdrPlugin* rdpdr, wStream* s)
 	WINPR_ASSERT(rdpdr);
 	WINPR_ASSERT(s);
 
-	irp = irp_new(rdpdr->devman, s, &error);
+	irp = irp_new(rdpdr->devman, rdpdr->pool, s, &error);
 
 	if (!irp)
 	{
@@ -1590,7 +1591,6 @@ static UINT rdpdr_process_receive(rdpdrPlugin* rdpdr, wStream* s)
 		}
 	}
 
-	Stream_Free(s, TRUE);
 	return error;
 }
 
@@ -1606,13 +1606,13 @@ UINT rdpdr_send(rdpdrPlugin* rdpdr, wStream* s)
 
 	if (!rdpdr || !s)
 	{
-		Stream_Free(s, TRUE);
+		Stream_Release(s);
 		return CHANNEL_RC_NULL_DATA;
 	}
 
 	if (!plugin)
 	{
-		Stream_Free(s, TRUE);
+		Stream_Release(s);
 		status = CHANNEL_RC_BAD_INIT_HANDLE;
 	}
 	else
@@ -1625,7 +1625,7 @@ UINT rdpdr_send(rdpdrPlugin* rdpdr, wStream* s)
 
 	if (status != CHANNEL_RC_OK)
 	{
-		Stream_Free(s, TRUE);
+		Stream_Release(s);
 		WLog_ERR(TAG, "pVirtualChannelWriteEx failed with %s [%08" PRIX32 "]",
 		         WTSErrorToString(status), status);
 	}
@@ -1661,9 +1661,9 @@ static UINT rdpdr_virtual_channel_event_data_received(rdpdrPlugin* rdpdr, void* 
 	if (dataFlags & CHANNEL_FLAG_FIRST)
 	{
 		if (rdpdr->data_in != NULL)
-			Stream_Free(rdpdr->data_in, TRUE);
+			Stream_Release(rdpdr->data_in);
 
-		rdpdr->data_in = Stream_New(NULL, totalLength);
+		rdpdr->data_in = StreamPool_Take(rdpdr->pool, totalLength);
 
 		if (!rdpdr->data_in)
 		{
@@ -1684,13 +1684,14 @@ static UINT rdpdr_virtual_channel_event_data_received(rdpdrPlugin* rdpdr, void* 
 
 	if (dataFlags & CHANNEL_FLAG_LAST)
 	{
-		if (Stream_Capacity(data_in) != Stream_GetPosition(data_in))
+		const size_t pos = Stream_GetPosition(data_in);
+		const size_t cap = Stream_Capacity(data_in);
+		if (cap < pos)
 		{
 			WLog_ERR(TAG, "rdpdr_virtual_channel_event_data_received: read error");
 			return ERROR_INTERNAL_ERROR;
 		}
 
-		rdpdr->data_in = NULL;
 		Stream_SealLength(data_in);
 		Stream_SetPosition(data_in, 0);
 
@@ -1699,6 +1700,7 @@ static UINT rdpdr_virtual_channel_event_data_received(rdpdrPlugin* rdpdr, void* 
 			WLog_ERR(TAG, "MessageQueue_Post failed!");
 			return ERROR_INTERNAL_ERROR;
 		}
+		rdpdr->data_in = NULL;
 	}
 
 	return CHANNEL_RC_OK;
@@ -1733,7 +1735,7 @@ static VOID VCAPITYPE rdpdr_virtual_channel_open_event_ex(LPVOID lpUserParam, DW
 		case CHANNEL_EVENT_WRITE_COMPLETE:
 		{
 			wStream* s = (wStream*)pData;
-			Stream_Free(s, TRUE);
+			Stream_Release(s);
 		}
 		break;
 
@@ -1750,8 +1752,6 @@ static VOID VCAPITYPE rdpdr_virtual_channel_open_event_ex(LPVOID lpUserParam, DW
 
 static DWORD WINAPI rdpdr_virtual_channel_client_thread(LPVOID arg)
 {
-	wStream* data;
-	wMessage message;
 	rdpdrPlugin* rdpdr = (rdpdrPlugin*)arg;
 	UINT error;
 
@@ -1775,6 +1775,7 @@ static DWORD WINAPI rdpdr_virtual_channel_client_thread(LPVOID arg)
 
 	while (1)
 	{
+		wMessage message = { 0 };
 		WINPR_ASSERT(rdpdr);
 
 		if (!MessageQueue_Wait(rdpdr->queue))
@@ -1787,9 +1788,12 @@ static DWORD WINAPI rdpdr_virtual_channel_client_thread(LPVOID arg)
 
 			if (message.id == 0)
 			{
-				data = (wStream*)message.wParam;
+				wStream* data = (wStream*)message.wParam;
 
-				if ((error = rdpdr_process_receive(rdpdr, data)))
+				error = rdpdr_process_receive(rdpdr, data);
+
+				Stream_Release(data);
+				if (error)
 				{
 					WLog_ERR(TAG, "rdpdr_process_receive failed with error %" PRIu32 "!", error);
 
@@ -1821,7 +1825,7 @@ static void queue_free(void* obj)
 
 	s = (wStream*)msg->wParam;
 	WINPR_ASSERT(s);
-	Stream_Free(s, TRUE);
+	Stream_Release(s);
 }
 
 /**
@@ -1886,9 +1890,9 @@ static UINT rdpdr_virtual_channel_event_disconnected(rdpdrPlugin* rdpdr)
 		}
 	}
 
-	MessageQueue_Free(rdpdr->queue);
 	if (rdpdr->thread)
 		CloseHandle(rdpdr->thread);
+	MessageQueue_Free(rdpdr->queue);
 	rdpdr->queue = NULL;
 	rdpdr->thread = NULL;
 
@@ -1905,7 +1909,7 @@ static UINT rdpdr_virtual_channel_event_disconnected(rdpdrPlugin* rdpdr)
 
 	if (rdpdr->data_in)
 	{
-		Stream_Free(rdpdr->data_in, TRUE);
+		Stream_Release(rdpdr->data_in);
 		rdpdr->data_in = NULL;
 	}
 
@@ -1922,6 +1926,7 @@ static void rdpdr_virtual_channel_event_terminated(rdpdrPlugin* rdpdr)
 {
 	WINPR_ASSERT(rdpdr);
 	rdpdr->InitHandle = 0;
+	StreamPool_Free(rdpdr->pool);
 	free(rdpdr);
 }
 
@@ -1994,6 +1999,13 @@ BOOL VCAPITYPE VirtualChannelEntryEx(PCHANNEL_ENTRY_POINTS pEntryPoints, PVOID p
 	if (!rdpdr)
 	{
 		WLog_ERR(TAG, "calloc failed!");
+		return FALSE;
+	}
+
+	rdpdr->pool = StreamPool_New(TRUE, 1024);
+	if (!rdpdr->pool)
+	{
+		free(rdpdr);
 		return FALSE;
 	}
 

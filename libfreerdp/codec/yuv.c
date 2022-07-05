@@ -305,21 +305,21 @@ static BOOL submit_object(PTP_WORK* work_object, PTP_WORK_CALLBACK cb, const voi
 
 static void free_objects(PTP_WORK* work_objects, UINT32 waitCount)
 {
-		UINT32 i;
+	UINT32 i;
 
-	    WINPR_ASSERT(work_objects || (waitCount == 0));
+	WINPR_ASSERT(work_objects || (waitCount == 0));
 
-	    for (i = 0; i < waitCount; i++)
-		{
-		    PTP_WORK cur = work_objects[i];
-		    work_objects[i] = NULL;
+	for (i = 0; i < waitCount; i++)
+	{
+		PTP_WORK cur = work_objects[i];
+		work_objects[i] = NULL;
 
-		    if (!cur)
-			    continue;
+		if (!cur)
+			continue;
 
-		    WaitForThreadpoolWorkCallbacks(cur, FALSE);
-		    CloseThreadpoolWork(cur);
-	    }
+		WaitForThreadpoolWorkCallbacks(cur, FALSE);
+		CloseThreadpoolWork(cur);
+	}
 }
 
 static BOOL intersects(UINT32 pos, const RECTANGLE_16* regionRects, UINT32 numRegionRects)
@@ -348,7 +348,7 @@ static BOOL pool_decode(YUV_CONTEXT* context, PTP_WORK_CALLBACK cb, const BYTE* 
                         UINT32 nDstStep, const RECTANGLE_16* regionRects, UINT32 numRegionRects)
 {
 	BOOL rc = FALSE;
-	UINT32 x, y;
+	UINT32 x;
 	UINT32 waitCount = 0;
 	primitives_t* prims = primitives_get();
 
@@ -367,7 +367,7 @@ static BOOL pool_decode(YUV_CONTEXT* context, PTP_WORK_CALLBACK cb, const BYTE* 
 
 	if (!context->useThreads || (primitives_flags(prims) & PRIM_FLAGS_HAVE_EXTGPU))
 	{
-		for (y = 0; y < numRegionRects; y++)
+		for (UINT32 y = 0; y < numRegionRects; y++)
 		{
 			const RECTANGLE_16* rect = &regionRects[y];
 			YUV_PROCESS_WORK_PARAM current =

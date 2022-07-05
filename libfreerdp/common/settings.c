@@ -473,7 +473,7 @@ RDPDR_DEVICE* freerdp_device_clone(const RDPDR_DEVICE* device)
 				args[1] = src.drive->Path;
 				count = 2;
 			}
-		break;
+			break;
 
 		case RDPDR_DTYP_PRINT:
 			if (src.printer->DriverName)
@@ -481,7 +481,7 @@ RDPDR_DEVICE* freerdp_device_clone(const RDPDR_DEVICE* device)
 				args[1] = src.printer->DriverName;
 				count = 2;
 			}
-		break;
+			break;
 
 		case RDPDR_DTYP_SMARTCARD:
 			break;
@@ -504,7 +504,7 @@ RDPDR_DEVICE* freerdp_device_clone(const RDPDR_DEVICE* device)
 				args[3] = src.serial->Permissive;
 				count = 4;
 			}
-		break;
+			break;
 
 		case RDPDR_DTYP_PARALLEL:
 			if (src.parallel->Path)
@@ -512,7 +512,7 @@ RDPDR_DEVICE* freerdp_device_clone(const RDPDR_DEVICE* device)
 				args[1] = src.parallel->Path;
 				count = 2;
 			}
-		break;
+			break;
 		default:
 			WLog_ERR(TAG, "unknown device type %" PRIu32 "", device->Type);
 			break;
@@ -816,15 +816,39 @@ void freerdp_dynamic_channel_collection_free(rdpSettings* settings)
 	freerdp_settings_set_uint32(settings, FreeRDP_DynamicChannelCount, 0);
 }
 
+void freerdp_capability_buffer_free(rdpSettings* settings)
+{
+	WINPR_ASSERT(settings);
+
+	settings->ReceivedCapabilitiesSize = 0;
+
+	free(settings->ReceivedCapabilities);
+	settings->ReceivedCapabilities = NULL;
+}
+
+BOOL freerdp_capability_buffer_copy(rdpSettings* settings, const rdpSettings* src)
+{
+	WINPR_ASSERT(settings);
+	WINPR_ASSERT(src);
+
+	if (!freerdp_capability_buffer_allocate(settings, src->ReceivedCapabilitiesSize))
+		return FALSE;
+
+	for (UINT32 x = 0; x < src->ReceivedCapabilitiesSize; x++)
+	{
+		WINPR_ASSERT(settings->ReceivedCapabilities);
+		settings->ReceivedCapabilities[x] = src->ReceivedCapabilities[x];
+	}
+	return TRUE;
+}
+
 void freerdp_target_net_addresses_free(rdpSettings* settings)
 {
-	UINT32 index;
-
 	WINPR_ASSERT(settings);
 
 	if (settings->TargetNetAddresses)
 	{
-		for (index = 0; index < settings->TargetNetAddressCount; index++)
+		for (UINT32 index = 0; index < settings->TargetNetAddressCount; index++)
 			free(settings->TargetNetAddresses[index]);
 	}
 
@@ -1260,11 +1284,9 @@ BOOL freerdp_settings_set_pointer_len(rdpSettings* settings, size_t id, const vo
 				          "FreeRDP_ChannelDefArray::len expected to be >= %" PRIu32
 				          ", but have %" PRIu32,
 				          CHANNEL_MAX_COUNT, len);
-			if (!freerdp_settings_set_pointer_len_(settings, FreeRDP_ChannelDefArray,
-			                                       FreeRDP_ChannelDefArraySize, data, len,
-			                                       sizeof(CHANNEL_DEF)))
-				return FALSE;
-			return freerdp_settings_set_uint32(settings, FreeRDP_ChannelCount, len);
+			return freerdp_settings_set_pointer_len_(settings, FreeRDP_ChannelDefArray,
+			                                         FreeRDP_ChannelDefArraySize, data, len,
+			                                         sizeof(CHANNEL_DEF));
 		case FreeRDP_MonitorDefArray:
 			return freerdp_settings_set_pointer_len_(settings, id, FreeRDP_MonitorDefArraySize,
 			                                         data, len, sizeof(rdpMonitor));
@@ -1312,6 +1334,10 @@ BOOL freerdp_settings_set_pointer_len(rdpSettings* settings, size_t id, const vo
 			return freerdp_settings_set_pointer_len_(settings, id, FreeRDP_DynamicChannelArraySize,
 			                                         data, len, sizeof(ADDIN_ARGV*));
 		case FreeRDP_ReceivedCapabilities:
+			if (data == NULL)
+				freerdp_capability_buffer_free(settings);
+			return freerdp_settings_set_pointer_len_(settings, id, FreeRDP_ReceivedCapabilitiesSize,
+			                                         data, len, sizeof(char));
 		case FreeRDP_OrderSupport:
 			return freerdp_settings_set_pointer_len_(settings, id, -1, data, len, sizeof(char));
 
@@ -1784,4 +1810,27 @@ BOOL freerdp_device_equal(const RDPDR_DEVICE* what, const RDPDR_DEVICE* expect)
 	}
 
 	return TRUE;
+}
+
+char* freerdp_rail_support_flags_to_string(UINT32 flags, char* buffer, size_t length)
+{
+	if (flags & RAIL_LEVEL_SUPPORTED)
+		winpr_str_append("RAIL_LEVEL_SUPPORTED", buffer, length, "|");
+	if (flags & RAIL_LEVEL_DOCKED_LANGBAR_SUPPORTED)
+		winpr_str_append("RAIL_LEVEL_DOCKED_LANGBAR_SUPPORTED", buffer, length, "|");
+	if (flags & RAIL_LEVEL_SHELL_INTEGRATION_SUPPORTED)
+		winpr_str_append("RAIL_LEVEL_SHELL_INTEGRATION_SUPPORTED", buffer, length, "|");
+	if (flags & RAIL_LEVEL_LANGUAGE_IME_SYNC_SUPPORTED)
+		winpr_str_append("RAIL_LEVEL_LANGUAGE_IME_SYNC_SUPPORTED", buffer, length, "|");
+	if (flags & RAIL_LEVEL_SERVER_TO_CLIENT_IME_SYNC_SUPPORTED)
+		winpr_str_append("RAIL_LEVEL_SERVER_TO_CLIENT_IME_SYNC_SUPPORTED", buffer, length, "|");
+	if (flags & RAIL_LEVEL_HIDE_MINIMIZED_APPS_SUPPORTED)
+		winpr_str_append("RAIL_LEVEL_HIDE_MINIMIZED_APPS_SUPPORTED", buffer, length, "|");
+	if (flags & RAIL_LEVEL_WINDOW_CLOAKING_SUPPORTED)
+		winpr_str_append("RAIL_LEVEL_WINDOW_CLOAKING_SUPPORTED", buffer, length, "|");
+	if (flags & RAIL_LEVEL_HANDSHAKE_EX_SUPPORTED)
+		winpr_str_append("RAIL_LEVEL_HANDSHAKE_EX_SUPPORTED", buffer, length, "|");
+	if (flags & RAIL_LEVEL_LANGUAGE_IME_SYNC_SUPPORTED)
+		winpr_str_append("RAIL_LEVEL_LANGUAGE_IME_SYNC_SUPPORTED", buffer, length, "|");
+	return buffer;
 }

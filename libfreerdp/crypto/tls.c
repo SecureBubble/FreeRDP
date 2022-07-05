@@ -74,6 +74,7 @@ typedef struct
 	CRITICAL_SECTION lock;
 } BIO_RDP_TLS;
 
+static BOOL tls_prep(rdpTls* tls, BIO* underlying, int options, BOOL clientMode);
 static int tls_verify_certificate(rdpTls* tls, CryptoCert cert, const char* hostname, UINT16 port);
 static void tls_print_certificate_name_mismatch_error(const char* hostname, UINT16 port,
                                                       const char* common_name, char** alt_names,
@@ -215,6 +216,7 @@ static int bio_rdp_tls_puts(BIO* bio, const char* str)
 		return 0;
 
 	size = strlen(str);
+	ERR_clear_error();
 	status = BIO_write(bio, str, size);
 	return status;
 }
@@ -853,6 +855,18 @@ int tls_connect(rdpTls* tls, BIO* underlying)
 	 * support empty fragments. This needs to be disabled.
 	 */
 	options |= SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS;
+
+	if (!tls_prep(tls, underlying, options, TRUE))
+		return 0;
+
+#if !defined(OPENSSL_NO_TLSEXT) && !defined(LIBRESSL_VERSION_NUMBER)
+	SSL_set_tlsext_host_name(tls->ssl, tls->hostname);
+#endif
+	return tls_do_handshake(tls, TRUE);
+}
+
+BOOL tls_prep(rdpTls* tls, BIO* underlying, int options, BOOL clientMode)
+{
 #if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
 	/**
 	 * disable SSLv2 and SSLv3
@@ -860,16 +874,18 @@ int tls_connect(rdpTls* tls, BIO* underlying)
 	options |= SSL_OP_NO_SSLv2;
 	options |= SSL_OP_NO_SSLv3;
 
-	if (!tls_prepare(tls, underlying, SSLv23_client_method(), options, TRUE))
+	return tls_prepare(tls, underlying, SSLv23_client_method(), options, clientMode);
 #else
-	if (!tls_prepare(tls, underlying, TLS_client_method(), options, TRUE))
+	const BOOL enabled = freerdp_settings_get_bool(tls->settings, FreeRDP_EnforceTLSv1_2);
+	if (enabled)
+	{
+		return tls_prepare(tls, underlying, TLSv1_2_client_method(), options, clientMode);
+	}
+	else
+	{
+		return tls_prepare(tls, underlying, TLS_client_method(), options, clientMode);
+	}
 #endif
-		return 0;
-
-#if !defined(OPENSSL_NO_TLSEXT) && !defined(LIBRESSL_VERSION_NUMBER)
-	SSL_set_tlsext_host_name(tls->ssl, tls->hostname);
-#endif
-	return tls_do_handshake(tls, TRUE);
 }
 
 #if defined(MICROSOFT_IOS_SNI_BUG) && !defined(OPENSSL_NO_TLSEXT) && \
@@ -1056,6 +1072,7 @@ int tls_write_all(rdpTls* tls, const BYTE* data, int length)
 
 	while (offset < length)
 	{
+		ERR_clear_error();
 		status = BIO_write(bio, &data[offset], length - offset);
 
 		if (status > 0)

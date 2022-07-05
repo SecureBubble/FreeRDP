@@ -33,6 +33,7 @@
 #include "xf_disp.h"
 #include "xf_input.h"
 #include "xf_gfx.h"
+#include "xf_graphics.h"
 
 #include "xf_event.h"
 #include "xf_input.h"
@@ -310,7 +311,6 @@ void xf_event_adjust_coordinates(xfContext* xfc, int* x, int* y)
 {
 	if (!xfc || !xfc->common.context.settings || !y || !x)
 		return;
-
 
 	if (!xfc->remote_app)
 	{
@@ -616,6 +616,7 @@ static BOOL xf_event_FocusIn(xfContext* xfc, const XFocusInEvent* event, BOOL ap
 	/* Release all keys, should already be done at FocusOut but might be missed
 	 * if the WM decided to use an alternate event order */
 	xf_keyboard_release_all_keypress(xfc);
+	xf_pointer_update_scale(xfc);
 
 	if (app)
 	{
@@ -743,6 +744,9 @@ static BOOL xf_event_ConfigureNotify(xfContext* xfc, const XConfigureEvent* even
 	settings = xfc->common.context.settings;
 	WINPR_ASSERT(settings);
 
+	WLog_DBG(TAG, "%s: x=%" PRId32 ", y=%" PRId32 ", w=%" PRId32 ", h=%" PRId32, __func__, event->x,
+	         event->y, event->width, event->height);
+
 	if (!app)
 	{
 		if (!xfc->window)
@@ -785,43 +789,42 @@ static BOOL xf_event_ConfigureNotify(xfContext* xfc, const XConfigureEvent* even
 			/* ask the server to resize using the display channel */
 			xf_disp_handle_configureNotify(xfc, alignedWidth, alignedHeight);
 		}
-
-		return TRUE;
 	}
-
-	appWindow = xf_AppWindowFromX11Window(xfc, event->window);
-
-	if (appWindow)
+	else
 	{
-		/*
-		 * ConfigureNotify coordinates are expressed relative to the window parent.
-		 * Translate these to root window coordinates.
-		 */
-		XTranslateCoordinates(xfc->display, appWindow->handle, RootWindowOfScreen(xfc->screen), 0,
-		                      0, &appWindow->x, &appWindow->y, &childWindow);
-		appWindow->width = event->width;
-		appWindow->height = event->height;
+		appWindow = xf_AppWindowFromX11Window(xfc, event->window);
 
-		/*
-		 * Additional checks for not in a local move and not ignoring configure to send
-		 * position update to server, also should the window not be focused then do not
-		 * send to server yet (i.e. resizing using window decoration).
-		 * The server will be updated when the window gets refocused.
-		 */
-		if (appWindow->decorations)
+		if (appWindow)
 		{
-			/* moving resizing using window decoration */
-			xf_rail_adjust_position(xfc, appWindow);
-		}
-		else
-		{
-			if ((!event->send_event || appWindow->local_move.state == LMS_NOT_ACTIVE) &&
-			    !appWindow->rail_ignore_configure && xfc->focused)
+			/*
+			 * ConfigureNotify coordinates are expressed relative to the window parent.
+			 * Translate these to root window coordinates.
+			 */
+			XTranslateCoordinates(xfc->display, appWindow->handle, RootWindowOfScreen(xfc->screen),
+			                      0, 0, &appWindow->x, &appWindow->y, &childWindow);
+			appWindow->width = event->width;
+			appWindow->height = event->height;
+
+			/*
+			 * Additional checks for not in a local move and not ignoring configure to send
+			 * position update to server, also should the window not be focused then do not
+			 * send to server yet (i.e. resizing using window decoration).
+			 * The server will be updated when the window gets refocused.
+			 */
+			if (appWindow->decorations)
+			{
+				/* moving resizing using window decoration */
 				xf_rail_adjust_position(xfc, appWindow);
+			}
+			else
+			{
+				if ((!event->send_event || appWindow->local_move.state == LMS_NOT_ACTIVE) &&
+				    !appWindow->rail_ignore_configure && xfc->focused)
+					xf_rail_adjust_position(xfc, appWindow);
+			}
 		}
 	}
-
-	return TRUE;
+	return xf_pointer_update_scale(xfc);
 }
 
 static BOOL xf_event_MapNotify(xfContext* xfc, const XMapEvent* event, BOOL app)
@@ -962,15 +965,15 @@ static BOOL xf_event_PropertyNotify(xfContext* xfc, const XPropertyEvent* event,
 			WINPR_ASSERT(appWindow);
 			if (appWindow->maxVert && appWindow->maxHorz && !appWindow->minimized)
 			{
-				if(appWindow->rail_state != WINDOW_SHOW_MAXIMIZED)
+				if (appWindow->rail_state != WINDOW_SHOW_MAXIMIZED)
 				{
-				    appWindow->rail_state = WINDOW_SHOW_MAXIMIZED;
-				    xf_rail_send_client_system_command(xfc, appWindow->windowId, SC_MAXIMIZE);
+					appWindow->rail_state = WINDOW_SHOW_MAXIMIZED;
+					xf_rail_send_client_system_command(xfc, appWindow->windowId, SC_MAXIMIZE);
 				}
 			}
 			else if (appWindow->minimized)
 			{
-				if(appWindow->rail_state != WINDOW_SHOW_MINIMIZED)
+				if (appWindow->rail_state != WINDOW_SHOW_MINIMIZED)
 				{
 					appWindow->rail_state = WINDOW_SHOW_MINIMIZED;
 					xf_rail_send_client_system_command(xfc, appWindow->windowId, SC_MINIMIZE);
@@ -978,8 +981,7 @@ static BOOL xf_event_PropertyNotify(xfContext* xfc, const XPropertyEvent* event,
 			}
 			else
 			{
-				if(appWindow->rail_state != WINDOW_SHOW &&
-			         appWindow->rail_state != WINDOW_HIDE)
+				if (appWindow->rail_state != WINDOW_SHOW && appWindow->rail_state != WINDOW_HIDE)
 				{
 					appWindow->rail_state = WINDOW_SHOW;
 					xf_rail_send_client_system_command(xfc, appWindow->windowId, SC_RESTORE);

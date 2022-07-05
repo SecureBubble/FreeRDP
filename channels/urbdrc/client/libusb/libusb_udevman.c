@@ -194,7 +194,8 @@ static size_t udevman_register_udevice(IUDEVMAN* idevman, BYTE bus_number, BYTE 
 		if (num == 0)
 		{
 			WLog_Print(urbdrc->log, WLOG_WARN,
-			           "Could not find or redirect any usb devices by id %04x:%04x", idVendor, idProduct);
+			           "Could not find or redirect any usb devices by id %04x:%04x", idVendor,
+			           idProduct);
 		}
 
 		for (i = 0; i < num; i++)
@@ -507,12 +508,7 @@ static BOOL filter_by_class(uint8_t bDeviceClass, uint8_t bDeviceSubClass)
 
 static BOOL append(char* dst, size_t length, const char* src)
 {
-	size_t slen = strlen(src);
-	size_t dlen = strnlen(dst, length);
-	if (dlen + slen >= length)
-		return FALSE;
-	strcat(dst, src);
-	return TRUE;
+	return winpr_str_append(src, dst, length, NULL);
 }
 
 static BOOL device_is_filtered(struct libusb_device* dev,
@@ -921,7 +917,7 @@ UINT libusb_freerdp_urbdrc_client_subsystem_entry(PFREERDP_URBDRC_SERVICE_ENTRY_
 	udevman->next_device_id = BASE_USBDEVICE_NUM;
 	udevman->iface.plugin = pEntryPoints->plugin;
 	rc = libusb_init(&udevman->context);
-	
+
 	if (rc != LIBUSB_SUCCESS)
 		goto fail;
 

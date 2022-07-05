@@ -18,6 +18,7 @@
  */
 
 #include <winpr/config.h>
+#include <winpr/assert.h>
 
 #include <errno.h>
 #include <stdio.h>
@@ -32,6 +33,23 @@
 
 #include "../log.h"
 #define TAG WINPR_TAG("crt")
+
+BOOL winpr_str_append(const char* what, char* buffer, size_t size, const char* separator)
+{
+	const size_t used = strnlen(buffer, size);
+	const size_t add = strnlen(what, size);
+	const size_t sep_len = separator ? strnlen(separator, size) : 0;
+	const size_t sep = (used > 0) ? sep_len : 0;
+
+	if (used + add + sep >= size)
+		return FALSE;
+
+	if ((used > 0) && (sep_len > 0))
+		strncat(buffer, separator, sep_len);
+
+	strncat(buffer, what, add);
+	return TRUE;
+}
 
 #ifndef _WIN32
 
@@ -626,3 +644,25 @@ INT64 GetLine(char** lineptr, size_t* size, FILE* stream)
 	return -1;
 #endif
 }
+
+#if !defined(HAVE_STRNDUP)
+char* strndup(const char* s, size_t n)
+{
+	char* rc;
+	size_t len;
+
+	WINPR_ASSERT(s || (n == 0));
+	if (n == 0)
+		return NULL;
+
+	len = strnlen(s, n);
+	if (len == n)
+		len++;
+
+	rc = calloc(len, sizeof(char));
+	if (!rc)
+		return NULL;
+	memcpy(rc, s, n);
+	return rc;
+}
+#endif

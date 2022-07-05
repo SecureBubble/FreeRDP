@@ -103,7 +103,18 @@ BOOL freerdp_connect(freerdp* instance)
 	instance->ConnectionCallbackState = CLIENT_STATE_PRECONNECT_PASSED;
 
 	if (status)
+	{
+		freerdp_settings_free(rdp->originalSettings);
+		rdp->originalSettings = freerdp_settings_clone(settings);
+		if (!rdp->originalSettings)
+			return 0;
+
+		BOOL ok = IFCALLRESULT(TRUE, instance->LoadChannels, instance);
+		if (!ok)
+			return 0;
+
 		status2 = freerdp_channels_pre_connect(instance->context->channels, instance);
+	}
 
 	if (settings->KeyboardLayout == KBD_JAPANESE ||
 	    settings->KeyboardLayout == KBD_JAPANESE_INPUT_SYSTEM_MS_IME2002)
@@ -175,7 +186,7 @@ BOOL freerdp_connect(freerdp* instance)
 	{
 		wStream* s;
 		rdp_update_internal* update = update_cast(instance->context->update);
-		pcap_record record;
+		pcap_record record = { 0 };
 
 		WINPR_ASSERT(update);
 		update->pcap_rfx = pcap_open(settings->PlayRemoteFxFile, FALSE);
@@ -558,7 +569,12 @@ BOOL freerdp_focus_required(freerdp* instance)
 {
 	rdpRdp* rdp;
 	BOOL bRetCode = FALSE;
+
+	WINPR_ASSERT(instance);
+	WINPR_ASSERT(instance->context);
+
 	rdp = instance->context->rdp;
+	WINPR_ASSERT(rdp);
 
 	if (rdp->resendFocus)
 	{
@@ -572,7 +588,13 @@ BOOL freerdp_focus_required(freerdp* instance)
 void freerdp_set_focus(freerdp* instance)
 {
 	rdpRdp* rdp;
+
+	WINPR_ASSERT(instance);
+	WINPR_ASSERT(instance->context);
+
 	rdp = instance->context->rdp;
+	WINPR_ASSERT(rdp);
+
 	rdp->resendFocus = TRUE;
 }
 
@@ -777,9 +799,9 @@ void freerdp_context_free(freerdp* instance)
 	free(ctx);
 	instance->context = NULL;
 #if defined(WITH_FREERDP_DEPRECATED)
-	instance->input = NULL;    /* owned by rdpRdp */
-	instance->update = NULL;   /* owned by rdpRdp */
-	instance->settings = NULL; /* owned by rdpRdp */
+	instance->input = NULL;      /* owned by rdpRdp */
+	instance->update = NULL;     /* owned by rdpRdp */
+	instance->settings = NULL;   /* owned by rdpRdp */
 	instance->autodetect = NULL; /* owned by rdpRdp */
 #endif
 	instance->heartbeat = NULL; /* owned by rdpRdp */
@@ -787,11 +809,15 @@ void freerdp_context_free(freerdp* instance)
 
 int freerdp_get_disconnect_ultimatum(rdpContext* context)
 {
+	WINPR_ASSERT(context);
 	return context->disconnectUltimatum;
 }
 
 UINT32 freerdp_error_info(freerdp* instance)
 {
+	WINPR_ASSERT(instance);
+	WINPR_ASSERT(instance->context);
+	WINPR_ASSERT(instance->context->rdp);
 	return instance->context->rdp->errorInfo;
 }
 
@@ -813,6 +839,7 @@ BOOL freerdp_send_error_info(rdpRdp* rdp)
 
 UINT32 freerdp_get_last_error(rdpContext* context)
 {
+	WINPR_ASSERT(context);
 	return context->LastError;
 }
 
@@ -908,6 +935,8 @@ void freerdp_set_last_error(rdpContext* context, UINT32 lastError)
 void freerdp_set_last_error_ex(rdpContext* context, UINT32 lastError, const char* fkt,
                                const char* file, int line)
 {
+	WINPR_ASSERT(context);
+
 	if (lastError)
 		WLog_ERR(TAG, "%s:%s %s [0x%08" PRIX32 "]", fkt, __FUNCTION__,
 		         freerdp_get_last_error_name(lastError), lastError);
@@ -1044,11 +1073,14 @@ BOOL freerdp_nla_revert_to_self(rdpContext* context)
 
 HANDLE getChannelErrorEventHandle(rdpContext* context)
 {
+	WINPR_ASSERT(context);
 	return context->channelErrorEvent;
 }
 
 BOOL checkChannelErrorEvent(rdpContext* context)
 {
+	WINPR_ASSERT(context);
+
 	if (WaitForSingleObject(context->channelErrorEvent, 0) == WAIT_OBJECT_0)
 	{
 		WLog_ERR(TAG, "%s. Error was %" PRIu32 "", context->errorDescription,
@@ -1066,16 +1098,19 @@ BOOL checkChannelErrorEvent(rdpContext* context)
  */
 UINT getChannelError(rdpContext* context)
 {
+	WINPR_ASSERT(context);
 	return context->channelErrorNum;
 }
 
 const char* getChannelErrorDescription(rdpContext* context)
 {
+	WINPR_ASSERT(context);
 	return context->errorDescription;
 }
 
 void clearChannelError(rdpContext* context)
 {
+	WINPR_ASSERT(context);
 	context->channelErrorNum = 0;
 	memset(context->errorDescription, 0, 500);
 	ResetEvent(context->channelErrorEvent);
@@ -1085,6 +1120,9 @@ void setChannelError(rdpContext* context, UINT errorNum, const char* format, ...
 {
 	va_list ap;
 	va_start(ap, format);
+
+	WINPR_ASSERT(context);
+
 	context->channelErrorNum = errorNum;
 	vsnprintf(context->errorDescription, 499, format, ap);
 	va_end(ap);

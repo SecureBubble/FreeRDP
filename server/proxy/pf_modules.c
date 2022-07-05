@@ -105,6 +105,12 @@ static const char* pf_modules_get_hook_type_string(PF_HOOK_TYPE result)
 			return "HOOK_TYPE_SERVER_CHANNELS_FREE";
 		case HOOK_TYPE_SERVER_SESSION_END:
 			return "HOOK_TYPE_SERVER_SESSION_END";
+		case HOOK_TYPE_CLIENT_LOAD_CHANNELS:
+			return "HOOK_TYPE_CLIENT_LOAD_CHANNELS";
+		case HOOK_TYPE_SERVER_SESSION_INITIALIZE:
+			return "HOOK_TYPE_SERVER_SESSION_INITIALIZE";
+		case HOOK_TYPE_SERVER_SESSION_STARTED:
+			return "HOOK_TYPE_SERVER_SESSION_STARTED";
 		case HOOK_LAST:
 			return "HOOK_LAST";
 		default:
@@ -164,6 +170,10 @@ static BOOL pf_modules_proxy_ArrayList_ForEachFkt(void* data, size_t index, va_l
 			ok = IFCALLRESULT(TRUE, plugin->ClientEndPaint, plugin, pdata, custom);
 			break;
 
+		case HOOK_TYPE_CLIENT_LOAD_CHANNELS:
+			ok = IFCALLRESULT(TRUE, plugin->ClientLoadChannels, plugin, pdata, custom);
+			break;
+
 		case HOOK_TYPE_SERVER_POST_CONNECT:
 			ok = IFCALLRESULT(TRUE, plugin->ServerPostConnect, plugin, pdata, custom);
 			break;
@@ -182,6 +192,14 @@ static BOOL pf_modules_proxy_ArrayList_ForEachFkt(void* data, size_t index, va_l
 
 		case HOOK_TYPE_SERVER_SESSION_END:
 			ok = IFCALLRESULT(TRUE, plugin->ServerSessionEnd, plugin, pdata, custom);
+			break;
+
+		case HOOK_TYPE_SERVER_SESSION_INITIALIZE:
+			ok = IFCALLRESULT(TRUE, plugin->ServerSessionInitialize, plugin, pdata, custom);
+			break;
+
+		case HOOK_TYPE_SERVER_SESSION_STARTED:
+			ok = IFCALLRESULT(TRUE, plugin->ServerSessionStarted, plugin, pdata, custom);
 			break;
 
 		case HOOK_LAST:
@@ -299,7 +317,8 @@ BOOL pf_modules_run_filter(proxyModule* module, PF_FILTER_TYPE type, proxyData* 
 static BOOL pf_modules_set_plugin_data(proxyPluginsManager* mgr, const char* plugin_name,
                                        proxyData* pdata, void* data)
 {
-	union {
+	union
+	{
 		const char* ccp;
 		char* cp;
 	} ccharconv;
@@ -329,7 +348,8 @@ static BOOL pf_modules_set_plugin_data(proxyPluginsManager* mgr, const char* plu
 static void* pf_modules_get_plugin_data(proxyPluginsManager* mgr, const char* plugin_name,
                                         proxyData* pdata)
 {
-	union {
+	union
+	{
 		const char* ccp;
 		char* cp;
 	} ccharconv;

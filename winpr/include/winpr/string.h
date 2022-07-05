@@ -23,6 +23,7 @@
 
 #include <wchar.h>
 #include <string.h>
+#include <winpr/config.h>
 #include <winpr/winpr.h>
 #include <winpr/wtypes.h>
 
@@ -30,6 +31,9 @@
 extern "C"
 {
 #endif
+
+	WINPR_API BOOL winpr_str_append(const char* what, char* buffer, size_t size,
+	                                const char* separator);
 
 #ifndef _WIN32
 
@@ -207,6 +211,10 @@ extern "C"
 	WINPR_API char* StrSep(char** stringp, const char* delim);
 
 	WINPR_API INT64 GetLine(char** lineptr, size_t* size, FILE* stream);
+
+#if !defined(HAVE_STRNDUP)
+	WINPR_API char* strndup(const char* s, size_t n);
+#endif
 
 #ifdef __cplusplus
 }

@@ -216,6 +216,7 @@ static BOOL copy_value(const char* value, char** dst)
 static BOOL append_value(const char* value, char** dst)
 {
 	size_t x = 0, y;
+	size_t size;
 	char* tmp;
 	if (!dst || !value)
 		return FALSE;
@@ -223,14 +224,16 @@ static BOOL append_value(const char* value, char** dst)
 	if (*dst)
 		x = strlen(*dst);
 	y = strlen(value);
-	tmp = realloc(*dst, x + y + 2);
+
+	size = x + y + 2;
+	tmp = realloc(*dst, size);
 	if (!tmp)
 		return FALSE;
 	if (x == 0)
 		tmp[0] = '\0';
 	else
-		strcat(tmp, ",");
-	strcat(tmp, value);
+		winpr_str_append(",", tmp, size, NULL);
+	winpr_str_append(value, tmp, size, NULL);
 	*dst = tmp;
 	return TRUE;
 }
@@ -774,7 +777,6 @@ fail:
 	return rc;
 }
 
-
 /** @brief suboption type */
 typedef enum
 {
@@ -837,7 +839,6 @@ static BOOL parseSubOptions(rdpSettings* settings, const CmdLineSubOptions* opts
 	return found;
 }
 
-
 static int freerdp_client_command_line_post_filter(void* context, COMMAND_LINE_ARGUMENT_A* arg)
 {
 	rdpSettings* settings = (rdpSettings*)context;
@@ -864,11 +865,6 @@ static int freerdp_client_command_line_post_filter(void* context, COMMAND_LINE_A
 	CommandLineSwitchCase(arg, "kerberos")
 	{
 		size_t count;
-		union
-		{
-			char** p;
-			const char** pc;
-		} ptr;
 
 		ptr.p = CommandLineParseCommaSeparatedValuesEx("kerberos", arg->Value, &count);
 		if (ptr.pc)
@@ -1602,10 +1598,6 @@ static BOOL prepare_default_settings(rdpSettings* settings, COMMAND_LINE_ARGUMEN
 
 	return freerdp_set_connection_type(settings, CONNECTION_TYPE_AUTODETECT);
 }
-
-
-
-
 
 static BOOL setSmartcardEmulation(const char* value, rdpSettings* settings)
 {
@@ -2898,6 +2890,11 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 
 			settings->TlsSecLevel = (UINT32)val;
 		}
+		CommandLineSwitchCase(arg, "enforce-tlsv1_2")
+		{
+			if (!freerdp_settings_set_bool(settings, FreeRDP_EnforceTLSv1_2, enable))
+				return COMMAND_LINE_ERROR_UNEXPECTED_VALUE;
+		}
 		CommandLineSwitchCase(arg, "cert")
 		{
 			int rc = 0;
@@ -3081,6 +3078,17 @@ int freerdp_client_settings_parse_command_line_arguments(rdpSettings* settings, 
 		CommandLineSwitchCase(arg, "bitmap-cache")
 		{
 			settings->BitmapCacheEnabled = enable;
+		}
+		CommandLineSwitchCase(arg, "persist-cache")
+		{
+			settings->BitmapCachePersistEnabled = enable;
+		}
+		CommandLineSwitchCase(arg, "persist-cache-file")
+		{
+			if (!freerdp_settings_set_string(settings, FreeRDP_BitmapCachePersistFile, arg->Value))
+				return COMMAND_LINE_ERROR_MEMORY;
+
+			settings->BitmapCachePersistEnabled = TRUE;
 		}
 		CommandLineSwitchCase(arg, "offscreen-cache")
 		{

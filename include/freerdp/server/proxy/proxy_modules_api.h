@@ -69,15 +69,18 @@ struct proxy_plugin
 	proxyHookFn ClientLoginFailure;    /* 72 custom=rdpContext* */
 	proxyHookFn ClientEndPaint;        /* 73 custom=rdpContext* */
 	proxyHookFn ClientRedirect;        /* 74 custom=rdpContext* */
-	UINT64 reserved3[96 - 75];         /* 75-95 */
+	proxyHookFn ClientLoadChannels;    /* 75 custom=rdpContext* */
+	UINT64 reserved3[96 - 76];         /* 76-95 */
 
-	proxyHookFn ServerPostConnect;  /* 96  custom=freerdp_peer* */
-	proxyHookFn ServerPeerActivate; /* 97  custom=freerdp_peer* */
-	proxyHookFn ServerChannelsInit; /* 98  custom=freerdp_peer* */
-	proxyHookFn ServerChannelsFree; /* 99  custom=freerdp_peer* */
-	proxyHookFn ServerSessionEnd;   /* 100 custom=freerdp_peer* */
+	proxyHookFn ServerPostConnect;       /* 96  custom=freerdp_peer* */
+	proxyHookFn ServerPeerActivate;      /* 97  custom=freerdp_peer* */
+	proxyHookFn ServerChannelsInit;      /* 98  custom=freerdp_peer* */
+	proxyHookFn ServerChannelsFree;      /* 99  custom=freerdp_peer* */
+	proxyHookFn ServerSessionEnd;        /* 100 custom=freerdp_peer* */
+	proxyHookFn ServerSessionInitialize; /* 101 custom=freerdp_peer* */
+	proxyHookFn ServerSessionStarted;    /* 102 custom=freerdp_peer* */
 
-	UINT64 reserved4[128 - 101]; /* 101 - 127 */
+	UINT64 reserved4[128 - 103]; /* 103 - 127 */
 
 	/* proxy filters. a module can set these function pointers to register filters */
 	proxyFilterFn KeyboardEvent;         /* 128 */

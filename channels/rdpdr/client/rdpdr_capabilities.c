@@ -47,11 +47,11 @@ static void rdpdr_write_general_capset(rdpdrPlugin* rdpdr, wStream* s)
 {
 	WINPR_UNUSED(rdpdr);
 	rdpdr_write_capset_header(s, CAP_GENERAL_TYPE, 44, GENERAL_CAPABILITY_VERSION_02);
-	Stream_Write_UINT32(s, 0); /* osType, ignored on receipt */
-	Stream_Write_UINT32(s, 0); /* osVersion, unused and must be set to zero */
+	Stream_Write_UINT32(s, 0);                   /* osType, ignored on receipt */
+	Stream_Write_UINT32(s, 0);                   /* osVersion, unused and must be set to zero */
 	Stream_Write_UINT16(s, rdpdr->versionMajor); /* protocolMajorVersion, must be set to 1 */
 	Stream_Write_UINT16(s, rdpdr->versionMinor); /* protocolMinorVersion */
-	Stream_Write_UINT32(s, 0x0000FFFF);                  /* ioCode1 */
+	Stream_Write_UINT32(s, 0x0000FFFF);          /* ioCode1 */
 	Stream_Write_UINT32(s, 0); /* ioCode2, must be set to zero, reserved for future use */
 	Stream_Write_UINT32(s, RDPDR_DEVICE_REMOVE_PDUS | RDPDR_CLIENT_DISPLAY_NAME_PDU |
 	                           RDPDR_USER_LOGGEDON_PDU); /* extendedPDU */
@@ -258,7 +258,9 @@ UINT rdpdr_process_capability_request(rdpdrPlugin* rdpdr, wStream* s)
 UINT rdpdr_send_capability_response(rdpdrPlugin* rdpdr)
 {
 	wStream* s;
-	s = Stream_New(NULL, 256);
+
+	WINPR_ASSERT(rdpdr);
+	s = StreamPool_Take(rdpdr->pool, 256);
 
 	if (!s)
 	{

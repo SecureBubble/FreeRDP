@@ -213,12 +213,12 @@ static BOOL rdp_client_reset_codecs(rdpContext* context)
  * If no backend is available disable it before the channel is loaded.
  */
 #if defined(WITH_GFX_H264) && defined(WITH_OPENH264_LOADING)
-	if (!context->codecs->h264)
-	{
-		settings->GfxH264 = FALSE;
-		settings->GfxAVC444 = FALSE;
-		settings->GfxAVC444v2 = FALSE;
-	}
+		if (!context->codecs->h264)
+		{
+			settings->GfxH264 = FALSE;
+			settings->GfxAVC444 = FALSE;
+			settings->GfxAVC444v2 = FALSE;
+		}
 #endif
 	}
 
@@ -549,6 +549,12 @@ BOOL rdp_client_redirect(rdpRdp* rdp)
 	if (!rdp_client_disconnect_and_clear(rdp))
 		return FALSE;
 
+	freerdp_channels_disconnect(rdp->context->channels, rdp->context->instance);
+	freerdp_channels_close(rdp->context->channels, rdp->context->instance);
+	freerdp_channels_free(rdp->context->channels);
+	rdp->context->channels = freerdp_channels_new(rdp->context->instance);
+	WINPR_ASSERT(rdp->context->channels);
+
 	if (rdp_redirection_apply_settings(rdp) != 0)
 		return FALSE;
 
@@ -609,6 +615,14 @@ BOOL rdp_client_redirect(rdpRdp* rdp)
 	WINPR_ASSERT(rdp->context);
 	WINPR_ASSERT(rdp->context->instance);
 	if (!IFCALLRESULT(TRUE, rdp->context->instance->Redirect, rdp->context->instance))
+		return FALSE;
+
+	BOOL ok = IFCALLRESULT(TRUE, rdp->context->instance->LoadChannels, rdp->context->instance);
+	if (!ok)
+		return FALSE;
+
+	if (CHANNEL_RC_OK !=
+	    freerdp_channels_pre_connect(rdp->context->channels, rdp->context->instance))
 		return FALSE;
 
 	status = rdp_client_connect(rdp);
@@ -1143,7 +1157,8 @@ int rdp_client_connect_finalize(rdpRdp* rdp)
 	 * host cache and a deactivation reactivation sequence is *not* in progress.
 	 */
 
-	if (!rdp->deactivation_reactivation && rdp->settings->BitmapCachePersistEnabled)
+	if (!rdp_finalize_is_flag_set(rdp, FINALIZE_DEACTIVATE_REACTIVATE) &&
+	    rdp->settings->BitmapCachePersistEnabled)
 	{
 		if (!rdp_send_client_persistent_key_list_pdu(rdp))
 			return -1;
@@ -1166,7 +1181,7 @@ int rdp_client_transition_to_state(rdpRdp* rdp, CONNECTION_STATE state)
 	{
 		case CONNECTION_STATE_FINALIZATION:
 			update_reset_state(rdp->update);
-			rdp->finalize_sc_pdus = 0;
+			rdp_finalize_reset_flags(rdp, FALSE);
 			break;
 
 		case CONNECTION_STATE_ACTIVE:
@@ -1174,14 +1189,15 @@ int rdp_client_transition_to_state(rdpRdp* rdp, CONNECTION_STATE state)
 			ActivatedEventArgs activatedEvent;
 			rdpContext* context = rdp->context;
 			EventArgsInit(&activatedEvent, "libfreerdp");
-			activatedEvent.firstActivation = !rdp->deactivation_reactivation;
+			activatedEvent.firstActivation =
+			    !rdp_finalize_is_flag_set(rdp, FINALIZE_DEACTIVATE_REACTIVATE);
 			PubSub_OnActivated(context->pubSub, context, &activatedEvent);
-			}
+		}
 
+		break;
+
+		default:
 			break;
-
-		    default:
-			    break;
 	}
 
 	{
@@ -1458,7 +1474,8 @@ BOOL rdp_server_transition_to_state(rdpRdp* rdp, CONNECTION_STATE state)
 			break;
 
 		case CONNECTION_STATE_FINALIZATION:
-			rdp->finalize_sc_pdus = 0;
+			if (!rdp_finalize_reset_flags(rdp, FALSE))
+				goto fail;
 			break;
 
 		case CONNECTION_STATE_ACTIVE:

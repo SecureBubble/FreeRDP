@@ -64,6 +64,8 @@ static BOOL freerdp_client_common_new(freerdp* instance, rdpContext* context)
 	WINPR_ASSERT(instance);
 	WINPR_ASSERT(context);
 
+	instance->LoadChannels = freerdp_client_load_channels;
+
 	pEntryPoints = instance->pClientEntryPoints;
 	WINPR_ASSERT(pEntryPoints);
 	return IFCALLRESULT(TRUE, pEntryPoints->ClientNew, instance, context);
@@ -1205,5 +1207,17 @@ BOOL freerdp_client_send_extended_button_event(rdpClientContext* cctx, BOOL rela
 		                                        (UINT16)cctx->lastY);
 	}
 
+	return TRUE;
+}
+BOOL freerdp_client_load_channels(freerdp* instance)
+{
+	WINPR_ASSERT(instance);
+	WINPR_ASSERT(instance->context);
+
+	if (!freerdp_client_load_addins(instance->context->channels, instance->context->settings))
+	{
+		WLog_ERR(TAG, "Failed to load addins [%l08X]", GetLastError());
+		return FALSE;
+	}
 	return TRUE;
 }
