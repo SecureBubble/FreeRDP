@@ -391,7 +391,7 @@ BOOL rdp_set_error_info(rdpRdp* rdp, UINT32 errorInfo)
 
 			if (context->pubSub)
 			{
-				ErrorInfoEventArgs e;
+				ErrorInfoEventArgs e = { 0 };
 				EventArgsInit(&e, "freerdp");
 				e.code = rdp->errorInfo;
 				PubSub_OnErrorInfo(context->pubSub, context, &e);
@@ -507,7 +507,7 @@ BOOL rdp_read_header(rdpRdp* rdp, wStream* s, UINT16* length, UINT16* channelId)
 	if (MCSPDU == DomainMCSPDU_DisconnectProviderUltimatum)
 	{
 		int reason = 0;
-		TerminateEventArgs e;
+		TerminateEventArgs e = { 0 };
 		rdpContext* context;
 
 		if (!mcs_recv_disconnect_provider_ultimatum(rdp->mcs, s, &reason))
@@ -536,10 +536,10 @@ BOOL rdp_read_header(rdpRdp* rdp, wStream* s, UINT16* length, UINT16* channelId)
 
 		WLog_DBG(TAG, "DisconnectProviderUltimatum: reason: %d", reason);
 		WLog_INFO(TAG, "bubble hack: no aborting...");
-		//freerdp_abort_connect(rdp->instance);
-		//EventArgsInit(&e, "freerdp");
-		//e.code = 0;
-		//PubSub_OnTerminate(context->pubSub, context, &e);
+		// utils_abort_connect(rdp);
+		// EventArgsInit(&e, "freerdp");
+		// e.code = 0;
+		// PubSub_OnTerminate(rdp->pubSub, context, &e);
 		return TRUE;
 	}
 
@@ -1985,6 +1985,10 @@ rdpRdp* rdp_new(rdpContext* context)
 	if (!rdp->bulk)
 		goto fail;
 
+	rdp->pubSub = PubSub_New(TRUE);
+	if (!rdp->pubSub)
+		goto fail;
+
 	rdp->abortEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 	if (!rdp->abortEvent)
 		goto fail;
@@ -2114,6 +2118,7 @@ void rdp_free(rdpRdp* rdp)
 		multitransport_free(rdp->multitransport);
 		bulk_free(rdp->bulk);
 		free(rdp->io);
+		PubSub_Free(rdp->pubSub);
 		if (rdp->abortEvent)
 			CloseHandle(rdp->abortEvent);
 		free(rdp);
