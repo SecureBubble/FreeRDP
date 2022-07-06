@@ -540,7 +540,7 @@ BOOL WTSVirtualChannelManagerOpen(HANDLE hServer)
 	WINPR_ASSERT(vcm->client);
 	client = vcm->client;
 
-	if ((vcm->drdynvc_state == DRDYNVC_STATE_NONE && vcm->client->activated)
+	if ((vcm->drdynvc_state == DRDYNVC_STATE_NONE && vcm->client->activated))
 	{
 		rdpPeerChannel* channel;
 		UINT32 dynvc_caps;
