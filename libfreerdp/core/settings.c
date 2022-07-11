@@ -430,7 +430,7 @@ rdpSettings* freerdp_settings_new(DWORD flags)
 	if (!freerdp_settings_set_uint32(settings, FreeRDP_MonitorLocalShiftY, 0))
 		goto out_fail;
 
-	if (!freerdp_settings_set_pointer_len(settings, FreeRDP_MonitorIds, NULL, 16))
+	if (!freerdp_settings_set_pointer_len(settings, FreeRDP_MonitorIds, NULL, 0))
 		goto out_fail;
 
 	if (!settings_get_computer_name(settings))
@@ -680,6 +680,9 @@ rdpSettings* freerdp_settings_new(DWORD flags)
 	if (!freerdp_settings_set_uint32(settings, FreeRDP_TlsSecLevel, 1))
 		goto out_fail;
 	settings->OrderSupport = calloc(1, 32);
+
+	freerdp_settings_set_uint16(settings, FreeRDP_TLSMinVersion, TLS1_VERSION);
+	freerdp_settings_set_uint16(settings, FreeRDP_TLSMaxVersion, 0);
 
 	if (!settings->OrderSupport)
 		goto out_fail;
