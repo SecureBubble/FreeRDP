@@ -36,6 +36,7 @@
 
 typedef struct
 {
+	IWTSPlugin iface;
 	GENERIC_DYNVC_PLUGIN base;
 
 	ZGFX_CONTEXT* zgfx;

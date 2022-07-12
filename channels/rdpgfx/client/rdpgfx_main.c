@@ -2312,6 +2312,76 @@ static void* rdpgfx_get_cache_slot_data(RdpgfxClientContext* context, UINT16 cac
 	return pData;
 }
 
+RdpgfxClientContext* rdpgfx_client_context_new(rdpContext* rdpcontext)
+{
+	RDPGFX_PLUGIN* gfx;
+	RdpgfxClientContext* context;
+
+	WINPR_ASSERT(rdpcontext);
+
+	gfx = (RDPGFX_PLUGIN*)calloc(1, sizeof(RDPGFX_PLUGIN));
+
+	if (!gfx)
+	{
+		WLog_ERR(TAG, "calloc failed!");
+		return NULL;
+	}
+
+	gfx->log = WLog_Get(TAG);
+
+	if (!gfx->log)
+	{
+		free(gfx);
+		WLog_ERR(TAG, "Failed to acquire reference to WLog %s", TAG);
+		return NULL;
+	}
+
+	gfx->rdpcontext = rdpcontext;
+	gfx->SurfaceTable = HashTable_New(TRUE);
+
+	if (!gfx->SurfaceTable)
+	{
+		free(gfx);
+		WLog_ERR(TAG, "HashTable_New failed!");
+		return NULL;
+	}
+
+	gfx->MaxCacheSlots =
+	    freerdp_settings_get_bool(gfx->rdpcontext->settings, FreeRDP_GfxSmallCache) ? 4096 : 25600;
+	context = (RdpgfxClientContext*)calloc(1, sizeof(RdpgfxClientContext));
+
+	if (!context)
+	{
+		free(gfx);
+		WLog_ERR(TAG, "calloc failed!");
+		return NULL;
+	}
+
+	context->handle = (void*)gfx;
+	context->GetSurfaceIds = rdpgfx_get_surface_ids;
+	context->SetSurfaceData = rdpgfx_set_surface_data;
+	context->GetSurfaceData = rdpgfx_get_surface_data;
+	context->SetCacheSlotData = rdpgfx_set_cache_slot_data;
+	context->GetCacheSlotData = rdpgfx_get_cache_slot_data;
+	context->CapsAdvertise = rdpgfx_send_caps_advertise_pdu;
+	context->FrameAcknowledge = rdpgfx_send_frame_acknowledge_pdu;
+	context->CacheImportOffer = rdpgfx_send_cache_import_offer_pdu;
+	context->QoeFrameAcknowledge = rdpgfx_send_qoe_frame_acknowledge_pdu;
+
+	gfx->iface.pInterface = (void*)context;
+	gfx->zgfx = zgfx_context_new(FALSE);
+
+	if (!gfx->zgfx)
+	{
+		free(gfx);
+		free(context);
+		WLog_ERR(TAG, "zgfx_context_new failed!");
+		return NULL;
+	}
+
+	return context;
+}
+
 static UINT init_plugin_cb(GENERIC_DYNVC_PLUGIN* base, rdpContext* rcontext, rdpSettings* settings)
 {
 	RdpgfxClientContext* context;
