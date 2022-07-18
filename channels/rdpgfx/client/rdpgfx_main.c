@@ -2312,6 +2312,9 @@ static void* rdpgfx_get_cache_slot_data(RdpgfxClientContext* context, UINT16 cac
 	return pData;
 }
 
+/* after commit: 3478051f157f5dca6527159abe22d9e04ce115e3 I added the rdpgfx_client_context_new 
+so the proxy can linkage with the FreeRDP library, but now the gfx channel not working in default mode
+*/
 RdpgfxClientContext* rdpgfx_client_context_new(rdpContext* rdpcontext)
 {
 	RDPGFX_PLUGIN* gfx;
