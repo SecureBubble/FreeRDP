@@ -32,13 +32,13 @@
 typedef struct _bubble_client_context BubbleClientContext;
 
 typedef UINT (*pcBubbleOnOpen)(BubbleClientContext* context);
-typedef UINT (*pcBubbleActiveWindowChanged)(BubbleClientContext* context, const char* proc_name, 
+typedef UINT (*pcBubbleActiveWindowChanged)(BubbleClientContext* context, UINT64 timestamp, const char* proc_name, 
 						const char* window_title);
 typedef UINT (*pcBubbleKeepAlive)(BubbleClientContext* context, UINT64 timestamp);
 typedef UINT (*pcBubbleDisconnectRequest)(BubbleClientContext* context);
 typedef UINT (*pcBubbleInputFocusChanged)(BubbleClientContext* context, BOOL is_password);
 typedef UINT (*pcBubbleUacWindowState)(BubbleClientContext* context, BOOL is_shown);
-typedef UINT (*pcBubbleNewProcessCreated)(BubbleClientContext* context, const char* process_name, 
+typedef UINT (*pcBubbleNewProcessCreated)(BubbleClientContext* context, UINT64 timestamp, const char* process_name, const int process_id, 
 						const char* cmdline, const char* process_hash);
 typedef UINT (*pcBubblePreQueryModeResponse)(BubbleClientContext* context);
 typedef UINT (*pcBubbleRequestAppExecute)(BubbleClientContext* context);

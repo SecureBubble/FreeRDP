@@ -221,7 +221,7 @@ static UINT bubble_handle_process_created(BubbleClientContext* context, wStream*
 	WLog_INFO(TAG, "new process: time=%d, proc_id=%d, proc_name=%s, cmdline=%s, hash=%s", timestamp, proc_id,
 	          proc_name, cmdline, proc_hash);
 
-	IFCALLRET(context->NewProcessCreated, error, context, proc_name, cmdline, proc_hash);
+	IFCALLRET(context->NewProcessCreated, error, context, timestamp, proc_name, proc_id, cmdline, proc_hash);
 
 	free(proc_name);
 	free(cmdline);
@@ -253,7 +253,7 @@ static UINT bubble_handle_active_window_changed(BubbleClientContext* context, wS
 	WLog_INFO(TAG, "active window changed: time=%d, process name=%s, window title=%s", timestamp,
 	          proc, window_title);
 
-	IFCALLRET(context->ActiveWindowChanged, error, context, proc, window_title);
+	IFCALLRET(context->ActiveWindowChanged, error, context, timestamp, proc, window_title);
 
 	free(proc);
 	free(window_title);
