@@ -65,7 +65,7 @@ static UINT bubble_send(bubblePlugin* bubble, wStream* s)
 	if (status != CHANNEL_RC_OK)
 	{
 		Stream_Free(s, TRUE);
-		WLog_ERR(TAG, "pVirtualChannelWriteEx failed with %s [%08" PRIX32 "]",
+		WLog_ERR(TAG, "bubble.client: pVirtualChannelWriteEx failed with %s [%08" PRIX32 "]",
 		         WTSErrorToString(status), status);
 	}
 
@@ -90,7 +90,7 @@ UINT bubble_send_channel_data(bubblePlugin* bubble, wStream* src)
 
 	if (!s)
 	{
-		WLog_ERR(TAG, "Stream_New failed!");
+		WLog_ERR(TAG, "bubble.client: Stream_New failed!");
 		return CHANNEL_RC_NO_MEMORY;
 	}
 
@@ -109,7 +109,7 @@ UINT bubble_send_channel_data(bubblePlugin* bubble, wStream* src)
  */
 static UINT bubble_on_open(BubbleClientContext* context)
 {
-	WLog_INFO(TAG, "sespobe on open");
+	WLog_INFO(TAG, "bubble.client: sespobe on open");
 	return CHANNEL_RC_OK;
 }
 
@@ -126,7 +126,7 @@ static VOID VCAPITYPE bubble_virtual_channel_open_event_ex(LPVOID lpUserParam, D
 		case CHANNEL_EVENT_DATA_RECEIVED:
 			if (!bubble || (bubble->OpenHandle != openHandle))
 			{
-				WLog_ERR(TAG, "error no match");
+				WLog_ERR(TAG, "bubble.client: error no match");
 				return;
 			}
 
@@ -134,7 +134,7 @@ static VOID VCAPITYPE bubble_virtual_channel_open_event_ex(LPVOID lpUserParam, D
 			                                         totalLength, dataFlags)))
 			{
 				WLog_ERR(TAG,
-				         "bubble_virtual_channel_event_data_received"
+				         "bubble.client: bubble_virtual_channel_event_data_received"
 				         " failed with error %" PRIu32 "!",
 				         error);
 			}
@@ -163,7 +163,7 @@ static char* bubble_read_string(wStream* s)
 {
 	if (Stream_GetRemainingLength(s) < 4)
 	{
-		WLog_ERR(TAG, "not enough bytes");
+		WLog_ERR(TAG, "bubble.client: not enough bytes");
 		return NULL;
 	}
 
@@ -171,12 +171,12 @@ static char* bubble_read_string(wStream* s)
 	Stream_Read_UINT32_BE(s, length);
 	if (Stream_GetRemainingLength(s) < length)
 	{
-		WLog_ERR(TAG, "not enough bytes2: have %d, expected %d", Stream_GetRemainingLength(s),
+		WLog_ERR(TAG, "bubble.client: not enough bytes2: have %d, expected %d", Stream_GetRemainingLength(s),
 		         length);
 		return NULL;
 	}
 
-	WLog_INFO(TAG, "got string of length %d", length);
+	WLog_DBG(TAG, "bubble.client: got string of length %d", length);
 	char* buffer = (char*)malloc(length + 1);
 	if (!buffer)
 	{
@@ -218,7 +218,7 @@ static UINT bubble_handle_process_created(BubbleClientContext* context, wStream*
 		return ERROR_INTERNAL_ERROR;
 	}
 
-	WLog_INFO(TAG, "new process: time=%d, proc_id=%d, proc_name=%s, cmdline=%s, hash=%s", timestamp, proc_id,
+	WLog_INFO(TAG, "bubble.client: new process: time=%d, proc_id=%d, proc_name=%s, cmdline=%s, hash=%s", timestamp, proc_id,
 	          proc_name, cmdline, proc_hash);
 
 	IFCALLRET(context->NewProcessCreated, error, context, timestamp, proc_name, proc_id, cmdline, proc_hash);
@@ -250,7 +250,7 @@ static UINT bubble_handle_active_window_changed(BubbleClientContext* context, wS
 		return ERROR_INTERNAL_ERROR;
 	}
 
-	WLog_INFO(TAG, "active window changed: time=%d, process name=%s, window title=%s", timestamp,
+	WLog_INFO(TAG, "bubble.client: active window changed: time=%d, process name=%s, window title=%s", timestamp,
 	          proc, window_title);
 
 	IFCALLRET(context->ActiveWindowChanged, error, context, timestamp, proc, window_title);
@@ -271,7 +271,7 @@ static UINT bubble_handle_keep_alive(BubbleClientContext* context, wStream* s)
 	Stream_Read_UINT64_BE(s, timestamp); // 8 bytes
 	IFCALLRET(context->KeepAlive, error, context, timestamp);
 
-	WLog_DBG(TAG, "received keep alive: time=%d", timestamp);
+	WLog_DBG(TAG, "bubble.client: received keep alive: time=%d", timestamp);
 	return error;
 }
 
@@ -284,7 +284,7 @@ static UINT bubble_handle_input_focus_change(BubbleClientContext* context, wStre
 		return ERROR_INTERNAL_ERROR;
 
 	Stream_Read_UINT8(s, is_password); // 8 bytes
-	WLog_INFO(TAG, "current input is password=%d", is_password);
+	WLog_INFO(TAG, "bubble.client: current input is password=%d", is_password);
 
 	IFCALLRET(context->InputFocusChanged, error, context, is_password);
 	return error;
@@ -299,7 +299,7 @@ static UINT bubble_handle_uac_window_state(BubbleClientContext* context, wStream
 		return ERROR_INTERNAL_ERROR;
 
 	Stream_Read_UINT8(s, is_uac_shown); // 8 bytes
-	WLog_DBG(TAG, "is uac shown=%d", is_uac_shown);
+	WLog_DBG(TAG, "bubble.client: is uac shown=%d", is_uac_shown);
 	IFCALLRET(context->UacWindowStateUpdate, error, context, is_uac_shown);
 	return error;
 }
@@ -315,15 +315,15 @@ static UINT bubble_request_exec_app(BubbleClientContext* context)
 		if (settings->RemoteApplicationProgram == NULL ||
 		    strlen(settings->RemoteApplicationProgram) <= 2)
 		{
-			WLog_ERR(TAG, "bubble: remote application is invalid");
+			WLog_ERR(TAG, "bubble.client: remote application is invalid");
 			return ERROR_INTERNAL_ERROR;
 		}
 
 		const char* app_to_execute = (const char*)(settings->RemoteApplicationProgram + 2);
 
-		WLog_INFO(TAG, "requesting agent to execute %s [len=%d]", app_to_execute,
+		WLog_INFO(TAG, "bubble.client: requesting agent to execute %s [len=%d]", app_to_execute,
 		          strlen(app_to_execute));
-		WLog_INFO(TAG, "lbinfolen=%d", settings->LoadBalanceInfoLength);
+		WLog_INFO(TAG, "bubble.client: lbinfolen=%d", settings->LoadBalanceInfoLength);
 
 		data_in = Stream_New(NULL, 2 + 2 + strlen(app_to_execute) + 2 + strlen(settings->Username) +
 		                               2 + settings->LoadBalanceInfoLength);
@@ -350,9 +350,9 @@ static UINT bubble_handle_query_mode(BubbleClientContext* context, wStream* s)
 	UINT error = CHANNEL_RC_OK;
 	WLog_INFO(TAG, "%s", __FUNCTION__);
 
-	WLog_INFO(TAG, "before calling pre response callback");
+	WLog_INFO(TAG, "bubble.client: before calling pre response callback");
 	IFCALLRET(context->PreQueryModeResponse, error, context);
-	WLog_INFO(TAG, "after calling pre response callback");
+	WLog_INFO(TAG, "bubble.client: after calling pre response callback");
 
 	bubble_request_exec_app(context);
 	return error;
@@ -381,7 +381,6 @@ static UINT bubble_handle_network_status(BubbleClientContext* context, wStream* 
 		return ERROR_INTERNAL_ERROR;
 
 	WLog_INFO(TAG, "%s", netstat_data);
-	WLog_INFO(TAG, "%s", __FUNCTION__);
 
 	IFCALLRET(context->OnNetstatData, error, context, timestamp, netstat_data);
 
@@ -427,7 +426,7 @@ static UINT bubble_order_recv(LPVOID userdata, wStream* s)
 			break;
 
 		default:
-			WLog_ERR(TAG, "Unknown SEESPDU order 0x%08" PRIx32 " received.", orderType);
+			WLog_ERR(TAG, "bubble.client: Unknown SEESPDU order 0x%08" PRIx32 " received.", orderType);
 			return ERROR_INTERNAL_ERROR;
 	}
 
@@ -453,7 +452,7 @@ static UINT bubble_virtual_channel_event_connected(bubblePlugin* bubble, LPVOID 
 		IFCALLRET(context->OnOpen, status, context);
 
 		if (status != CHANNEL_RC_OK)
-			WLog_ERR(TAG, "context->OnOpen failed with %s [%08" PRIX32 "]",
+			WLog_ERR(TAG, "bubble.client: context->OnOpen failed with %s [%08" PRIX32 "]",
 			         WTSErrorToString(status), status);
 	}
 	bubble->MsgsHandle =
@@ -484,7 +483,7 @@ static UINT bubble_virtual_channel_event_disconnected(bubblePlugin* bubble)
 
 	if (CHANNEL_RC_OK != rc)
 	{
-		WLog_ERR(TAG, "pVirtualChannelCloseEx failed with %s [%08" PRIX32 "]", WTSErrorToString(rc),
+		WLog_ERR(TAG, "bubble.client: pVirtualChannelCloseEx failed with %s [%08" PRIX32 "]", WTSErrorToString(rc),
 		         rc);
 		return rc;
 	}
@@ -510,7 +509,7 @@ static VOID VCAPITYPE bubble_virtual_channel_init_event_ex(LPVOID lpUserParam, L
 
 	if (!bubble || (bubble->InitHandle != pInitHandle))
 	{
-		WLog_ERR(TAG, "error no match");
+		WLog_ERR(TAG, "bubble.client: error no match");
 		return;
 	}
 
@@ -561,7 +560,7 @@ BOOL VCAPITYPE VirtualChannelEntryEx(PCHANNEL_ENTRY_POINTS pEntryPoints, PVOID p
 
 	if (!bubble)
 	{
-		WLog_ERR(TAG, "calloc failed!");
+		WLog_ERR(TAG, "bubble.client: calloc failed!");
 		return FALSE;
 	}
 
@@ -576,7 +575,7 @@ BOOL VCAPITYPE VirtualChannelEntryEx(PCHANNEL_ENTRY_POINTS pEntryPoints, PVOID p
 
 		if (!context)
 		{
-			WLog_ERR(TAG, "calloc failed!");
+			WLog_ERR(TAG, "bubble.client: calloc failed!");
 			free(bubble);
 			return FALSE;
 		}
@@ -602,7 +601,7 @@ BOOL VCAPITYPE VirtualChannelEntryEx(PCHANNEL_ENTRY_POINTS pEntryPoints, PVOID p
 
 	if (CHANNEL_RC_OK != rc)
 	{
-		WLog_ERR(TAG, "failed with %s [%08" PRIX32 "]", WTSErrorToString(rc), rc);
+		WLog_ERR(TAG, "bubble.client: failed with %s [%08" PRIX32 "]", WTSErrorToString(rc), rc);
 		goto error_out;
 	}
 
