@@ -37,7 +37,9 @@
 typedef struct
 {
 	IWTSPlugin iface;
-	GENERIC_DYNVC_PLUGIN base;
+
+	IWTSListener* listener;
+	GENERIC_LISTENER_CALLBACK* listener_callback;
 
 	ZGFX_CONTEXT* zgfx;
 	UINT32 UnacknowledgedFrames;
@@ -56,7 +58,7 @@ typedef struct
 
 	wLog* log;
 	RDPGFX_CAPSET ConnectionCaps;
-	RdpgfxClientContext* context;
+	BOOL initialized;
 } RDPGFX_PLUGIN;
 
 #endif /* FREERDP_CHANNEL_RDPGFX_CLIENT_MAIN_H */
