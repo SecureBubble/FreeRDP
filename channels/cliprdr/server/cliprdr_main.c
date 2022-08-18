@@ -631,12 +631,12 @@ static UINT cliprdr_server_receive_temporary_directory(CliprdrServerContext* con
 
 	memset(cliprdr->temporaryDirectory, 0, ARRAYSIZE(cliprdr->temporaryDirectory));
 
-	if (ConvertFromUnicode(CP_UTF8, 0, wszTempDir, -1, &(cliprdr->temporaryDirectory),
-	                       ARRAYSIZE(cliprdr->temporaryDirectory), NULL, NULL) < 1)
+	if (ConvertFromUnicode(CP_UTF8, 0, wszTempDir, -1, &(cliprdr->temporaryDirectory), 0, NULL,
+	                       NULL) < 1)
 	{
 		WLog_ERR(TAG, "failed to convert temporary directory name");
 		return ERROR_INVALID_DATA;
-	}
+	}	
 
 	length = strnlen(cliprdr->temporaryDirectory, ARRAYSIZE(cliprdr->temporaryDirectory));
 
