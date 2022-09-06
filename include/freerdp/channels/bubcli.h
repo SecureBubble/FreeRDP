@@ -28,7 +28,8 @@
 
 typedef enum
 {
-	BUBCLI_ERROR_CODE_PDU = 0
+	BUBCLI_ERROR_CODE_PDU = 0,
+	BUBCLI_INFO_CODE_PDU = 1
 } BubcliChannelPDU;
 
 #endif /* FREERDP_CHANNEL_BUBCLI_H */

@@ -1,0 +1,616 @@
+[1mdiff --git a/channels/rdpgfx/client/rdpgfx_codec.c b/channels/rdpgfx/client/rdpgfx_codec.c[m
+[1mindex e329835f7..fcd03d3d2 100644[m
+[1m--- a/channels/rdpgfx/client/rdpgfx_codec.c[m
+[1m+++ b/channels/rdpgfx/client/rdpgfx_codec.c[m
+[36m@@ -128,7 +128,7 @@[m [mstatic UINT rdpgfx_decode_AVC420(RDPGFX_PLUGIN* gfx, RDPGFX_SURFACE_COMMAND* cmd[m
+ 	UINT error;[m
+ 	wStream* s;[m
+ 	RDPGFX_AVC420_BITMAP_STREAM h264;[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ 	s = Stream_New(cmd->data, cmd->length);[m
+ [m
+ 	if (!s)[m
+[36m@@ -173,7 +173,7 @@[m [mstatic UINT rdpgfx_decode_AVC444(RDPGFX_PLUGIN* gfx, RDPGFX_SURFACE_COMMAND* cmd[m
+ 	size_t pos1, pos2;[m
+ 	wStream* s;[m
+ 	RDPGFX_AVC444_BITMAP_STREAM h264 = { 0 };[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ 	s = Stream_New(cmd->data, cmd->length);[m
+ [m
+ 	if (!s)[m
+[36m@@ -259,7 +259,7 @@[m [mfail:[m
+ UINT rdpgfx_decode(RDPGFX_PLUGIN* gfx, RDPGFX_SURFACE_COMMAND* cmd)[m
+ {[m
+ 	UINT error = CHANNEL_RC_OK;[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ 	PROFILER_ENTER(context->SurfaceProfiler)[m
+ [m
+ 	switch (cmd->codecId)[m
+[1mdiff --git a/channels/rdpgfx/client/rdpgfx_main.c b/channels/rdpgfx/client/rdpgfx_main.c[m
+[1mindex 2b00f5ad6..0021572af 100644[m
+[1m--- a/channels/rdpgfx/client/rdpgfx_main.c[m
+[1m+++ b/channels/rdpgfx/client/rdpgfx_main.c[m
+[36m@@ -115,10 +115,10 @@[m [mstatic UINT rdpgfx_send_caps_advertise_pdu(RdpgfxClientContext* context,[m
+ [m
+ 	gfx = (RDPGFX_PLUGIN*)context->handle;[m
+ [m
+[31m-	if (!gfx || !gfx->listener_callback)[m
+[32m+[m	[32mif (!gfx || !gfx->base.listener_callback)[m
+ 		return ERROR_BAD_ARGUMENTS;[m
+ [m
+[31m-	callback = gfx->listener_callback->channel_callback;[m
+[32m+[m	[32mcallback = gfx->base.listener_callback->channel_callback;[m
+ [m
+ 	header.flags = 0;[m
+ 	header.cmdId = RDPGFX_CMDID_CAPSADVERTISE;[m
+[36m@@ -205,7 +205,7 @@[m [mstatic UINT rdpgfx_send_supported_caps(GENERIC_CHANNEL_CALLBACK* callback)[m
+ 	if (!gfx)[m
+ 		return ERROR_BAD_CONFIGURATION;[m
+ [m
+[31m-	context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mcontext = gfx->context;[m
+ [m
+ 	if (!context)[m
+ 		return ERROR_BAD_CONFIGURATION;[m
+[36m@@ -365,8 +365,10 @@[m [mstatic UINT rdpgfx_recv_caps_confirm_pdu(GENERIC_CHANNEL_CALLBACK* callback, wSt[m
+ 	RDPGFX_CAPS_CONFIRM_PDU pdu = { 0 };[m
+ 	WINPR_ASSERT(callback);[m
+ 	RDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)callback->plugin;[m
+[32m+[m
+ 	WINPR_ASSERT(gfx);[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+[32m+[m
+ 	pdu.capsSet = &capsSet;[m
+ [m
+ 	if (!Stream_CheckAndLogRequiredLength(TAG, s, 12))[m
+[36m@@ -404,10 +406,10 @@[m [mstatic UINT rdpgfx_send_frame_acknowledge_pdu(RdpgfxClientContext* context,[m
+ [m
+ 	gfx = (RDPGFX_PLUGIN*)context->handle;[m
+ [m
+[31m-	if (!gfx || !gfx->listener_callback)[m
+[32m+[m	[32mif (!gfx || !gfx->base.listener_callback)[m
+ 		return ERROR_BAD_CONFIGURATION;[m
+ [m
+[31m-	callback = gfx->listener_callback->channel_callback;[m
+[32m+[m	[32mcallback = gfx->base.listener_callback->channel_callback;[m
+ [m
+ 	if (!callback)[m
+ 		return ERROR_BAD_CONFIGURATION;[m
+[36m@@ -460,10 +462,10 @@[m [mstatic UINT rdpgfx_send_qoe_frame_acknowledge_pdu(RdpgfxClientContext* context,[m
+ [m
+ 	gfx = (RDPGFX_PLUGIN*)context->handle;[m
+ [m
+[31m-	if (!gfx || !gfx->listener_callback)[m
+[32m+[m	[32mif (!gfx || !gfx->base.listener_callback)[m
+ 		return ERROR_BAD_CONFIGURATION;[m
+ [m
+[31m-	callback = gfx->listener_callback->channel_callback;[m
+[32m+[m	[32mcallback = gfx->base.listener_callback->channel_callback;[m
+ [m
+ 	if (!callback)[m
+ 		return ERROR_BAD_CONFIGURATION;[m
+[36m@@ -506,8 +508,10 @@[m [mstatic UINT rdpgfx_recv_reset_graphics_pdu(GENERIC_CHANNEL_CALLBACK* callback, w[m
+ 	WINPR_ASSERT(callback);[m
+ [m
+ 	RDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)callback->plugin;[m
+[32m+[m
+ 	WINPR_ASSERT(gfx);[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ 	UINT error = CHANNEL_RC_OK;[m
+ 	GraphicsResetEventArgs graphicsReset = { 0 };[m
+ [m
+[36m@@ -592,7 +596,7 @@[m [mstatic UINT rdpgfx_recv_evict_cache_entry_pdu(GENERIC_CHANNEL_CALLBACK* callback[m
+ 	WINPR_ASSERT(callback);[m
+ 	RDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)callback->plugin;[m
+ 	WINPR_ASSERT(gfx);[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ 	UINT error = CHANNEL_RC_OK;[m
+ [m
+ 	if (!Stream_CheckAndLogRequiredLength(TAG, s, 2))[m
+[36m@@ -707,7 +711,7 @@[m [mstatic UINT rdpgfx_save_persistent_cache(RDPGFX_PLUGIN* gfx)[m
+ 	WINPR_ASSERT(gfx);[m
+ 	WINPR_ASSERT(gfx->rdpcontext);[m
+ 	rdpSettings* settings = gfx->rdpcontext->settings;[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ [m
+ 	WINPR_ASSERT(context);[m
+ 	WINPR_ASSERT(settings);[m
+[36m@@ -774,10 +778,10 @@[m [mstatic UINT rdpgfx_send_cache_import_offer_pdu(RdpgfxClientContext* context,[m
+ [m
+ 	gfx = (RDPGFX_PLUGIN*)context->handle;[m
+ [m
+[31m-	if (!gfx || !gfx->listener_callback)[m
+[32m+[m	[32mif (!gfx || !gfx->base.listener_callback)[m
+ 		return ERROR_BAD_CONFIGURATION;[m
+ [m
+[31m-	callback = gfx->listener_callback->channel_callback;[m
+[32m+[m	[32mcallback = gfx->base.listener_callback->channel_callback;[m
+ [m
+ 	if (!callback)[m
+ 		return ERROR_BAD_CONFIGURATION;[m
+[36m@@ -839,7 +843,7 @@[m [mstatic UINT rdpgfx_send_cache_offer(RDPGFX_PLUGIN* gfx)[m
+ 	WINPR_ASSERT(gfx);[m
+ 	WINPR_ASSERT(gfx->rdpcontext);[m
+ [m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ 	rdpSettings* settings = gfx->rdpcontext->settings;[m
+ [m
+ 	if (!settings->BitmapCachePersistEnabled)[m
+[36m@@ -923,7 +927,7 @@[m [mstatic UINT rdpgfx_load_cache_import_reply(RDPGFX_PLUGIN* gfx, RDPGFX_CACHE_IMPO[m
+ 	WINPR_ASSERT(gfx);[m
+ 	WINPR_ASSERT(gfx->rdpcontext);[m
+ 	rdpSettings* settings = gfx->rdpcontext->settings;[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ [m
+ 	WINPR_ASSERT(settings);[m
+ 	WINPR_ASSERT(reply);[m
+[36m@@ -990,7 +994,7 @@[m [mstatic UINT rdpgfx_recv_cache_import_reply_pdu(GENERIC_CHANNEL_CALLBACK* callbac[m
+ 	WINPR_ASSERT(callback);[m
+ 	RDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)callback->plugin;[m
+ 	WINPR_ASSERT(gfx);[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ 	UINT error = CHANNEL_RC_OK;[m
+ [m
+ 	if (!Stream_CheckAndLogRequiredLength(TAG, s, 2))[m
+[36m@@ -1044,7 +1048,7 @@[m [mstatic UINT rdpgfx_recv_create_surface_pdu(GENERIC_CHANNEL_CALLBACK* callback, w[m
+ 	WINPR_ASSERT(callback);[m
+ 	RDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)callback->plugin;[m
+ 	WINPR_ASSERT(gfx);[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ 	UINT error = CHANNEL_RC_OK;[m
+ [m
+ 	if (!Stream_CheckAndLogRequiredLength(TAG, s, 7))[m
+[36m@@ -1082,7 +1086,7 @@[m [mstatic UINT rdpgfx_recv_delete_surface_pdu(GENERIC_CHANNEL_CALLBACK* callback, w[m
+ 	WINPR_ASSERT(callback);[m
+ 	RDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)callback->plugin;[m
+ 	WINPR_ASSERT(gfx);[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ 	UINT error = CHANNEL_RC_OK;[m
+ [m
+ 	if (!Stream_CheckAndLogRequiredLength(TAG, s, 2))[m
+[36m@@ -1114,7 +1118,7 @@[m [mstatic UINT rdpgfx_recv_start_frame_pdu(GENERIC_CHANNEL_CALLBACK* callback, wStr[m
+ 	WINPR_ASSERT(callback);[m
+ 	RDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)callback->plugin;[m
+ 	WINPR_ASSERT(gfx);[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ 	UINT error = CHANNEL_RC_OK;[m
+ [m
+ 	if (!Stream_CheckAndLogRequiredLength(TAG, s, RDPGFX_START_FRAME_PDU_SIZE))[m
+[36m@@ -1151,7 +1155,7 @@[m [mstatic UINT rdpgfx_recv_end_frame_pdu(GENERIC_CHANNEL_CALLBACK* callback, wStrea[m
+ 	WINPR_ASSERT(callback);[m
+ 	RDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)callback->plugin;[m
+ 	WINPR_ASSERT(gfx);[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ 	UINT error = CHANNEL_RC_OK;[m
+ [m
+ 	if (!Stream_CheckAndLogRequiredLength(TAG, s, RDPGFX_END_FRAME_PDU_SIZE))[m
+[36m@@ -1340,7 +1344,7 @@[m [mstatic UINT rdpgfx_recv_wire_to_surface_2_pdu(GENERIC_CHANNEL_CALLBACK* callback[m
+ 	WINPR_ASSERT(callback);[m
+ 	RDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)callback->plugin;[m
+ 	WINPR_ASSERT(gfx);[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ 	UINT error = CHANNEL_RC_OK;[m
+ [m
+ 	if (!Stream_CheckAndLogRequiredLength(TAG, s, RDPGFX_WIRE_TO_SURFACE_PDU_2_SIZE))[m
+[36m@@ -1412,7 +1416,7 @@[m [mstatic UINT rdpgfx_recv_delete_encoding_context_pdu(GENERIC_CHANNEL_CALLBACK* ca[m
+ 	WINPR_ASSERT(callback);[m
+ 	RDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)callback->plugin;[m
+ 	WINPR_ASSERT(gfx);[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ 	UINT error = CHANNEL_RC_OK;[m
+ [m
+ 	if (!Stream_CheckAndLogRequiredLength(TAG, s, 6))[m
+[36m@@ -1450,7 +1454,7 @@[m [mstatic UINT rdpgfx_recv_solid_fill_pdu(GENERIC_CHANNEL_CALLBACK* callback, wStre[m
+ 	WINPR_ASSERT(callback);[m
+ 	RDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)callback->plugin;[m
+ 	WINPR_ASSERT(gfx);[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ 	UINT error;[m
+ [m
+ 	if (!Stream_CheckAndLogRequiredLength(TAG, s, 8))[m
+[36m@@ -1519,7 +1523,7 @@[m [mstatic UINT rdpgfx_recv_surface_to_surface_pdu(GENERIC_CHANNEL_CALLBACK* callbac[m
+ 	WINPR_ASSERT(callback);[m
+ 	RDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)callback->plugin;[m
+ 	WINPR_ASSERT(gfx);[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ 	UINT error;[m
+ [m
+ 	if (!Stream_CheckAndLogRequiredLength(TAG, s, 14))[m
+[36m@@ -1591,8 +1595,9 @@[m [mstatic UINT rdpgfx_recv_surface_to_cache_pdu(GENERIC_CHANNEL_CALLBACK* callback,[m
+ 	RDPGFX_SURFACE_TO_CACHE_PDU pdu = { 0 };[m
+ 	WINPR_ASSERT(callback);[m
+ 	RDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)callback->plugin;[m
+[32m+[m
+ 	WINPR_ASSERT(gfx);[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ 	UINT error;[m
+ [m
+ 	if (!Stream_CheckAndLogRequiredLength(TAG, s, 20))[m
+[36m@@ -1642,7 +1647,7 @@[m [mstatic UINT rdpgfx_recv_cache_to_surface_pdu(GENERIC_CHANNEL_CALLBACK* callback,[m
+ 	RDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)callback->plugin;[m
+ [m
+ 	WINPR_ASSERT(gfx);[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ 	UINT error = CHANNEL_RC_OK;[m
+ [m
+ 	if (!Stream_CheckAndLogRequiredLength(TAG, s, 6))[m
+[36m@@ -1704,8 +1709,9 @@[m [mstatic UINT rdpgfx_recv_map_surface_to_output_pdu(GENERIC_CHANNEL_CALLBACK* call[m
+ 	RDPGFX_MAP_SURFACE_TO_OUTPUT_PDU pdu = { 0 };[m
+ 	WINPR_ASSERT(callback);[m
+ 	RDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)callback->plugin;[m
+[32m+[m
+ 	WINPR_ASSERT(gfx);[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ 	UINT error = CHANNEL_RC_OK;[m
+ [m
+ 	if (!Stream_CheckAndLogRequiredLength(TAG, s, 12))[m
+[36m@@ -1738,8 +1744,9 @@[m [mstatic UINT rdpgfx_recv_map_surface_to_scaled_output_pdu(GENERIC_CHANNEL_CALLBAC[m
+ 	RDPGFX_MAP_SURFACE_TO_SCALED_OUTPUT_PDU pdu = { 0 };[m
+ 	WINPR_ASSERT(callback);[m
+ 	RDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)callback->plugin;[m
+[32m+[m
+ 	WINPR_ASSERT(gfx);[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ 	UINT error = CHANNEL_RC_OK;[m
+ [m
+ 	if (!Stream_CheckAndLogRequiredLength(TAG, s, 20))[m
+[36m@@ -1779,8 +1786,9 @@[m [mstatic UINT rdpgfx_recv_map_surface_to_window_pdu(GENERIC_CHANNEL_CALLBACK* call[m
+ 	RDPGFX_MAP_SURFACE_TO_WINDOW_PDU pdu = { 0 };[m
+ 	WINPR_ASSERT(callback);[m
+ 	RDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)callback->plugin;[m
+[32m+[m
+ 	WINPR_ASSERT(gfx);[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ 	UINT error = CHANNEL_RC_OK;[m
+ [m
+ 	if (!Stream_CheckAndLogRequiredLength(TAG, s, 18))[m
+[36m@@ -1814,7 +1822,7 @@[m [mstatic UINT rdpgfx_recv_map_surface_to_scaled_window_pdu(GENERIC_CHANNEL_CALLBAC[m
+ 	WINPR_ASSERT(callback);[m
+ 	RDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)callback->plugin;[m
+ 	WINPR_ASSERT(gfx);[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ 	UINT error = CHANNEL_RC_OK;[m
+ [m
+ 	if (!Stream_CheckAndLogRequiredLength(TAG, s, 26))[m
+[36m@@ -2109,7 +2117,7 @@[m [mstatic UINT rdpgfx_on_open(IWTSVirtualChannelCallback* pChannelCallback)[m
+ 	WINPR_ASSERT(callback);[m
+ 	RDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)callback->plugin;[m
+ 	WINPR_ASSERT(gfx);[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ 	UINT error = CHANNEL_RC_OK;[m
+ 	BOOL do_caps_advertise = TRUE;[m
+ 	gfx->sendFrameAcks = TRUE;[m
+[36m@@ -2140,9 +2148,11 @@[m [mstatic UINT rdpgfx_on_close(IWTSVirtualChannelCallback* pChannelCallback)[m
+ 	GENERIC_CHANNEL_CALLBACK* callback = (GENERIC_CHANNEL_CALLBACK*)pChannelCallback;[m
+ 	WINPR_ASSERT(callback);[m
+ 	RDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)callback->plugin;[m
+[32m+[m
+ 	if (!gfx)[m
+ 		goto fail;[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+[32m+[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ [m
+ 	DEBUG_RDPGFX(gfx->log, "OnClose");[m
+ 	error = rdpgfx_save_persistent_cache(gfx);[m
+[36m@@ -2170,102 +2180,14 @@[m [mfail:[m
+ 	return CHANNEL_RC_OK;[m
+ }[m
+ [m
+[31m-/**[m
+[31m- * Function description[m
+[31m- *[m
+[31m- * @return 0 on success, otherwise a Win32 error code[m
+[31m- */[m
+[31m-static UINT rdpgfx_on_new_channel_connection(IWTSListenerCallback* pListenerCallback,[m
+[31m-                                             IWTSVirtualChannel* pChannel, BYTE* Data,[m
+[31m-                                             BOOL* pbAccept,[m
+[31m-                                             IWTSVirtualChannelCallback** ppCallback)[m
+[32m+[m[32mstatic void terminate_plugin_cb(GENERIC_DYNVC_PLUGIN* base)[m
+ {[m
+[31m-	GENERIC_CHANNEL_CALLBACK* callback;[m
+[31m-	GENERIC_LISTENER_CALLBACK* listener_callback = (GENERIC_LISTENER_CALLBACK*)pListenerCallback;[m
+[31m-[m
+[31m-	WINPR_ASSERT(listener_callback);[m
+[31m-	WINPR_ASSERT(pChannel);[m
+[31m-	WINPR_ASSERT(ppCallback);[m
+[31m-[m
+[31m-	callback = (GENERIC_CHANNEL_CALLBACK*)calloc(1, sizeof(GENERIC_CHANNEL_CALLBACK));[m
+[31m-[m
+[31m-	if (!callback)[m
+[31m-	{[m
+[31m-		WLog_ERR(TAG, "calloc failed!");[m
+[31m-		return CHANNEL_RC_NO_MEMORY;[m
+[31m-	}[m
+[31m-[m
+[31m-	callback->iface.OnDataReceived = rdpgfx_on_data_received;[m
+[31m-	callback->iface.OnOpen = rdpgfx_on_open;[m
+[31m-	callback->iface.OnClose = rdpgfx_on_close;[m
+[31m-	callback->plugin = listener_callback->plugin;[m
+[31m-	callback->channel_mgr = listener_callback->channel_mgr;[m
+[31m-	callback->channel = pChannel;[m
+[31m-	listener_callback->channel_callback = callback;[m
+[31m-	*ppCallback = &callback->iface;[m
+[31m-	return CHANNEL_RC_OK;[m
+[31m-}[m
+[31m-[m
+[31m-/**[m
+[31m- * Function description[m
+[31m- *[m
+[31m- * @return 0 on success, otherwise a Win32 error code[m
+[31m- */[m
+[31m-static UINT rdpgfx_plugin_initialize(IWTSPlugin* pPlugin, IWTSVirtualChannelManager* pChannelMgr)[m
+[31m-{[m
+[31m-	UINT error;[m
+[31m-	RDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)pPlugin;[m
+[31m-[m
+[32m+[m	[32mRDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)base;[m
+ 	WINPR_ASSERT(gfx);[m
+[31m-	WINPR_ASSERT(pChannelMgr);[m
+[31m-[m
+[31m-	if (gfx->initialized)[m
+[31m-	{[m
+[31m-		WLog_ERR(TAG, "[%s] channel initialized twice, aborting", RDPGFX_DVC_CHANNEL_NAME);[m
+[31m-		return ERROR_INVALID_DATA;[m
+[31m-	}[m
+[31m-	gfx->listener_callback =[m
+[31m-	    (GENERIC_LISTENER_CALLBACK*)calloc(1, sizeof(GENERIC_LISTENER_CALLBACK));[m
+[31m-[m
+[31m-	if (!gfx->listener_callback)[m
+[31m-	{[m
+[31m-		WLog_Print(gfx->log, WLOG_ERROR, "calloc failed!");[m
+[31m-		return CHANNEL_RC_NO_MEMORY;[m
+[31m-	}[m
+[31m-[m
+[31m-	gfx->listener_callback->iface.OnNewChannelConnection = rdpgfx_on_new_channel_connection;[m
+[31m-	gfx->listener_callback->plugin = pPlugin;[m
+[31m-	gfx->listener_callback->channel_mgr = pChannelMgr;[m
+[32m+[m	[32mRdpgfxClientContext* context = gfx->context;[m
+ [m
+[31m-	WINPR_ASSERT(pChannelMgr->CreateListener);[m
+[31m-	error = pChannelMgr->CreateListener(pChannelMgr, RDPGFX_DVC_CHANNEL_NAME, 0,[m
+[31m-	                                    &gfx->listener_callback->iface, &(gfx->listener));[m
+[31m-	gfx->listener->pInterface = gfx->iface.pInterface;[m
+[31m-	DEBUG_RDPGFX(gfx->log, "Initialize");[m
+[31m-[m
+[31m-	gfx->initialized = error == CHANNEL_RC_OK;[m
+[31m-	return error;[m
+[31m-}[m
+[31m-[m
+[31m-/**[m
+[31m- * Function description[m
+[31m- *[m
+[31m- * @return 0 on success, otherwise a Win32 error code[m
+[31m- */[m
+[31m-static UINT rdpgfx_plugin_terminated(IWTSPlugin* pPlugin)[m
+[31m-{[m
+[31m-	RDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)pPlugin;[m
+[31m-	WINPR_ASSERT(gfx);[m
+[31m-	RdpgfxClientContext* context = (RdpgfxClientContext*)gfx->iface.pInterface;[m
+ 	DEBUG_RDPGFX(gfx->log, "Terminated");[m
+[31m-	if (gfx && gfx->listener_callback)[m
+[31m-	{[m
+[31m-		IWTSVirtualChannelManager* mgr = gfx->listener_callback->channel_mgr;[m
+[31m-		if (mgr)[m
+[31m-			IFCALL(mgr->DestroyListener, mgr, gfx->listener);[m
+[31m-	}[m
+ 	rdpgfx_client_context_free(context);[m
+[31m-	return CHANNEL_RC_OK;[m
+ }[m
+ [m
+ /**[m
+[36m@@ -2390,49 +2312,41 @@[m [mstatic void* rdpgfx_get_cache_slot_data(RdpgfxClientContext* context, UINT16 cac[m
+ 	return pData;[m
+ }[m
+ [m
+[31m-RdpgfxClientContext* rdpgfx_client_context_new(rdpContext* rdpcontext)[m
+[32m+[m[32mstatic UINT init_plugin_cb(GENERIC_DYNVC_PLUGIN* base, rdpContext* rcontext, rdpSettings* settings)[m
+ {[m
+[31m-	RDPGFX_PLUGIN* gfx;[m
+ 	RdpgfxClientContext* context;[m
+[32m+[m	[32mRDPGFX_PLUGIN* gfx = (RDPGFX_PLUGIN*)base;[m
+ [m
+[31m-	WINPR_ASSERT(rdpcontext);[m
+[31m-[m
+[31m-	gfx = (RDPGFX_PLUGIN*)calloc(1, sizeof(RDPGFX_PLUGIN));[m
+[31m-[m
+[31m-	if (!gfx)[m
+[31m-	{[m
+[31m-		WLog_ERR(TAG, "calloc failed!");[m
+[31m-		return NULL;[m
+[31m-	}[m
+[31m-[m
+[31m-	gfx->log = WLog_Get(TAG);[m
+[32m+[m	[32mWINPR_ASSERT(base);[m
+[32m+[m	[32mgfx->rdpcontext = rcontext;[m
+ [m
+[31m-	if (!gfx->log)[m
+[31m-	{[m
+[31m-		free(gfx);[m
+[31m-		WLog_ERR(TAG, "Failed to acquire reference to WLog %s", TAG);[m
+[31m-		return NULL;[m
+[31m-	}[m
+[31m-[m
+[31m-	gfx->rdpcontext = rdpcontext;[m
+ 	gfx->SurfaceTable = HashTable_New(TRUE);[m
+[31m-[m
+ 	if (!gfx->SurfaceTable)[m
+ 	{[m
+[31m-		free(gfx);[m
+[31m-		WLog_ERR(TAG, "HashTable_New failed!");[m
+[31m-		return NULL;[m
+[32m+[m		[32mWLog_ERR(TAG, "HashTable_New for surfaces failed !");[m
+[32m+[m		[32mreturn CHANNEL_RC_NO_MEMORY;[m
+ 	}[m
+ [m
+ 	gfx->MaxCacheSlots =[m
+ 	    freerdp_settings_get_bool(gfx->rdpcontext->settings, FreeRDP_GfxSmallCache) ? 4096 : 25600;[m
+[31m-	context = (RdpgfxClientContext*)calloc(1, sizeof(RdpgfxClientContext));[m
+ [m
+[32m+[m	[32mcontext = (RdpgfxClientContext*)calloc(1, sizeof(RdpgfxClientContext));[m
+ 	if (!context)[m
+ 	{[m
+[31m-		free(gfx);[m
+[31m-		WLog_ERR(TAG, "calloc failed!");[m
+[31m-		return NULL;[m
+[32m+[m		[32mWLog_ERR(TAG, "context calloc failed!");[m
+[32m+[m		[32mHashTable_Free(gfx->SurfaceTable);[m
+[32m+[m		[32mgfx->SurfaceTable = NULL;[m
+[32m+[m		[32mreturn CHANNEL_RC_NO_MEMORY;[m
+[32m+[m	[32m}[m
+[32m+[m
+[32m+[m	[32mgfx->zgfx = zgfx_context_new(FALSE);[m
+[32m+[m	[32mif (!gfx->zgfx)[m
+[32m+[m	[32m{[m
+[32m+[m		[32mWLog_ERR(TAG, "zgfx_context_new failed!");[m
+[32m+[m		[32mHashTable_Free(gfx->SurfaceTable);[m
+[32m+[m		[32mgfx->SurfaceTable = NULL;[m
+[32m+[m		[32mfree(context);[m
+[32m+[m		[32mreturn CHANNEL_RC_NO_MEMORY;[m
+ 	}[m
+ [m
+ 	context->handle = (void*)gfx;[m
+[36m@@ -2446,18 +2360,9 @@[m [mRdpgfxClientContext* rdpgfx_client_context_new(rdpContext* rdpcontext)[m
+ 	context->CacheImportOffer = rdpgfx_send_cache_import_offer_pdu;[m
+ 	context->QoeFrameAcknowledge = rdpgfx_send_qoe_frame_acknowledge_pdu;[m
+ [m
+[31m-	gfx->iface.pInterface = (void*)context;[m
+[31m-	gfx->zgfx = zgfx_context_new(FALSE);[m
+[31m-[m
+[31m-	if (!gfx->zgfx)[m
+[31m-	{[m
+[31m-		free(gfx);[m
+[31m-		free(context);[m
+[31m-		WLog_ERR(TAG, "zgfx_context_new failed!");[m
+[31m-		return NULL;[m
+[31m-	}[m
+[31m-[m
+[31m-	return context;[m
+[32m+[m	[32mgfx->base.iface.pInterface = (void*)context;[m
+[32m+[m	[32mgfx->context = context;[m
+[32m+[m	[32mreturn CHANNEL_RC_OK;[m
+ }[m
+ [m
+ void rdpgfx_client_context_free(RdpgfxClientContext* context)[m
+[36m@@ -2473,12 +2378,6 @@[m [mvoid rdpgfx_client_context_free(RdpgfxClientContext* context)[m
+ 	free_surfaces(context, gfx->SurfaceTable);[m
+ 	evict_cache_slots(context, gfx->MaxCacheSlots, gfx->CacheSlots);[m
+ [m
+[31m-	if (gfx->listener_callback)[m
+[31m-	{[m
+[31m-		free(gfx->listener_callback);[m
+[31m-		gfx->listener_callback = NULL;[m
+[31m-	}[m
+[31m-[m
+ 	if (gfx->zgfx)[m
+ 	{[m
+ 		zgfx_context_free(gfx->zgfx);[m
+[36m@@ -2487,9 +2386,11 @@[m [mvoid rdpgfx_client_context_free(RdpgfxClientContext* context)[m
+ [m
+ 	HashTable_Free(gfx->SurfaceTable);[m
+ 	free(context);[m
+[31m-	free(gfx);[m
+ }[m
+ [m
+[32m+[m[32mstatic const IWTSVirtualChannelCallback rdpgfx_callbacks = { rdpgfx_on_data_received,[m
+[32m+[m	[32m                                                         rdpgfx_on_open, rdpgfx_on_close };[m
+[32m+[m
+ /**[m
+  * Function description[m
+  *[m
+[36m@@ -2497,36 +2398,7 @@[m [mvoid rdpgfx_client_context_free(RdpgfxClientContext* context)[m
+  */[m
+ UINT rdpgfx_DVCPluginEntry(IDRDYNVC_ENTRY_POINTS* pEntryPoints)[m
+ {[m
+[31m-	UINT error = CHANNEL_RC_OK;[m
+[31m-	RDPGFX_PLUGIN* gfx;[m
+[31m-	RdpgfxClientContext* context;[m
+[31m-[m
+[31m-	WINPR_ASSERT(pEntryPoints);[m
+[31m-	WINPR_ASSERT(pEntryPoints->GetPlugin);[m
+[31m-[m
+[31m-	gfx = (RDPGFX_PLUGIN*)pEntryPoints->GetPlugin(pEntryPoints, "rdpgfx");[m
+[31m-[m
+[31m-	if (!gfx)[m
+[31m-	{[m
+[31m-		WINPR_ASSERT(pEntryPoints->GetRdpContext);[m
+[31m-		context = rdpgfx_client_context_new(pEntryPoints->GetRdpContext(pEntryPoints));[m
+[31m-[m
+[31m-		if (!context)[m
+[31m-		{[m
+[31m-			WLog_ERR(TAG, "rdpgfx_client_context_new failed!");[m
+[31m-			return CHANNEL_RC_NO_MEMORY;[m
+[31m-		}[m
+[31m-[m
+[31m-		gfx = (RDPGFX_PLUGIN*)context->handle;[m
+[31m-[m
+[31m-		gfx->iface.Initialize = rdpgfx_plugin_initialize;[m
+[31m-		gfx->iface.Connected = NULL;[m
+[31m-		gfx->iface.Disconnected = NULL;[m
+[31m-		gfx->iface.Terminated = rdpgfx_plugin_terminated;[m
+[31m-[m
+[31m-		WINPR_ASSERT(pEntryPoints->RegisterPlugin);[m
+[31m-		error = pEntryPoints->RegisterPlugin(pEntryPoints, "rdpgfx", &gfx->iface);[m
+[31m-	}[m
+[31m-[m
+[31m-	return error;[m
+[32m+[m	[32mreturn freerdp_generic_DVCPluginEntry(pEntryPoints, TAG, RDPGFX_DVC_CHANNEL_NAME,[m
+[32m+[m	[32m                                      sizeof(RDPGFX_PLUGIN), sizeof(GENERIC_CHANNEL_CALLBACK),[m
+[32m+[m	[32m                                      &rdpgfx_callbacks, init_plugin_cb, terminate_plugin_cb);[m
+ }[m
+\ No newline at end of file[m
+[1mdiff --git a/channels/rdpgfx/client/rdpgfx_main.h b/channels/rdpgfx/client/rdpgfx_main.h[m
+[1mindex 0c98727bf..c01f075b0 100644[m
+[1m--- a/channels/rdpgfx/client/rdpgfx_main.h[m
+[1m+++ b/channels/rdpgfx/client/rdpgfx_main.h[m
+[36m@@ -36,10 +36,7 @@[m
+ [m
+ typedef struct[m
+ {[m
+[31m-	IWTSPlugin iface;[m
+[31m-[m
+[31m-	IWTSListener* listener;[m
+[31m-	GENERIC_LISTENER_CALLBACK* listener_callback;[m
+[32m+[m	[32mGENERIC_DYNVC_PLUGIN base;[m
+ [m
+ 	ZGFX_CONTEXT* zgfx;[m
+ 	UINT32 UnacknowledgedFrames;[m
+[36m@@ -58,7 +55,7 @@[m [mtypedef struct[m
+ [m
+ 	wLog* log;[m
+ 	RDPGFX_CAPSET ConnectionCaps;[m
+[31m-	BOOL initialized;[m
+[32m+[m	[32mRdpgfxClientContext* context;[m
+ } RDPGFX_PLUGIN;[m
+ [m
+ #endif /* FREERDP_CHANNEL_RDPGFX_CLIENT_MAIN_H */[m
+\ No newline at end of file[m
+[1mdiff --git a/server/proxy/cli/freerdp-proxy b/server/proxy/cli/freerdp-proxy[m
+[1mindex 404e61752..9e69e3e9e 100755[m
+Binary files a/server/proxy/cli/freerdp-proxy and b/server/proxy/cli/freerdp-proxy differ

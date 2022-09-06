@@ -35,6 +35,8 @@ typedef BOOL (*psBubcliStop)(BubcliServerContext* context);
 /* Server side messages sending methods */
 typedef UINT (*psBubcliErrorCodePdu)(BubcliServerContext* context,
                                       UINT32 errorCode);
+typedef UINT (*psBubcliInfoCodePdu)(BubcliServerContext* context,
+                                      UINT32 infoCode);
 
 struct _bubcli_server_context
 {
@@ -46,6 +48,7 @@ struct _bubcli_server_context
 
 	/* Methods for sending server side messages */
 	psBubcliErrorCodePdu ErrorCodePdu;
+	psBubcliInfoCodePdu InfoCodePdu;
 	BubcliServerPrivate* priv;
 	rdpContext* rdpcontext;
 };

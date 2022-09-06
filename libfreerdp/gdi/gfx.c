@@ -1337,6 +1337,7 @@ static UINT gdi_SurfaceToCache(RdpgfxClientContext* context,
 	EnterCriticalSection(&context->mux);
 	rect = &(surfaceToCache->rectSrc);
 	surface = (gdiGfxSurface*)context->GetSurfaceData(context, surfaceToCache->surfaceId);
+	//WLog_INFO(TAG, "gdi_SurfaceToCache: SetCacheSlotData cacheSlot %" PRIu16"", surfaceToCache->cacheSlot);
 
 	if (!surface)
 		goto fail;
@@ -1371,6 +1372,8 @@ static UINT gdi_SurfaceToCache(RdpgfxClientContext* context,
 		goto fail;
 	}
 
+	//WLog_INFO(TAG, "gdi_SurfaceToCache: SetCacheSlotData cacheEntry %" PRIu16"", cacheEntry);
+	//WLog_INFO(TAG, "gdi_SurfaceToCache: SetCacheSlotData cacheSlot %" PRIu16"", surfaceToCache->cacheSlot);
 	rc = context->SetCacheSlotData(context, surfaceToCache->cacheSlot, (void*)cacheEntry);
 fail:
 	LeaveCriticalSection(&context->mux);
@@ -1478,6 +1481,8 @@ static UINT gdi_CacheImportReply(RdpgfxClientContext* context,
 		cacheEntry->scanline = (cacheEntry->width + (cacheEntry->width % 4)) * 4;
 		cacheEntry->data = NULL;
 
+		//WLog_INFO(TAG, "gdi_CacheImportReply: cacheSlot %" PRIu16"", cacheSlot);
+		//WLog_INFO(TAG, "gdi_CacheImportReply: cacheEntry %" PRIu16"", cacheEntry);
 		error = context->SetCacheSlotData(context, cacheSlot, (void*)cacheEntry);
 
 		if (error)
@@ -1525,6 +1530,8 @@ static UINT gdi_ImportCacheEntry(RdpgfxClientContext* context, UINT16 cacheSlot,
 		return ERROR_INTERNAL_ERROR;
 	}
 
+	//WLog_INFO(TAG, "gdi_ImportCacheEntry: cacheSlot %" PRIu16"", cacheSlot);
+	//WLog_INFO(TAG, "gdi_ImportCacheEntry: cacheEntry %" PRIu16"", cacheEntry);
 	error = context->SetCacheSlotData(context, cacheSlot, (void*)cacheEntry);
 
 	if (error)
@@ -1565,14 +1572,16 @@ static UINT gdi_EvictCacheEntry(RdpgfxClientContext* context,
 	gdiGfxCacheEntry* cacheEntry;
 	UINT rc = ERROR_NOT_FOUND;
 	EnterCriticalSection(&context->mux);
+	//WLog_INFO(TAG, "gdi_EvictCacheEntry_GetCacheSlotData %" PRIu16"", evictCacheEntry->cacheSlot);
 	cacheEntry = (gdiGfxCacheEntry*)context->GetCacheSlotData(context, evictCacheEntry->cacheSlot);
+	//WLog_INFO(TAG, "gdi_CacheEntry %" PRIu16"", cacheEntry);
 
 	if (cacheEntry)
 	{
 		free(cacheEntry->data);
 		free(cacheEntry);
 	}
-
+	//WLog_INFO(TAG, "gdi_EvictCacheEntry_SetCacheSlotData %" PRIu16"", evictCacheEntry->cacheSlot);
 	rc = context->SetCacheSlotData(context, evictCacheEntry->cacheSlot, NULL);
 	LeaveCriticalSection(&context->mux);
 	return rc;

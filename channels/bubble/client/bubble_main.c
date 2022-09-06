@@ -233,6 +233,7 @@ static UINT bubble_handle_active_window_changed(BubbleClientContext* context, wS
 {
 	UINT64 timestamp;
 	UINT error = CHANNEL_RC_OK;
+	UINT32 keyboard_layout;
 
 	if (Stream_GetRemainingLength(s) < 8)
 		return ERROR_INTERNAL_ERROR;
@@ -250,10 +251,12 @@ static UINT bubble_handle_active_window_changed(BubbleClientContext* context, wS
 		return ERROR_INTERNAL_ERROR;
 	}
 
+	Stream_Read_UINT32_BE(s, keyboard_layout);   // 2 bytes
+
 	WLog_INFO(TAG, "bubble.client: active window changed: time=%d, process name=%s, window title=%s", timestamp,
 	          proc, window_title);
 
-	IFCALLRET(context->ActiveWindowChanged, error, context, timestamp, proc, window_title);
+	IFCALLRET(context->ActiveWindowChanged, error, context, timestamp, proc, window_title, keyboard_layout);
 
 	free(proc);
 	free(window_title);

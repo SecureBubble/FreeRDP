@@ -33,7 +33,7 @@ typedef struct _bubble_client_context BubbleClientContext;
 
 typedef UINT (*pcBubbleOnOpen)(BubbleClientContext* context);
 typedef UINT (*pcBubbleActiveWindowChanged)(BubbleClientContext* context, UINT64 timestamp, const char* proc_name, 
-						const char* window_title);
+						const char* window_title, const int keyboard_layout);
 typedef UINT (*pcBubbleKeepAlive)(BubbleClientContext* context, UINT64 timestamp);
 typedef UINT (*pcBubbleDisconnectRequest)(BubbleClientContext* context);
 typedef UINT (*pcBubbleInputFocusChanged)(BubbleClientContext* context, BOOL is_password);

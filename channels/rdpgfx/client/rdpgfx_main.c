@@ -90,6 +90,7 @@ static void evict_cache_slots(RdpgfxClientContext* context, UINT16 MaxCacheSlots
 				context->EvictCacheEntry(context, &pdu);
 			}
 
+			//WLog_INFO(TAG, "evict_cache_slots %" PRIu16"", index);
 			CacheSlots[index] = NULL;
 		}
 	}
@@ -1681,6 +1682,11 @@ static UINT rdpgfx_recv_cache_to_surface_pdu(GENERIC_CHANNEL_CALLBACK* callback,
 	             " destPtsCount: %" PRIu16 "",
 	             pdu.cacheSlot, pdu.surfaceId, pdu.destPtsCount);
 
+	// WLog_Print(gfx->log, WLOG_INFO,
+	// 		           "RdpGfxRecvCacheToSurfacePdu: cacheSlot: %" PRIu16 " surfaceId: %" PRIu16
+	//              " destPtsCount: %" PRIu16 "",
+	//              pdu.cacheSlot, pdu.surfaceId, pdu.destPtsCount); 		 
+
 	if (context)
 	{
 		IFCALLRET(context->CacheToSurface, error, context, &pdu);
@@ -2155,6 +2161,7 @@ static UINT rdpgfx_on_close(IWTSVirtualChannelCallback* pChannelCallback)
 	}
 
 	free_surfaces(context, gfx->SurfaceTable);
+	//WLog_ERR(TAG, "rdpgfx_on_close evict_cache_slots");
 	evict_cache_slots(context, gfx->MaxCacheSlots, gfx->CacheSlots);
 
 	free(callback);
@@ -2368,6 +2375,8 @@ static UINT rdpgfx_set_cache_slot_data(RdpgfxClientContext* context, UINT16 cach
 		return ERROR_INVALID_INDEX;
 	}
 
+	//WLog_INFO(TAG, "rdpgfx_set_cache_slot_data: pData %" PRIu16"", pData);
+	//WLog_INFO(TAG, "rdpgfx_set_cache_slot_data: cacheSlot %" PRIu16"", cacheSlot);
 	gfx->CacheSlots[cacheSlot - 1] = pData;
 	return CHANNEL_RC_OK;
 }
@@ -2386,7 +2395,9 @@ static void* rdpgfx_get_cache_slot_data(RdpgfxClientContext* context, UINT16 cac
 		return NULL;
 	}
 
+	//WLog_INFO(TAG, "rdpgfx_get_cache_slot_data: cacheSlot %" PRIu16"", cacheSlot);
 	pData = gfx->CacheSlots[cacheSlot - 1];
+	//WLog_INFO(TAG, "rdpgfx_get_cache_slot_data: pData %" PRIu16"", pData);
 	return pData;
 }
 

@@ -140,6 +140,34 @@ static UINT bubcli_send_error_code_pdu(BubcliServerContext* context,
 	return error;
 }
 
+/**
+ * Function description
+ *
+ * @return 0 on success, otherwise a Win32 error coie
+ */
+static UINT bubcli_send_info_code_pdu(BubcliServerContext* context,
+                                             UINT32 infoCode)
+{
+	wStream* s;
+	UINT info;
+
+	if (!context)
+		return ERROR_INVALID_PARAMETER;
+
+	s = bubcli_pdu_init(4); // 4 bytes for info code
+
+	if (!s)
+	{
+		WLog_ERR(TAG, "bubcli_pdu_init failed!");
+		return CHANNEL_RC_NO_MEMORY;
+	}
+
+	Stream_Write_UINT32(s, infoCode);
+	info = bubcli_server_send_pdu(context, s, BUBCLI_INFO_CODE_PDU);
+	Stream_Free(s, TRUE);
+	return info;
+}
+
 static DWORD WINAPI bubcli_server_thread(LPVOID arg)
 {
 	BubcliServerContext* context = (BubcliServerContext*)arg;
@@ -313,6 +341,7 @@ BubcliServerContext* bubcli_server_context_new(HANDLE vcm)
 	context->Start = bubcli_server_start;
 	context->Stop = bubcli_server_stop;
 	context->ErrorCodePdu = bubcli_send_error_code_pdu;
+	context->InfoCodePdu = bubcli_send_info_code_pdu;
 	context->priv = priv = (BubcliServerPrivate*)calloc(1, sizeof(BubcliServerPrivate));
 
 	if (!priv)
