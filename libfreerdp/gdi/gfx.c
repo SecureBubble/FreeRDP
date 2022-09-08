@@ -1337,7 +1337,8 @@ static UINT gdi_SurfaceToCache(RdpgfxClientContext* context,
 	EnterCriticalSection(&context->mux);
 	rect = &(surfaceToCache->rectSrc);
 	surface = (gdiGfxSurface*)context->GetSurfaceData(context, surfaceToCache->surfaceId);
-	//WLog_INFO(TAG, "gdi_SurfaceToCache: SetCacheSlotData cacheSlot %" PRIu16"", surfaceToCache->cacheSlot);
+	// WLog_INFO(TAG, "gdi_SurfaceToCache:  RdpgfxClientContext cacheSlot %" PRIu16 "",
+	//           surfaceToCache->cacheSlot);
 
 	if (!surface)
 		goto fail;
@@ -1357,6 +1358,9 @@ static UINT gdi_SurfaceToCache(RdpgfxClientContext* context,
 	cacheEntry->scanline = gfx_align_scanline(cacheEntry->width * 4, 16);
 	cacheEntry->data = (BYTE*)calloc(cacheEntry->height, cacheEntry->scanline);
 
+	// WLog_INFO(TAG, "gdi_SurfaceToCache:  RdpgfxClientContext cacheEntry->data %" PRIu16 "",
+	//           cacheEntry->data);
+
 	if (!cacheEntry->data)
 	{
 		free(cacheEntry);
@@ -1372,8 +1376,12 @@ static UINT gdi_SurfaceToCache(RdpgfxClientContext* context,
 		goto fail;
 	}
 
-	//WLog_INFO(TAG, "gdi_SurfaceToCache: SetCacheSlotData cacheEntry %" PRIu16"", cacheEntry);
-	//WLog_INFO(TAG, "gdi_SurfaceToCache: SetCacheSlotData cacheSlot %" PRIu16"", surfaceToCache->cacheSlot);
+	// WLog_INFO(TAG,
+	//           "gdi_SurfaceToCache: SetCacheSlotData RdpgfxClientContext cacheEntry %" PRIu16 "",
+	//           cacheEntry);
+	// WLog_INFO(TAG, "gdi_SurfaceToCache: SetCacheSlotData RdpgfxClientContext cacheSlot %" PRIu16
+	// "",
+	//           surfaceToCache->cacheSlot);
 	rc = context->SetCacheSlotData(context, surfaceToCache->cacheSlot, (void*)cacheEntry);
 fail:
 	LeaveCriticalSection(&context->mux);
@@ -1396,7 +1404,11 @@ static UINT gdi_CacheToSurface(RdpgfxClientContext* context,
 	rdpGdi* gdi = (rdpGdi*)context->custom;
 	EnterCriticalSection(&context->mux);
 	surface = (gdiGfxSurface*)context->GetSurfaceData(context, cacheToSurface->surfaceId);
+	// WLog_INFO(TAG, "gdi_CacheToSurface: RdpgfxClientContext cacheSlot %" PRIu16 "",
+	//           cacheToSurface->cacheSlot);
 	cacheEntry = (gdiGfxCacheEntry*)context->GetCacheSlotData(context, cacheToSurface->cacheSlot);
+	// WLog_INFO(TAG, "gdi_CacheToSurface: RdpgfxClientContext aftercacheEntry %" PRIu16 "",
+	//           cacheEntry);
 
 	if (!surface || !cacheEntry)
 		goto fail;
@@ -1481,8 +1493,6 @@ static UINT gdi_CacheImportReply(RdpgfxClientContext* context,
 		cacheEntry->scanline = (cacheEntry->width + (cacheEntry->width % 4)) * 4;
 		cacheEntry->data = NULL;
 
-		//WLog_INFO(TAG, "gdi_CacheImportReply: cacheSlot %" PRIu16"", cacheSlot);
-		//WLog_INFO(TAG, "gdi_CacheImportReply: cacheEntry %" PRIu16"", cacheEntry);
 		error = context->SetCacheSlotData(context, cacheSlot, (void*)cacheEntry);
 
 		if (error)
@@ -1530,8 +1540,6 @@ static UINT gdi_ImportCacheEntry(RdpgfxClientContext* context, UINT16 cacheSlot,
 		return ERROR_INTERNAL_ERROR;
 	}
 
-	//WLog_INFO(TAG, "gdi_ImportCacheEntry: cacheSlot %" PRIu16"", cacheSlot);
-	//WLog_INFO(TAG, "gdi_ImportCacheEntry: cacheEntry %" PRIu16"", cacheEntry);
 	error = context->SetCacheSlotData(context, cacheSlot, (void*)cacheEntry);
 
 	if (error)
@@ -1572,16 +1580,18 @@ static UINT gdi_EvictCacheEntry(RdpgfxClientContext* context,
 	gdiGfxCacheEntry* cacheEntry;
 	UINT rc = ERROR_NOT_FOUND;
 	EnterCriticalSection(&context->mux);
-	//WLog_INFO(TAG, "gdi_EvictCacheEntry_GetCacheSlotData %" PRIu16"", evictCacheEntry->cacheSlot);
+	// WLog_INFO(TAG, "gdi_EvictCacheEntry_GetCacheSlotData %" PRIu16"",
+	// evictCacheEntry->cacheSlot);
 	cacheEntry = (gdiGfxCacheEntry*)context->GetCacheSlotData(context, evictCacheEntry->cacheSlot);
-	//WLog_INFO(TAG, "gdi_CacheEntry %" PRIu16"", cacheEntry);
+	// WLog_INFO(TAG, "gdi_CacheEntry %" PRIu16"", cacheEntry);
 
 	if (cacheEntry)
 	{
 		free(cacheEntry->data);
 		free(cacheEntry);
 	}
-	//WLog_INFO(TAG, "gdi_EvictCacheEntry_SetCacheSlotData %" PRIu16"", evictCacheEntry->cacheSlot);
+	// WLog_INFO(TAG, "gdi_EvictCacheEntry_SetCacheSlotData %" PRIu16"",
+	// evictCacheEntry->cacheSlot);
 	rc = context->SetCacheSlotData(context, evictCacheEntry->cacheSlot, NULL);
 	LeaveCriticalSection(&context->mux);
 	return rc;
@@ -1788,8 +1798,12 @@ void gdi_graphics_pipeline_uninit(rdpGdi* gdi, RdpgfxClientContext* gfx)
 		return;
 
 	gfx->custom = NULL;
-	codecs_free(gfx->codecs);
-	gfx->codecs = NULL;
+
+	//comment the following lines because if we set the gfx->codecs to null here so 
+	//rdpgfx_client_context_free call cause to heap-use-after-free, so I move these lines to rdpgfx_client_context_free
+
+	// codecs_free(gfx->codecs);
+	// gfx->codecs = NULL;
 	DeleteCriticalSection(&gfx->mux);
 	PROFILER_PRINT_HEADER
 	PROFILER_PRINT(gfx->SurfaceProfiler)

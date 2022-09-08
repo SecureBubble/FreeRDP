@@ -2375,8 +2375,8 @@ static UINT rdpgfx_set_cache_slot_data(RdpgfxClientContext* context, UINT16 cach
 		return ERROR_INVALID_INDEX;
 	}
 
-	//WLog_INFO(TAG, "rdpgfx_set_cache_slot_data: pData %" PRIu16"", pData);
-	//WLog_INFO(TAG, "rdpgfx_set_cache_slot_data: cacheSlot %" PRIu16"", cacheSlot);
+	// WLog_INFO(TAG, "rdpgfx_set_cache_slot_data: pData %" PRIu16"", pData);
+	// WLog_INFO(TAG, "rdpgfx_set_cache_slot_data: cacheSlot %" PRIu16"", cacheSlot);
 	gfx->CacheSlots[cacheSlot - 1] = pData;
 	return CHANNEL_RC_OK;
 }
@@ -2395,9 +2395,9 @@ static void* rdpgfx_get_cache_slot_data(RdpgfxClientContext* context, UINT16 cac
 		return NULL;
 	}
 
-	//WLog_INFO(TAG, "rdpgfx_get_cache_slot_data: cacheSlot %" PRIu16"", cacheSlot);
+	// WLog_INFO(TAG, "rdpgfx_get_cache_slot_data: cacheSlot %" PRIu16"", cacheSlot);
 	pData = gfx->CacheSlots[cacheSlot - 1];
-	//WLog_INFO(TAG, "rdpgfx_get_cache_slot_data: pData %" PRIu16"", pData);
+	// WLog_INFO(TAG, "rdpgfx_get_cache_slot_data: pData %" PRIu16"", pData);
 	return pData;
 }
 
@@ -2483,6 +2483,8 @@ void rdpgfx_client_context_free(RdpgfxClientContext* context)
 
 	free_surfaces(context, gfx->SurfaceTable);
 	evict_cache_slots(context, gfx->MaxCacheSlots, gfx->CacheSlots);
+	codecs_free(context->codecs);
+	context->codecs = NULL;
 
 	if (gfx->listener_callback)
 	{

@@ -963,6 +963,8 @@ static UINT rdpgfx_send_surface_to_cache_pdu(RdpgfxServerContext* context,
 		return CHANNEL_RC_NO_MEMORY;
 	}
 
+	// WLog_INFO(TAG, "rdpgfx_send_surface_to_cache_pdu: RdpgfxServerContext cacheSlot %" PRIu16"", pdu->cacheSlot);
+	// WLog_INFO(TAG, "rdpgfx_send_surface_to_cache_pdu: RdpgfxServerContext cacheKey %" PRIu16"", pdu->cacheKey);
 	Stream_Write_UINT16(s, pdu->surfaceId); /* surfaceId (2 bytes) */
 	Stream_Write_UINT64(s, pdu->cacheKey);  /* cacheKey (8 bytes) */
 	Stream_Write_UINT16(s, pdu->cacheSlot); /* cacheSlot (2 bytes) */
@@ -1000,6 +1002,7 @@ static UINT rdpgfx_send_cache_to_surface_pdu(RdpgfxServerContext* context,
 		return CHANNEL_RC_NO_MEMORY;
 	}
 
+	//WLog_INFO(TAG, "rdpgfx_send_cache_to_surface_pdu RdpgfxServerContext: cacheSlot %" PRIu16"", pdu->cacheSlot);
 	Stream_Write_UINT16(s, pdu->cacheSlot);    /* cacheSlot (2 bytes) */
 	Stream_Write_UINT16(s, pdu->surfaceId);    /* surfaceId (2 bytes) */
 	Stream_Write_UINT16(s, pdu->destPtsCount); /* destPtsCount (2 bytes) */
