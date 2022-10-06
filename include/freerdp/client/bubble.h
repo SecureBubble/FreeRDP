@@ -40,9 +40,11 @@ typedef UINT (*pcBubbleInputFocusChanged)(BubbleClientContext* context, BOOL is_
 typedef UINT (*pcBubbleUacWindowState)(BubbleClientContext* context, BOOL is_shown);
 typedef UINT (*pcBubbleNewProcessCreated)(BubbleClientContext* context, UINT64 timestamp, const char* process_name, const int process_id, 
 						const char* cmdline, const char* process_hash);
-typedef UINT (*pcBubblePreQueryModeResponse)(BubbleClientContext* context);
-typedef UINT (*pcBubbleRequestAppExecute)(BubbleClientContext* context);
+typedef UINT (*pcBubblePreQueryModeResponse)(BubbleClientContext* context, int* operation_mode, float* bubble_version);
+typedef UINT (*pcBubbleRequestAppExecute)(BubbleClientContext* context, int operation_mode, float bubble_version);
 typedef UINT (*pcBubbleOnNetstatData)(BubbleClientContext* context, UINT64 timestamp, const char* netstat_data);
+typedef UINT (*pcBubbleKeyboardLayoutChanged)(BubbleClientContext* context, UINT64 timestamp, const char* proc_name, const int keyboard_layout);
+typedef UINT (*pcBubbleSendMessage)(BubbleClientContext* context,  UINT64 timestamp, const char* message);
 
 struct _bubble_client_context
 {
@@ -59,6 +61,8 @@ struct _bubble_client_context
 	pcBubbleNewProcessCreated NewProcessCreated;
 	pcBubblePreQueryModeResponse PreQueryModeResponse;
 	pcBubbleRequestAppExecute ExecuteApp;
+	pcBubbleKeyboardLayoutChanged KeyboardLayoutChanged;
+	pcBubbleSendMessage SendMessage;
 };
 
 #endif /* FREERDP_CHANNEL_BUBBLE_CLIENT_BUBBLE_H */

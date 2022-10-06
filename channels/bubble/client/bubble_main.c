@@ -234,7 +234,6 @@ static UINT bubble_handle_active_window_changed(BubbleClientContext* context, wS
 	UINT64 timestamp;
 	UINT error = CHANNEL_RC_OK;
 	UINT32 keyboard_layout;
-
 	if (Stream_GetRemainingLength(s) < 8)
 		return ERROR_INTERNAL_ERROR;
 
@@ -253,8 +252,8 @@ static UINT bubble_handle_active_window_changed(BubbleClientContext* context, wS
 
 	Stream_Read_UINT32_BE(s, keyboard_layout);   // 2 bytes
 
-	WLog_INFO(TAG, "bubble.client: active window changed: time=%d, process name=%s, window title=%s", timestamp,
-	          proc, window_title);
+	WLog_INFO(TAG, "bubble.client: active window changed: time=%d, process name=%s, window title=%s, keyboard layout=%d", timestamp,
+	          proc, window_title, keyboard_layout);
 
 	IFCALLRET(context->ActiveWindowChanged, error, context, timestamp, proc, window_title, keyboard_layout);
 
@@ -307,11 +306,11 @@ static UINT bubble_handle_uac_window_state(BubbleClientContext* context, wStream
 	return error;
 }
 
-static UINT bubble_request_exec_app(BubbleClientContext* context)
+static UINT bubble_request_exec_app(BubbleClientContext* context, int operation_mode, float bubble_version)
 {
 	bubblePlugin* plugin = (bubblePlugin*)context->handle;
 	rdpSettings* settings = plugin->rdpcontext->settings;
-
+	bubble_version = bubble_version * 100; // float to int with truncation
 	wStream* data_in = NULL;
 	if (settings->RemoteApplicationMode)
 	{
@@ -329,8 +328,10 @@ static UINT bubble_request_exec_app(BubbleClientContext* context)
 		WLog_INFO(TAG, "bubble.client: lbinfolen=%d", settings->LoadBalanceInfoLength);
 
 		data_in = Stream_New(NULL, 2 + 2 + strlen(app_to_execute) + 2 + strlen(settings->Username) +
-		                               2 + settings->LoadBalanceInfoLength);
+		                               2 + settings->LoadBalanceInfoLength + 2 + 2);
 		Stream_Write_UINT16(data_in, settings->RemoteApplicationMode);
+		Stream_Write_UINT16(data_in, operation_mode);
+		Stream_Write_UINT16(data_in, bubble_version);
 		Stream_Write_UINT16(data_in, strlen(app_to_execute));
 		Stream_Write_UINT16(data_in, strlen(settings->Username));
 		Stream_Write_UINT16(data_in, settings->LoadBalanceInfoLength);
@@ -340,9 +341,11 @@ static UINT bubble_request_exec_app(BubbleClientContext* context)
 	}
 	else
 	{
-		data_in = Stream_New(NULL, 4);
+		data_in = Stream_New(NULL, 4 + 2);
 		Stream_Write_UINT16(data_in, settings->RemoteApplicationMode);
-		Stream_Write_UINT16(data_in, 0); // padding
+		Stream_Write_UINT16(data_in, operation_mode);
+		Stream_Write_UINT16(data_in, bubble_version);
+		// Stream_Write_UINT16(data_in, 0); // padding
 	}
 
 	return bubble_send(plugin, data_in);
@@ -352,12 +355,14 @@ static UINT bubble_handle_query_mode(BubbleClientContext* context, wStream* s)
 {
 	UINT error = CHANNEL_RC_OK;
 	WLog_INFO(TAG, "%s", __FUNCTION__);
+	int operation_mode;
+	float bubble_version;
 
 	WLog_INFO(TAG, "bubble.client: before calling pre response callback");
-	IFCALLRET(context->PreQueryModeResponse, error, context);
-	WLog_INFO(TAG, "bubble.client: after calling pre response callback");
+	IFCALLRET(context->PreQueryModeResponse, error, context, &operation_mode, &bubble_version);
+	WLog_INFO(TAG, "bubble.client: after calling pre response callback, operation_mode:%d, bubble_version:%.1f", operation_mode, bubble_version);
 
-	bubble_request_exec_app(context);
+	bubble_request_exec_app(context, operation_mode, bubble_version);
 	return error;
 }
 
@@ -390,6 +395,58 @@ static UINT bubble_handle_network_status(BubbleClientContext* context, wStream* 
 	free(netstat_data);
 	return error;
 }
+
+static UINT bubble_handle_keyboard_layout(BubbleClientContext* context, wStream* s)
+{
+	UINT64 timestamp;
+	UINT error = CHANNEL_RC_OK;
+	UINT32 keyboard_layout;
+
+	if (Stream_GetRemainingLength(s) < 8)
+		return ERROR_INTERNAL_ERROR;
+
+	Stream_Read_UINT64_BE(s, timestamp); // 8 bytes
+
+	char* proc = bubble_read_string(s);
+	if (!proc)
+		return ERROR_INTERNAL_ERROR;
+
+	Stream_Read_UINT32_BE(s, keyboard_layout);   // 2 bytes
+	
+	if (!keyboard_layout)
+	{
+		free(proc);
+		return ERROR_INTERNAL_ERROR;
+	}
+		
+	IFCALLRET(context->KeyboardLayoutChanged, error, context, timestamp, proc, keyboard_layout);
+	
+	free(proc);
+	return error;
+}
+
+static UINT bubble_handle_messages_from_agent(BubbleClientContext* context, wStream* s)
+{
+	UINT64 timestamp;
+	UINT error = CHANNEL_RC_OK;
+
+	if (Stream_GetRemainingLength(s) < 8)
+		return ERROR_INTERNAL_ERROR;
+
+	Stream_Read_UINT64_BE(s, timestamp); // 8 bytes
+
+	char* message = bubble_read_string(s);
+	if (!message)
+		return ERROR_INTERNAL_ERROR;
+
+	WLog_INFO(TAG, "%s", message);
+
+	IFCALLRET(context->SendMessage, error, context, timestamp, message);
+
+	free(message);
+	return error;
+}
+
 static UINT bubble_order_recv(LPVOID userdata, wStream* s)
 {
 	bubblePlugin* bubble = userdata;
@@ -412,10 +469,10 @@ static UINT bubble_order_recv(LPVOID userdata, wStream* s)
 		case 2: // KEEP_ALIVE
 			bubble_handle_keep_alive(context, s);
 			break;
-		case 3: // KEEP_ALIVE
+		case 3: // INPUT_FOCUS
 			bubble_handle_input_focus_change(context, s);
 			break;
-		case 4: // KEEP_ALIVE
+		case 4: // UAC
 			bubble_handle_uac_window_state(context, s);
 			break;
 		case 5:
@@ -424,9 +481,14 @@ static UINT bubble_order_recv(LPVOID userdata, wStream* s)
 		case 6:
 			bubble_handle_disconnection_request(context, s);
 			break;
-		case 8: // NETWORK STATUS
+		case 8: // NETWORK_STATUS
 			bubble_handle_network_status(context, s);
 			break;
+		case 9: // KEYBOARD_LAYOUT
+			bubble_handle_keyboard_layout(context, s);
+		case 10: // MESSAGES_FROM_AGENT
+			bubble_handle_messages_from_agent(context, s);	
+			break;	
 
 		default:
 			WLog_ERR(TAG, "bubble.client: Unknown SEESPDU order 0x%08" PRIx32 " received.", orderType);

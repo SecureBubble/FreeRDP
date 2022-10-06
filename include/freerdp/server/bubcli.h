@@ -34,7 +34,7 @@ typedef BOOL (*psBubcliStop)(BubcliServerContext* context);
 
 /* Server side messages sending methods */
 typedef UINT (*psBubcliErrorCodePdu)(BubcliServerContext* context,
-                                      UINT32 errorCode);
+                                      UINT32 errorCode, const char* session_id, bool RemoteApplicationMode, const char* remote_app);
 typedef UINT (*psBubcliInfoCodePdu)(BubcliServerContext* context,
                                       UINT32 infoCode);
 

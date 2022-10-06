@@ -117,8 +117,9 @@ static UINT bubcli_server_send_pdu(BubcliServerContext* context, wStream* s, UIN
  *
  * @return 0 on success, otherwise a Win32 error coie
  */
-static UINT bubcli_send_error_code_pdu(BubcliServerContext* context,
-                                             UINT32 errorCode)
+static UINT bubcli_send_error_code_pdu(BubcliServerContext* context, UINT32 errorCode,
+                                       const char* session_id, bool RemoteApplicationMode,
+                                       const char* remote_app)
 {
 	wStream* s;
 	UINT error;
@@ -126,15 +127,41 @@ static UINT bubcli_send_error_code_pdu(BubcliServerContext* context,
 	if (!context)
 		return ERROR_INVALID_PARAMETER;
 
-	s = bubcli_pdu_init(4); // 4 bytes for error code
-
-	if (!s)
+	WLog_DBG(TAG, "bubble.cli: session_id %s [len=%d]", session_id, strlen(session_id));
+	if (RemoteApplicationMode && !(remote_app == NULL || strlen(remote_app) <= 2))
 	{
-		WLog_ERR(TAG, "bubcli_pdu_init failed!");
-		return CHANNEL_RC_NO_MEMORY;
+		WLog_DBG(TAG, "bubble.cli: remote_app %s [len=%d]", remote_app, strlen(remote_app));
+		s = bubcli_pdu_init(4 + 2 + strlen(session_id) + 2 +
+		                    strlen(remote_app));
+		if (!s)
+		{
+			WLog_ERR(TAG, "bubcli_pdu_init failed!");
+			return CHANNEL_RC_NO_MEMORY;
+		}
+
+		Stream_Write_UINT32(s, errorCode);
+		Stream_Write_UINT16(s, strlen(session_id));
+		Stream_Write(s, session_id, strlen(session_id));
+		Stream_Write_UINT16(s, strlen(remote_app));
+		Stream_Write(s, remote_app, strlen(remote_app));
+	}
+	else
+	{
+		if (RemoteApplicationMode) 
+			if (remote_app == NULL || strlen(remote_app) <= 2)
+				WLog_ERR(TAG, "bubcli: remote application is invalid, sent remote_app empty");
+		s = bubcli_pdu_init(4 + 2 + strlen(session_id));
+		if (!s)
+		{
+			WLog_ERR(TAG, "bubcli_pdu_init failed!");
+			return CHANNEL_RC_NO_MEMORY;
+		}
+
+		Stream_Write_UINT32(s, errorCode);
+		Stream_Write_UINT16(s, strlen(session_id));
+		Stream_Write(s, session_id, strlen(session_id));
 	}
 
-	Stream_Write_UINT32(s, errorCode);
 	error = bubcli_server_send_pdu(context, s, BUBCLI_ERROR_CODE_PDU);
 	Stream_Free(s, TRUE);
 	return error;
@@ -145,8 +172,7 @@ static UINT bubcli_send_error_code_pdu(BubcliServerContext* context,
  *
  * @return 0 on success, otherwise a Win32 error coie
  */
-static UINT bubcli_send_info_code_pdu(BubcliServerContext* context,
-                                             UINT32 infoCode)
+static UINT bubcli_send_info_code_pdu(BubcliServerContext* context, UINT32 infoCode)
 {
 	wStream* s;
 	UINT info;
