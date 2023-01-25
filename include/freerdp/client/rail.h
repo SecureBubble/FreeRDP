@@ -94,7 +94,9 @@ extern "C"
 	typedef UINT (*pcRailClientCompartmentInfo)(RailClientContext* context,
 	                                            const RAIL_COMPARTMENT_INFO_ORDER* compartmentInfo);
 	typedef UINT (*pcRailClientTextScale)(RailClientContext* context, UINT32 TextScale);
+	typedef UINT (*pcRailServerTextScale)(RailClientContext* context, UINT32 TextScale);
 	typedef UINT (*pcRailClientCaretBlinkRate)(RailClientContext* context, UINT32 CaretBlinkRate);
+	typedef UINT (*pcRailServerCaretBlinkRate)(RailClientContext* context, UINT32 CaretBlinkRate);
 
 	struct s_rail_client_context
 	{
@@ -131,7 +133,9 @@ extern "C"
 		pcRailClientCompartmentInfo ClientCompartmentInfo;
 		pcRailOnOpen OnOpen;
 		pcRailClientTextScale ClientTextScale;
+		pcRailServerTextScale ServerTextScale;
 		pcRailClientCaretBlinkRate ClientCaretBlinkRate;
+		pcRailServerCaretBlinkRate ServerCaretBlinkRate;
 	};
 
 	FREERDP_API UINT client_rail_server_start_cmd(RailClientContext* context);

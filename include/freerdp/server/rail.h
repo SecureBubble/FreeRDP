@@ -61,6 +61,10 @@ typedef UINT (*psRailClientLanguageImeInfo)(RailServerContext* context,
 typedef UINT (*psRailClientCompartmentInfo)(RailServerContext* context,
                                             const RAIL_COMPARTMENT_INFO_ORDER* compartmentInfo);
 typedef UINT (*psRailClientCloak)(RailServerContext* context, const RAIL_CLOAK* cloak);
+typedef UINT (*psRailClientTextScale)(RailServerContext* context,
+                                           const RAIL_TEXTSCALEINFO* TextScaleInfo);
+typedef UINT (*psRailClientCaretBlink)(RailServerContext* context,
+                                           const RAIL_CARETBLINKINFO* TextScaleInfo);										   
 
 /* Server side messages sending methods */
 typedef UINT (*psRailServerHandshake)(RailServerContext* context,
@@ -88,6 +92,10 @@ typedef UINT (*psRailServerPowerDisplayRequest)(
     RailServerContext* context, const RAIL_POWER_DISPLAY_REQUEST* PowerDisplayRequest);
 typedef UINT (*psRailServerGetAppidRespEx)(RailServerContext* context,
                                            const RAIL_GET_APPID_RESP_EX* GetAppidRespEx);
+typedef UINT (*psRailServerTextScale)(RailServerContext* context,
+                                           const RAIL_TEXTSCALEINFO* TextScaleInfo);
+typedef UINT (*psRailServerCaretBlink)(RailServerContext* context,
+                                           const RAIL_CARETBLINKINFO* TextScaleInfo);	
 
 struct s_rail_server_context
 {
@@ -113,6 +121,8 @@ struct s_rail_server_context
 	psRailClientLanguageImeInfo ClientLanguageImeInfo;
 	psRailClientCompartmentInfo ClientCompartmentInfo;
 	psRailClientCloak ClientCloak;
+	psRailClientTextScale ClientTextScale;
+	psRailClientCaretBlink ClientCaretBlink;
 
 	/* Methods for sending server side messages */
 	psRailServerHandshake ServerHandshake;
@@ -128,6 +138,8 @@ struct s_rail_server_context
 	psRailServerPowerDisplayRequest ServerPowerDisplayRequest;
 	psRailServerGetAppidResp ServerGetAppidResp;
 	psRailServerGetAppidRespEx ServerGetAppidRespEx;
+	psRailServerTextScale ServerTextScale;
+	psRailServerCaretBlink ServerCaretBlink;
 
 	RailServerPrivate* priv;
 	rdpContext* rdpcontext;

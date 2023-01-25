@@ -601,7 +601,7 @@ int rdp_recv_autodetect_request_packet(rdpRdp* rdp, wStream* s)
 
 	if (!rdp->settings->NetworkAutoDetect)
 	{
-		WLog_WARN(AUTODETECT_TAG,
+		WLog_DBG(AUTODETECT_TAG,
 		          "Received a [MS-RDPBCGR] 2.2.14.1.1 RTT Measure Request (RDP_RTT_REQUEST) [%s] "
 		          "message but support was not enabled",
 		          autodetect_request_type_to_string(autodetectReqPdu.requestType));
@@ -678,7 +678,7 @@ int rdp_recv_autodetect_response_packet(rdpRdp* rdp, wStream* s)
 
 	if (!rdp->settings->NetworkAutoDetect)
 	{
-		WLog_WARN(AUTODETECT_TAG,
+		WLog_DBG(AUTODETECT_TAG,
 		          "Received a [MS-RDPBCGR] 2.2.14.2.1 RTT Measure Response (RDP_RTT_RESPONSE) [%s] "
 		          "message but support was not enabled",
 		          autodetect_request_type_to_string(autodetectRspPdu.responseType));

@@ -513,6 +513,17 @@ typedef struct
 	WCHAR processImageName[520 / sizeof(WCHAR)];
 } RAIL_GET_APPID_RESP_EX;
 
+typedef struct
+{
+	UINT32 textScaleFactor;
+} RAIL_TEXTSCALEINFO;
+
+typedef struct
+{
+	UINT32 caretBlinkRate;
+} RAIL_CARETBLINKINFO;
+
+
 /* DEPRECATED: RAIL Constants
  * use the spec conformant naming scheme TS_ below
  */
@@ -540,6 +551,8 @@ typedef struct
 #define RDP_RAIL_ORDER_POWER_DISPLAY_REQUEST 0x0016
 #define RDP_RAIL_ORDER_SNAP_ARRANGE 0x0017
 #define RDP_RAIL_ORDER_GET_APPID_RESP_EX 0x0018
+#define RDP_RAIL_ORDER_TEXTSCALEINFO 0x0019
+#define RDP_RAIL_ORDER_CARETBLINKINFO 0x001A
 
 /* RAIL Constants */
 

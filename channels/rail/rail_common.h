@@ -53,6 +53,8 @@
 #define RAIL_POWER_DISPLAY_REQUEST_ORDER_LENGTH 4 /* fixed */
 #define RAIL_GET_APPID_RESP_ORDER_LENGTH 524      /* fixed */
 #define RAIL_GET_APPID_RESP_EX_ORDER_LENGTH 1048  /* fixed */
+#define RAIL_TEXTSCALEINFO_ORDER_LENGTH 4         /* fixed */
+#define RAIL_CARETBLINKINFO_ORDER_LENGTH 4         /* fixed */
 
 UINT rail_read_handshake_order(wStream* s, RAIL_HANDSHAKE_ORDER* handshake);
 void rail_write_handshake_order(wStream* s, const RAIL_HANDSHAKE_ORDER* handshake);

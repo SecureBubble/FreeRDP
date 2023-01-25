@@ -898,6 +898,34 @@ static UINT rail_read_cloak_order(wStream* s, RAIL_CLOAK* cloak)
  *
  * @return 0 on success, otherwise a Win32 error code
  */
+static UINT rail_read_textscaleinfo_order(wStream* s, RAIL_TEXTSCALEINFO* textScaleInfo)
+{
+	if (!Stream_CheckAndLogRequiredLength(TAG, s, RAIL_TEXTSCALEINFO_ORDER_LENGTH))
+		return ERROR_INVALID_DATA;
+
+	Stream_Read_UINT32(s, textScaleInfo->textScaleFactor); /* TextScaleFactor (4 bytes) */
+	return CHANNEL_RC_OK;
+}
+
+/**
+ * Function description
+ *
+ * @return 0 on success, otherwise a Win32 error code
+ */
+static UINT rail_read_caretblinkinfo_order(wStream* s, RAIL_CARETBLINKINFO* caretBlinkInfo)
+{
+	if (!Stream_CheckAndLogRequiredLength(TAG, s, RAIL_CARETBLINKINFO_ORDER_LENGTH))
+		return ERROR_INVALID_DATA;
+
+	Stream_Read_UINT32(s, caretBlinkInfo->caretBlinkRate); /* CaretBlinkRate  (4 bytes) */
+	return CHANNEL_RC_OK;
+}
+
+/**
+ * Function description
+ *
+ * @return 0 on success, otherwise a Win32 error code
+ */
 static UINT rail_recv_client_handshake_order(RailServerContext* context,
                                              RAIL_HANDSHAKE_ORDER* handshake, wStream* s)
 {
@@ -1304,6 +1332,58 @@ static UINT rail_recv_client_cloak_order(RailServerContext* context, RAIL_CLOAK*
 	return error;
 }
 
+/**
+ * Function description
+ *
+ * @return 0 on success, otherwise a Win32 error code
+ */
+static UINT rail_recv_client_textscaleinfo_order(RailServerContext* context, RAIL_TEXTSCALEINFO* textScaleInfo, wStream* s)
+{
+	UINT error;
+
+	if (!context || !textScaleInfo || !s)
+		return ERROR_INVALID_PARAMETER;
+
+	if ((error = rail_read_textscaleinfo_order(s, textScaleInfo)))
+	{
+		WLog_ERR(TAG, "rail_read_textscaleinfo_order failed with error %" PRIu32 "!", error);
+		return error;
+	}
+
+	IFCALLRET(context->ClientTextScale, error, context, textScaleInfo);
+
+	if (error)
+		WLog_ERR(TAG, "context.TextScaleInfo failed with error %" PRIu32 "", error);
+
+	return error;
+}
+
+/**
+ * Function description
+ *
+ * @return 0 on success, otherwise a Win32 error code
+ */
+static UINT rail_recv_client_caretBlinkInfo_order(RailServerContext* context, RAIL_CARETBLINKINFO* caretBlinkInfo, wStream* s)
+{
+	UINT error;
+
+	if (!context || !caretBlinkInfo || !s)
+		return ERROR_INVALID_PARAMETER;
+
+	if ((error = rail_read_caretblinkinfo_order(s, caretBlinkInfo)))
+	{
+		WLog_ERR(TAG, "rail_read_caretblinkinfo_order failed with error %" PRIu32 "!", error);
+		return error;
+	}
+
+	IFCALLRET(context->ClientCaretBlink, error, context, caretBlinkInfo);
+
+	if (error)
+		WLog_ERR(TAG, "context.CaretBlinkInfo failed with error %" PRIu32 "", error);
+
+	return error;
+}
+
 static DWORD WINAPI rail_server_thread(LPVOID arg)
 {
 	RailServerContext* context = (RailServerContext*)arg;
@@ -1676,6 +1756,18 @@ UINT rail_server_handle_messages(RailServerContext* context)
 		{
 			RAIL_CLOAK cloak;
 			return rail_recv_client_cloak_order(context, &cloak, s);
+		}
+
+		case TS_RAIL_ORDER_TEXTSCALEINFO:
+		{
+			RAIL_TEXTSCALEINFO textScaleInfo;
+			return rail_recv_client_textscaleinfo_order(context, &textScaleInfo, s);
+		}
+
+		case TS_RAIL_ORDER_CARETBLINKINFO:
+		{
+			RAIL_CARETBLINKINFO caretBlinkInfo;
+			return rail_recv_client_caretBlinkInfo_order(context, &caretBlinkInfo, s);
 		}
 
 		default:
