@@ -2,7 +2,6 @@
  * FreeRDP: A Remote Desktop Protocol Implementation
  * BUBCLI Virtual Channel Plugin
  *
- * Copyright 2019 Mati Shabtay <matishabtay@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,10 +32,8 @@ typedef UINT (*psBubcliStart)(BubcliServerContext* context);
 typedef BOOL (*psBubcliStop)(BubcliServerContext* context);
 
 /* Server side messages sending methods */
-typedef UINT (*psBubcliErrorCodePdu)(BubcliServerContext* context,
-                                      UINT32 errorCode, const char* session_id, bool RemoteApplicationMode, const char* remote_app);
-typedef UINT (*psBubcliInfoCodePdu)(BubcliServerContext* context,
-                                      UINT32 infoCode);
+typedef UINT (*psBubcliMessageCodePdu)(BubcliServerContext* context, UINT32 messageType,
+                                      UINT32 messageCode, const char* session_id);
 
 struct _bubcli_server_context
 {
@@ -47,8 +44,7 @@ struct _bubcli_server_context
 	psBubcliStop Stop;
 
 	/* Methods for sending server side messages */
-	psBubcliErrorCodePdu ErrorCodePdu;
-	psBubcliInfoCodePdu InfoCodePdu;
+	psBubcliMessageCodePdu MessageCodePdu;
 	BubcliServerPrivate* priv;
 	rdpContext* rdpcontext;
 };

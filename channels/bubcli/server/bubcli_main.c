@@ -117,9 +117,8 @@ static UINT bubcli_server_send_pdu(BubcliServerContext* context, wStream* s, UIN
  *
  * @return 0 on success, otherwise a Win32 error coie
  */
-static UINT bubcli_send_error_code_pdu(BubcliServerContext* context, UINT32 errorCode,
-                                       const char* session_id, bool RemoteApplicationMode,
-                                       const char* remote_app)
+static UINT bubcli_send_message_pdu(BubcliServerContext* context, UINT32 messageType, UINT32 messageCode,
+                                    const char* session_id)
 {
 	wStream* s;
 	UINT error;
@@ -127,71 +126,21 @@ static UINT bubcli_send_error_code_pdu(BubcliServerContext* context, UINT32 erro
 	if (!context)
 		return ERROR_INVALID_PARAMETER;
 
-	WLog_DBG(TAG, "bubble.cli: session_id %s [len=%d]", session_id, strlen(session_id));
-	if (RemoteApplicationMode && !(remote_app == NULL || strlen(remote_app) <= 2))
-	{
-		WLog_DBG(TAG, "bubble.cli: remote_app %s [len=%d]", remote_app, strlen(remote_app));
-		s = bubcli_pdu_init(4 + 2 + strlen(session_id) + 2 +
-		                    strlen(remote_app));
-		if (!s)
-		{
-			WLog_ERR(TAG, "bubcli_pdu_init failed!");
-			return CHANNEL_RC_NO_MEMORY;
-		}
-
-		Stream_Write_UINT32(s, errorCode);
-		Stream_Write_UINT16(s, strlen(session_id));
-		Stream_Write(s, session_id, strlen(session_id));
-		Stream_Write_UINT16(s, strlen(remote_app));
-		Stream_Write(s, remote_app, strlen(remote_app));
-	}
-	else
-	{
-		if (RemoteApplicationMode) 
-			if (remote_app == NULL || strlen(remote_app) <= 2)
-				WLog_ERR(TAG, "bubcli: remote application is invalid, sent remote_app empty");
-		s = bubcli_pdu_init(4 + 2 + strlen(session_id));
-		if (!s)
-		{
-			WLog_ERR(TAG, "bubcli_pdu_init failed!");
-			return CHANNEL_RC_NO_MEMORY;
-		}
-
-		Stream_Write_UINT32(s, errorCode);
-		Stream_Write_UINT16(s, strlen(session_id));
-		Stream_Write(s, session_id, strlen(session_id));
-	}
-
-	error = bubcli_server_send_pdu(context, s, BUBCLI_ERROR_CODE_PDU);
-	Stream_Free(s, TRUE);
-	return error;
-}
-
-/**
- * Function description
- *
- * @return 0 on success, otherwise a Win32 error coie
- */
-static UINT bubcli_send_info_code_pdu(BubcliServerContext* context, UINT32 infoCode)
-{
-	wStream* s;
-	UINT info;
-
-	if (!context)
-		return ERROR_INVALID_PARAMETER;
-
-	s = bubcli_pdu_init(4); // 4 bytes for info code
-
+	WLog_INFO(TAG, "bubble.cli: session_id %s [len=%d], messagecode: %d", session_id, strlen(session_id), messageCode);
+	s = bubcli_pdu_init(4 + 2 + strlen(session_id));
 	if (!s)
 	{
 		WLog_ERR(TAG, "bubcli_pdu_init failed!");
 		return CHANNEL_RC_NO_MEMORY;
 	}
 
-	Stream_Write_UINT32(s, infoCode);
-	info = bubcli_server_send_pdu(context, s, BUBCLI_INFO_CODE_PDU);
+	Stream_Write_UINT32(s, messageCode);
+	Stream_Write_UINT16(s, strlen(session_id));
+	Stream_Write(s, session_id, strlen(session_id));
+
+	error = bubcli_server_send_pdu(context, s, messageType);
 	Stream_Free(s, TRUE);
-	return info;
+	return error;
 }
 
 static DWORD WINAPI bubcli_server_thread(LPVOID arg)
@@ -366,8 +315,7 @@ BubcliServerContext* bubcli_server_context_new(HANDLE vcm)
 	context->vcm = vcm;
 	context->Start = bubcli_server_start;
 	context->Stop = bubcli_server_stop;
-	context->ErrorCodePdu = bubcli_send_error_code_pdu;
-	context->InfoCodePdu = bubcli_send_info_code_pdu;
+	context->MessageCodePdu = bubcli_send_message_pdu;
 	context->priv = priv = (BubcliServerPrivate*)calloc(1, sizeof(BubcliServerPrivate));
 
 	if (!priv)
