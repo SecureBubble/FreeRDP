@@ -919,73 +919,6 @@ static UINT rail_recv_get_application_id_extended_response_order(railPlugin* rai
 	return error;
 }
 
-static UINT rail_read_textscaleinfo_order(wStream* s, UINT32* pTextScaleFactor)
-{
-	WINPR_ASSERT(pTextScaleFactor);
-
-	if (!Stream_CheckAndLogRequiredLength(TAG, s, 4))
-		return ERROR_INVALID_DATA;
-
-	Stream_Read_UINT32(s, *pTextScaleFactor);
-	return CHANNEL_RC_OK;
-}
-
-static UINT rail_recv_textscaleinfo_order(railPlugin* rail, wStream* s)
-{
-	RailClientContext* context = rail_get_client_interface(rail);
-	UINT32 TextScaleFactor = 0;
-	UINT error;
-
-	if (!context)
-		return ERROR_INVALID_PARAMETER;
-
-	if ((error = rail_read_textscaleinfo_order(s, &TextScaleFactor)))
-		return error;
-
-	if (context->custom)
-	{
-		IFCALLRET(context->ClientTextScale, error, context, TextScaleFactor);
-
-		if (error)
-			WLog_ERR(TAG, "context.ClientTextScale failed with error %" PRIu32 "", error);
-	}
-
-	return error;
-}
-
-static UINT rail_read_caretblinkinfo_order(wStream* s, UINT32* pCaretBlinkRate)
-{
-	WINPR_ASSERT(pCaretBlinkRate);
-
-	if (!Stream_CheckAndLogRequiredLength(TAG, s, 4))
-		return ERROR_INVALID_DATA;
-
-	Stream_Read_UINT32(s, *pCaretBlinkRate);
-	return CHANNEL_RC_OK;
-}
-
-static UINT rail_recv_caretblinkinfo_order(railPlugin* rail, wStream* s)
-{
-	RailClientContext* context = rail_get_client_interface(rail);
-	UINT32 CaretBlinkRate = 0;
-	UINT error;
-
-	if (!context)
-		return ERROR_INVALID_PARAMETER;
-	if ((error = rail_read_caretblinkinfo_order(s, &CaretBlinkRate)))
-		return error;
-
-	if (context->custom)
-	{
-		IFCALLRET(context->ClientCaretBlinkRate, error, context, CaretBlinkRate);
-
-		if (error)
-			WLog_ERR(TAG, "context.ClientCaretBlinkRate failed with error %" PRIu32 "", error);
-	}
-
-	return error;
-}
-
 /**
  * Function description
  *
@@ -1067,14 +1000,6 @@ UINT rail_order_recv(LPVOID userdata, wStream* s)
 
 		case TS_RAIL_ORDER_GET_APPID_RESP_EX:
 			error = rail_recv_get_application_id_extended_response_order(rail, s);
-			break;
-
-		case TS_RAIL_ORDER_TEXTSCALEINFO:
-			error = rail_recv_textscaleinfo_order(rail, s);
-			break;
-
-		case TS_RAIL_ORDER_CARETBLINKINFO:
-			error = rail_recv_caretblinkinfo_order(rail, s);
 			break;
 
 		default:
@@ -1554,6 +1479,50 @@ UINT rail_send_client_snap_arrange_order(railPlugin* rail, const RAIL_SNAP_ARRAN
 	Stream_Write_INT16(s, snap->right);
 	Stream_Write_INT16(s, snap->bottom);
 	error = rail_send_pdu(rail, s, TS_RAIL_ORDER_SNAP_ARRANGE);
+	Stream_Free(s, TRUE);
+	return error;
+}
+
+UINT rail_send_client_text_scale_info_order(railPlugin* rail, const RAIL_TEXT_SCALE_INFO* textScaleInfo)
+{
+	wStream* s;
+	UINT error;
+
+	if (!rail || !textScaleInfo)
+		return ERROR_INVALID_PARAMETER;
+
+	s = rail_pdu_init(5);
+
+	if (!s)
+	{
+		WLog_ERR(TAG, "rail_pdu_init failed!");
+		return CHANNEL_RC_NO_MEMORY;
+	}
+
+	Stream_Write_UINT32(s, textScaleInfo->textScaleFactor);
+	error = rail_send_pdu(rail, s, TS_RAIL_ORDER_TEXTSCALEINFO);
+	Stream_Free(s, TRUE);
+	return error;
+}
+
+UINT rail_send_client_caret_blink_info_order(railPlugin* rail, const RAIL_CARET_BLINK_INFO* caretBlinkInfo)
+{
+	wStream* s;
+	UINT error;
+
+	if (!rail || !caretBlinkInfo)
+		return ERROR_INVALID_PARAMETER;
+
+	s = rail_pdu_init(5);
+
+	if (!s)
+	{
+		WLog_ERR(TAG, "rail_pdu_init failed!");
+		return CHANNEL_RC_NO_MEMORY;
+	}
+
+	Stream_Write_UINT32(s, caretBlinkInfo->caretBlinkRate);
+	error = rail_send_pdu(rail, s, TS_RAIL_ORDER_CARETBLINKINFO);
 	Stream_Free(s, TRUE);
 	return error;
 }

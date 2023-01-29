@@ -513,6 +513,28 @@ static UINT rail_client_snap_arrange(RailClientContext* context, const RAIL_SNAP
 	return rail_send_client_snap_arrange_order(rail, snap);
 }
 
+static UINT rail_client_text_scale_info(RailClientContext* context, const RAIL_TEXT_SCALE_INFO* textScaleInfo)
+{
+	railPlugin* rail;
+
+	if (!context || !textScaleInfo || !context->handle)
+		return ERROR_INVALID_PARAMETER;
+
+	rail = (railPlugin*)context->handle;
+	return rail_send_client_text_scale_info_order(rail, textScaleInfo);
+}
+
+static UINT rail_client_caret_blink_info(RailClientContext* context, const RAIL_CARET_BLINK_INFO* caretBlinkInfo)
+{
+	railPlugin* rail;
+
+	if (!context || !caretBlinkInfo || !context->handle)
+		return ERROR_INVALID_PARAMETER;
+
+	rail = (railPlugin*)context->handle;
+	return rail_send_client_caret_blink_info_order(rail, caretBlinkInfo);
+}
+
 static VOID VCAPITYPE rail_virtual_channel_open_event_ex(LPVOID lpUserParam, DWORD openHandle,
                                                          UINT event, LPVOID pData,
                                                          UINT32 dataLength, UINT32 totalLength,
@@ -723,6 +745,8 @@ BOOL VCAPITYPE VirtualChannelEntryEx(PCHANNEL_ENTRY_POINTS pEntryPoints, PVOID p
 		context->ClientSnapArrange = rail_client_snap_arrange;
 		context->ClientCloak = rail_client_cloak;
 		context->ClientCompartmentInfo = rail_client_compartment_info;
+		context->ClientTextScale = rail_client_text_scale_info;
+		context->ClientCaretBlink = rail_client_caret_blink_info;
 		rail->rdpcontext = pEntryPointsEx->context;
 		rail->context = context;
 		isFreerdp = TRUE;

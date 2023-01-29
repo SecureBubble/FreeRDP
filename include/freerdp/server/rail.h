@@ -62,9 +62,9 @@ typedef UINT (*psRailClientCompartmentInfo)(RailServerContext* context,
                                             const RAIL_COMPARTMENT_INFO_ORDER* compartmentInfo);
 typedef UINT (*psRailClientCloak)(RailServerContext* context, const RAIL_CLOAK* cloak);
 typedef UINT (*psRailClientTextScale)(RailServerContext* context,
-                                           const RAIL_TEXTSCALEINFO* TextScaleInfo);
+                                           const RAIL_TEXT_SCALE_INFO* textScaleInfo);
 typedef UINT (*psRailClientCaretBlink)(RailServerContext* context,
-                                           const RAIL_CARETBLINKINFO* TextScaleInfo);										   
+                                           const RAIL_CARET_BLINK_INFO* caretBlinkInfo);										   
 
 /* Server side messages sending methods */
 typedef UINT (*psRailServerHandshake)(RailServerContext* context,
@@ -91,11 +91,7 @@ typedef UINT (*psRailServerCloak)(RailServerContext* context, const RAIL_CLOAK* 
 typedef UINT (*psRailServerPowerDisplayRequest)(
     RailServerContext* context, const RAIL_POWER_DISPLAY_REQUEST* PowerDisplayRequest);
 typedef UINT (*psRailServerGetAppidRespEx)(RailServerContext* context,
-                                           const RAIL_GET_APPID_RESP_EX* GetAppidRespEx);
-typedef UINT (*psRailServerTextScale)(RailServerContext* context,
-                                           const RAIL_TEXTSCALEINFO* TextScaleInfo);
-typedef UINT (*psRailServerCaretBlink)(RailServerContext* context,
-                                           const RAIL_CARETBLINKINFO* TextScaleInfo);	
+                                           const RAIL_GET_APPID_RESP_EX* GetAppidRespEx);	
 
 struct s_rail_server_context
 {
@@ -138,8 +134,6 @@ struct s_rail_server_context
 	psRailServerPowerDisplayRequest ServerPowerDisplayRequest;
 	psRailServerGetAppidResp ServerGetAppidResp;
 	psRailServerGetAppidRespEx ServerGetAppidRespEx;
-	psRailServerTextScale ServerTextScale;
-	psRailServerCaretBlink ServerCaretBlink;
 
 	RailServerPrivate* priv;
 	rdpContext* rdpcontext;

@@ -898,12 +898,12 @@ static UINT rail_read_cloak_order(wStream* s, RAIL_CLOAK* cloak)
  *
  * @return 0 on success, otherwise a Win32 error code
  */
-static UINT rail_read_textscaleinfo_order(wStream* s, RAIL_TEXTSCALEINFO* textScaleInfo)
+static UINT rail_read_textscaleinfo_order(wStream* s, RAIL_TEXT_SCALE_INFO* textScaleInfo)
 {
-	if (!Stream_CheckAndLogRequiredLength(TAG, s, RAIL_TEXTSCALEINFO_ORDER_LENGTH))
+	if (!Stream_CheckAndLogRequiredLength(TAG, s, RAIL_TEXT_SCALE_INFO_ORDER_LENGTH))
 		return ERROR_INVALID_DATA;
 
-	Stream_Read_UINT32(s, textScaleInfo->textScaleFactor); /* TextScaleFactor (4 bytes) */
+	Stream_Read_INT32(s, textScaleInfo->textScaleFactor); /* TextScaleFactor (4 bytes) */
 	return CHANNEL_RC_OK;
 }
 
@@ -912,9 +912,9 @@ static UINT rail_read_textscaleinfo_order(wStream* s, RAIL_TEXTSCALEINFO* textSc
  *
  * @return 0 on success, otherwise a Win32 error code
  */
-static UINT rail_read_caretblinkinfo_order(wStream* s, RAIL_CARETBLINKINFO* caretBlinkInfo)
+static UINT rail_read_caretblinkinfo_order(wStream* s, RAIL_CARET_BLINK_INFO* caretBlinkInfo)
 {
-	if (!Stream_CheckAndLogRequiredLength(TAG, s, RAIL_CARETBLINKINFO_ORDER_LENGTH))
+	if (!Stream_CheckAndLogRequiredLength(TAG, s, RAIL_CARET_BLINK_INFO_ORDER_LENGTH))
 		return ERROR_INVALID_DATA;
 
 	Stream_Read_UINT32(s, caretBlinkInfo->caretBlinkRate); /* CaretBlinkRate  (4 bytes) */
@@ -1337,7 +1337,7 @@ static UINT rail_recv_client_cloak_order(RailServerContext* context, RAIL_CLOAK*
  *
  * @return 0 on success, otherwise a Win32 error code
  */
-static UINT rail_recv_client_textscaleinfo_order(RailServerContext* context, RAIL_TEXTSCALEINFO* textScaleInfo, wStream* s)
+static UINT rail_recv_client_textscaleinfo_order(RailServerContext* context, RAIL_TEXT_SCALE_INFO* textScaleInfo, wStream* s)
 {
 	UINT error;
 
@@ -1363,7 +1363,7 @@ static UINT rail_recv_client_textscaleinfo_order(RailServerContext* context, RAI
  *
  * @return 0 on success, otherwise a Win32 error code
  */
-static UINT rail_recv_client_caretBlinkInfo_order(RailServerContext* context, RAIL_CARETBLINKINFO* caretBlinkInfo, wStream* s)
+static UINT rail_recv_client_caretBlinkInfo_order(RailServerContext* context, RAIL_CARET_BLINK_INFO* caretBlinkInfo, wStream* s)
 {
 	UINT error;
 
@@ -1760,13 +1760,13 @@ UINT rail_server_handle_messages(RailServerContext* context)
 
 		case TS_RAIL_ORDER_TEXTSCALEINFO:
 		{
-			RAIL_TEXTSCALEINFO textScaleInfo;
+			RAIL_TEXT_SCALE_INFO textScaleInfo;
 			return rail_recv_client_textscaleinfo_order(context, &textScaleInfo, s);
 		}
 
 		case TS_RAIL_ORDER_CARETBLINKINFO:
 		{
-			RAIL_CARETBLINKINFO caretBlinkInfo;
+			RAIL_CARET_BLINK_INFO caretBlinkInfo;
 			return rail_recv_client_caretBlinkInfo_order(context, &caretBlinkInfo, s);
 		}
 

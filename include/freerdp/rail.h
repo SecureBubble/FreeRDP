@@ -515,13 +515,13 @@ typedef struct
 
 typedef struct
 {
-	UINT32 textScaleFactor;
-} RAIL_TEXTSCALEINFO;
+	INT32 textScaleFactor;
+} RAIL_TEXT_SCALE_INFO;
 
 typedef struct
 {
 	UINT32 caretBlinkRate;
-} RAIL_CARETBLINKINFO;
+} RAIL_CARET_BLINK_INFO;
 
 
 /* DEPRECATED: RAIL Constants
