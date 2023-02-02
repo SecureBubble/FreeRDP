@@ -94,6 +94,9 @@ struct rdp_freerdp_peer
 	ALIGN64 int sockfd;
 	ALIGN64 char hostname[50];
 	ALIGN64 int source_port;
+	ALIGN64 BOOL read_pcb; 
+	ALIGN64 BYTE* WszPcb;
+	ALIGN64 DWORD WszPcbLength;
 
 #if defined(WITH_FREERDP_DEPRECATED)
 	WINPR_DEPRECATED_VAR("Use rdpContext::update instead", ALIGN64 rdpUpdate* update;)
@@ -190,7 +193,7 @@ extern "C"
 	FREERDP_API freerdp_peer* freerdp_peer_new(int sockfd);
 	FREERDP_API void freerdp_peer_free(freerdp_peer* client);
 	FREERDP_API BOOL freerdp_peer_set_local_and_hostname(freerdp_peer* client,
-	                                                     const struct sockaddr_storage* peer_addr);
+	                                                     const struct sockaddr_storage* peer_addr);												 
 
 #ifdef __cplusplus
 }

@@ -1666,7 +1666,7 @@ UINT rail_server_handle_messages(RailServerContext* context)
 		return ERROR_INTERNAL_ERROR;
 	}
 
-	WLog_DBG(TAG, "Received %s PDU, length:%" PRIu16 "",
+	WLog_INFO(TAG, "Received %s PDU, length:%" PRIu16 "",
 	         rail_get_order_type_string_full(orderType, buffer, sizeof(buffer)), orderLength);
 
 	switch (orderType)

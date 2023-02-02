@@ -941,7 +941,7 @@ UINT rail_order_recv(LPVOID userdata, wStream* s)
 		return error;
 	}
 
-	WLog_Print(rail->log, WLOG_DEBUG, "Received %s PDU, length:%" PRIu16 "",
+	WLog_Print(rail->log, WLOG_INFO, "Received %s PDU, length:%" PRIu16 "",
 	           rail_get_order_type_string_full(orderType, buffer, sizeof(buffer)), orderLength);
 
 	switch (orderType)
@@ -1499,7 +1499,7 @@ UINT rail_send_client_text_scale_info_order(railPlugin* rail, const RAIL_TEXT_SC
 		return CHANNEL_RC_NO_MEMORY;
 	}
 
-	Stream_Write_UINT32(s, textScaleInfo->textScaleFactor);
+	Stream_Write_INT32(s, textScaleInfo->textScaleFactor);
 	error = rail_send_pdu(rail, s, TS_RAIL_ORDER_TEXTSCALEINFO);
 	Stream_Free(s, TRUE);
 	return error;

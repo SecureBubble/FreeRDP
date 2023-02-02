@@ -17,16 +17,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef RDTK_VERSION_H
-#define RDTK_VERSION_H
+#ifndef UWAC_VERSION_H
+#define UWAC_VERSION_H
 
-#define RDTK_VERSION_MAJOR 0
-#define RDTK_VERSION_MINOR 2
-#define RDTK_VERSION_REVISION 0
-#define RDTK_VERSION_SUFFIX ""
-#define RDTK_API_VERSION "0"
-#define RDTK_VERSION "0.2.0"
-#define RDTK_VERSION_FULL "0.2.0"
-#define RDTK_GIT_REVISION "1440d5999"
+#define UWAC_VERSION_MAJOR 0
+#define UWAC_VERSION_MINOR 2
+#define UWAC_VERSION_REVISION 0
+#define UWAC_VERSION_SUFFIX ""
+#define UWAC_API_VERSION "0"
+#define UWAC_VERSION "0.2.0"
+#define UWAC_VERSION_FULL "0.2.0"
+#define UWAC_GIT_REVISION "1440d5999"
 
-#endif /* RDTK_VERSION_H */
+#endif /* UWAC_VERSION_H */

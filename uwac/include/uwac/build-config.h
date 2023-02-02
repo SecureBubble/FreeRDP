@@ -1,0 +1,22 @@
+#ifndef UWAC_BUILD_CONFIG_H
+#define UWAC_BUILD_CONFIG_H
+
+#define UWAC_DATA_PATH ""
+#define UWAC_KEYMAP_PATH ""
+#define UWAC_PLUGIN_PATH ""
+
+#define UWAC_INSTALL_PREFIX ""
+
+#define UWAC_LIBRARY_PATH ""
+
+#define UWAC_ADDIN_PATH ""
+
+#define UWAC_SHARED_LIBRARY_SUFFIX ".so"
+#define UWAC_SHARED_LIBRARY_PREFIX  "lib"
+
+#define UWAC_VENDOR_STRING "FreeRDP"
+#define UWAC_PRODUCT_STRING "FreeRDP"
+
+#define UWAC_PROXY_PLUGINDIR ""
+
+#endif /* UWAC_BUILD_CONFIG_H */
