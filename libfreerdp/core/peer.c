@@ -590,6 +590,7 @@ static int peer_recv_callback_internal(rdpTransport* transport, wStream* s, void
 			WLog_ERR(TAG, "PRECONNECTION PDU: the cbSize must be greater than 18 bytes");
 			return -1;
 		}
+
 		wStream* pcb = Stream_New(NULL, cbSize - Stream_Length(s));
 		unsigned char* data = Stream_Pointer(pcb);
 		int status = 0;
@@ -610,6 +611,14 @@ static int peer_recv_callback_internal(rdpTransport* transport, wStream* s, void
 
 		Stream_Read_UINT32(pcb, version);
 		Stream_Read_UINT32(pcb, id);
+
+		if (Stream_GetRemainingLength(pcb) < 2) {
+			WLog_ERR(TAG, "PRECONNECTION PDU: not enough bytes for type 2 preconnection PDU");
+			if (pcb)
+				Stream_Free(pcb, TRUE);
+			return -1;
+		}
+
 		Stream_Read_UINT16(pcb, client->WszPcbLength);
 
 		/* The cbSize MUST be greater than or equal to the size of the RDP_PRECONNECTION_PDU_V1, plus the size of the cchPCB field and wszPCB field,
@@ -620,6 +629,8 @@ static int peer_recv_callback_internal(rdpTransport* transport, wStream* s, void
 		if ((client->WszPcbLength * 2) + 16 + 2  > cbSize)
 		{
 			WLog_ERR(TAG, "PRECONNECTION PDU: the cbSize must be greater than WszPcbLength");
+			if (pcb)
+				Stream_Free(pcb, TRUE);
 			return -1;
 		}
 
@@ -630,7 +641,11 @@ static int peer_recv_callback_internal(rdpTransport* transport, wStream* s, void
 		client->WszPcb = (BYTE*)malloc(client->WszPcbLength * 2);
 
 		if (!client->WszPcb)
+		{
+			if (pcb)
+				Stream_Free(pcb, TRUE);
 			return -1;
+		}
 
 		Stream_Read(pcb, client->WszPcb, client->WszPcbLength * 2);		  
 		winpr_HexDump(TAG, WLOG_INFO, client->WszPcb,
