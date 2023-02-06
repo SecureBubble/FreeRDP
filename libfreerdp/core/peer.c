@@ -619,14 +619,14 @@ static int peer_recv_callback_internal(rdpTransport* transport, wStream* s, void
 			return -1;
 		}
 
-		Stream_Read_UINT16(pcb, client->WszPcbLength);
+		Stream_Read_UINT16(pcb, client->cchPCB);
 
 		/* The cbSize MUST be greater than or equal to the size of the RDP_PRECONNECTION_PDU_V1, plus the size of the cchPCB field and wszPCB field,
 		 calculated as cchPCB multiplied by 2. If cbSize does not meet this condition, the server SHOULD disconnect the client
 		 version1PDU (16 bytes): The RDP_PRECONNECTION_PDU_V1 header, as specified in section 2.2.1.1.
     	 cchPCB (2 bytes): An unsigned 16-bit integer. The number of Unicode characters in the wszPCB field. */
 
-		if ((client->WszPcbLength * 2) + 16 + 2  > cbSize)
+		if ((client->cchPCB * 2) + PRECONNECTION_PDU_V2_MIN_SIZE  > cbSize)
 		{
 			WLog_ERR(TAG, "PRECONNECTION PDU: the cbSize must be greater than WszPcbLength");
 			if (pcb)
@@ -637,19 +637,19 @@ static int peer_recv_callback_internal(rdpTransport* transport, wStream* s, void
 		WLog_INFO(TAG,
 		          "PRECONNECTION PDU: session information: flags %" PRIu32 ", version %" PRIu32 ", id %" PRIu32
 		          ", session information v2: size %" PRIu32 ", status %d",
-		          flags, version, id, client->WszPcbLength, status);
-		client->WszPcb = (BYTE*)malloc(client->WszPcbLength * 2);
+		          flags, version, id, client->cchPCB, status);
+		client->wszPCB = (char*)malloc(client->cchPCB * 2);
 
-		if (!client->WszPcb)
+		if (!client->wszPCB)
 		{
 			if (pcb)
 				Stream_Free(pcb, TRUE);
 			return -1;
 		}
 
-		Stream_Read(pcb, client->WszPcb, client->WszPcbLength * 2);		  
-		winpr_HexDump(TAG, WLOG_INFO, client->WszPcb,
-		              client->WszPcbLength * 2);
+		Stream_Read(pcb, client->wszPCB, client->cchPCB * 2);		  
+		winpr_HexDump(TAG, WLOG_INFO, client->wszPCB,
+		              client->cchPCB * 2);
 		client->read_pcb = true;
 		rdp_server_transition_to_state(rdp, CONNECTION_STATE_INITIAL);		  
 		if (pcb)
@@ -1065,7 +1065,7 @@ void freerdp_peer_context_free(freerdp_peer* client)
 		free(ctx);
 	}
 	client->context = NULL;
-	free(client->WszPcb);
+	free(client->wszPCB);
 }
 
 static const char* os_major_type_to_string(UINT16 osMajorType)
