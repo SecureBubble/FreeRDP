@@ -94,7 +94,6 @@ struct rdp_freerdp_peer
 	ALIGN64 int sockfd;
 	ALIGN64 char hostname[50];
 	ALIGN64 int source_port;
-	ALIGN64 BOOL read_pcb; 
 	ALIGN64 WCHAR* wszPCB;
 	ALIGN64 UINT16 cchPCB;
 
