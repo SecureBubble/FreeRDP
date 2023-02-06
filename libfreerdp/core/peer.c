@@ -240,7 +240,7 @@ static BOOL freerdp_peer_initialize(freerdp_peer* client)
 	settings->ServerMode = TRUE;
 	settings->FrameAcknowledge = 0;
 	settings->LocalConnection = client->local;
-	//rdp_server_transition_to_state(rdp, CONNECTION_STATE_INITIAL);
+	rdp_server_transition_to_state(rdp, CONNECTION_STATE_PRE_CONNECTION);
 
 	if (settings->PrivateKeyFile)
 	{
@@ -574,334 +574,337 @@ static int peer_recv_callback_internal(rdpTransport* transport, wStream* s, void
 	settings = client->context->settings;
 	WINPR_ASSERT(settings);
 
-	if (!client->read_pcb)
+	IFCALL(client->ReachedState, client, rdp_get_state(rdp));
+
+	switch (rdp_get_state(rdp))
 	{
-		winpr_HexDump(TAG, WLOG_INFO, Stream_Buffer(s), Stream_Length(s));
-		DWORD flags, version, id, cbSize;
-		Stream_Read_UINT32(s, cbSize);
-		Stream_Read_UINT32(s, flags);
+		case CONNECTION_STATE_PRE_CONNECTION:
+			winpr_HexDump(TAG, WLOG_INFO, Stream_Buffer(s), Stream_Length(s));
+			DWORD flags, version, id, cbSize;
+			Stream_Read_UINT32(s, cbSize);
+			Stream_Read_UINT32(s, flags);
 
-		WLog_INFO(TAG, "PRECONNECTION PDU: cbSize: cbSize %" PRIu32 "", cbSize);
+			WLog_INFO(TAG, "PRECONNECTION PDU: cbSize: cbSize %" PRIu32 "", cbSize);
 
-		/* If the size is greater than or equal to 18 bytes, the server MUST consider the PDU an RDP_PRECONNECTION_PDU_V2, 
-		check that the size is in the expected range based on the cbSize field, and disconnect the client if the size is not in the expected range.*/
-		if (cbSize < 18)
-		{
-			WLog_ERR(TAG, "PRECONNECTION PDU: the cbSize must be greater than 18 bytes");
-			return -1;
-		}
-
-		wStream* pcb = Stream_New(NULL, cbSize - Stream_Length(s));
-		unsigned char* data = Stream_Pointer(pcb);
-		int status = 0;
-		do
-		{
-			status = read(client->sockfd, data, cbSize - Stream_Length(s));
-		} while ((status < 0) && (errno == EINTR));
-
-		if (status < 0)
-		{
-			WLog_ERR(TAG, "PRECONNECTION PDU: error reading blob bytes");
-			if (pcb)
-				Stream_Free(pcb, TRUE);
-			return -1;
-		}
-
-		winpr_HexDump(TAG, WLOG_INFO, Stream_Buffer(pcb), Stream_Length(pcb));
-
-		Stream_Read_UINT32(pcb, version);
-		Stream_Read_UINT32(pcb, id);
-
-		if (Stream_GetRemainingLength(pcb) < 2) {
-			WLog_ERR(TAG, "PRECONNECTION PDU: not enough bytes for type 2 preconnection PDU");
-			if (pcb)
-				Stream_Free(pcb, TRUE);
-			return -1;
-		}
-
-		Stream_Read_UINT16(pcb, client->cchPCB);
-
-		/* The cbSize MUST be greater than or equal to the size of the RDP_PRECONNECTION_PDU_V1, plus the size of the cchPCB field and wszPCB field,
-		 calculated as cchPCB multiplied by 2. If cbSize does not meet this condition, the server SHOULD disconnect the client
-		 version1PDU (16 bytes): The RDP_PRECONNECTION_PDU_V1 header, as specified in section 2.2.1.1.
-    	 cchPCB (2 bytes): An unsigned 16-bit integer. The number of Unicode characters in the wszPCB field. */
-
-		if ((client->cchPCB * 2) + PRECONNECTION_PDU_V2_MIN_SIZE  > cbSize)
-		{
-			WLog_ERR(TAG, "PRECONNECTION PDU: the cbSize must be greater than WszPcbLength");
-			if (pcb)
-				Stream_Free(pcb, TRUE);
-			return -1;
-		}
-
-		WLog_INFO(TAG,
-		          "PRECONNECTION PDU: session information: flags %" PRIu32 ", version %" PRIu32 ", id %" PRIu32
-		          ", session information v2: size %" PRIu32 ", status %d",
-		          flags, version, id, client->cchPCB, status);
-		client->wszPCB = (char*)malloc(client->cchPCB * 2);
-
-		if (!client->wszPCB)
-		{
-			if (pcb)
-				Stream_Free(pcb, TRUE);
-			return -1;
-		}
-
-		Stream_Read(pcb, client->wszPCB, client->cchPCB * 2);		  
-		winpr_HexDump(TAG, WLOG_INFO, client->wszPCB,
-		              client->cchPCB * 2);
-		client->read_pcb = true;
-		rdp_server_transition_to_state(rdp, CONNECTION_STATE_INITIAL);		  
-		if (pcb)
-			Stream_Free(pcb, TRUE);
-		ret = 0;		  
-	}
-	else
-	{
-		IFCALL(client->ReachedState, client, rdp_get_state(rdp));
-
-		switch (rdp_get_state(rdp))
-		{
-			case CONNECTION_STATE_INITIAL:
-				if (!rdp_server_accept_nego(rdp, s))
-				{
-					WLog_ERR(TAG, "%s: %s - rdp_server_accept_nego() fail", __FUNCTION__,
-					         rdp_get_state_string(rdp));
-				}
-				else
-				{
-					SelectedProtocol = nego_get_selected_protocol(rdp->nego);
-					settings->NlaSecurity = (SelectedProtocol & PROTOCOL_HYBRID) ? TRUE : FALSE;
-					settings->TlsSecurity = (SelectedProtocol & PROTOCOL_SSL) ? TRUE : FALSE;
-					settings->RdpSecurity = (SelectedProtocol == PROTOCOL_RDP) ? TRUE : FALSE;
-
-					if (SelectedProtocol & PROTOCOL_HYBRID)
-					{
-						SEC_WINNT_AUTH_IDENTITY* identity = nego_get_identity(rdp->nego);
-						sspi_CopyAuthIdentity(&client->identity, identity);
-						IFCALLRET(client->Logon, client->authenticated, client, &client->identity,
-						          TRUE);
-						nego_free_nla(rdp->nego);
-					}
-					else
-					{
-						IFCALLRET(client->Logon, client->authenticated, client, &client->identity,
-						          FALSE);
-					}
-					ret = 0;
-				}
-				break;
-
-			case CONNECTION_STATE_NEGO:
-				if (!rdp_server_accept_mcs_connect_initial(rdp, s))
-				{
-					WLog_ERR(TAG,
-					         "%s: %s - "
-					         "rdp_server_accept_mcs_connect_initial() fail",
-					         __FUNCTION__, rdp_get_state_string(rdp));
-				}
-				else
-					ret = 0;
-
-				break;
-
-			case CONNECTION_STATE_MCS_CONNECT:
-				if (!rdp_server_accept_mcs_erect_domain_request(rdp, s))
-				{
-					WLog_ERR(TAG,
-					         "%s: %s - "
-					         "rdp_server_accept_mcs_erect_domain_request() fail",
-					         __FUNCTION__, rdp_get_state_string(rdp));
-				}
-				else
-					ret = 0;
-
-				break;
-
-			case CONNECTION_STATE_MCS_ERECT_DOMAIN:
-				if (!rdp_server_accept_mcs_attach_user_request(rdp, s))
-				{
-					WLog_ERR(TAG,
-					         "%s: %s - "
-					         "rdp_server_accept_mcs_attach_user_request() fail",
-					         __FUNCTION__, rdp_get_state_string(rdp));
-				}
-				else
-					ret = 0;
-
-				break;
-
-			case CONNECTION_STATE_MCS_ATTACH_USER:
-				if (!rdp_server_accept_mcs_channel_join_request(rdp, s))
-				{
-					WLog_ERR(TAG,
-					         "%s: %s - "
-					         "rdp_server_accept_mcs_channel_join_request() fail",
-					         __FUNCTION__, rdp_get_state_string(rdp));
-				}
-				else
-					ret = 0;
-				break;
-
-			case CONNECTION_STATE_RDP_SECURITY_COMMENCEMENT:
-				ret = 0;
-				if (rdp->settings->UseRdpSecurityLayer)
-				{
-					if (!rdp_server_establish_keys(rdp, s))
-					{
-						WLog_ERR(TAG,
-						         "%s: %s - "
-						         "rdp_server_establish_keys() fail",
-						         __FUNCTION__, rdp_get_state_string(rdp));
-						ret = -1;
-					}
-				}
-				if (ret >= 0)
-				{
-					rdp_server_transition_to_state(rdp, CONNECTION_STATE_SECURE_SETTINGS_EXCHANGE);
-
-					if (Stream_GetRemainingLength(s) > 0)
-						ret = 1; /* Rerun function */
-				}
-				break;
-
-			case CONNECTION_STATE_SECURE_SETTINGS_EXCHANGE:
-				if (!rdp_recv_client_info(rdp, s))
-				{
-					WLog_ERR(TAG,
-					         "%s: %s - "
-					         "rdp_recv_client_info() fail",
-					         __FUNCTION__, rdp_get_state_string(rdp));
-				}
-				else
-				{
-					rdp_server_transition_to_state(rdp, CONNECTION_STATE_LICENSING);
-					ret = 2; /* Rerun, NULL stream */
-				}
-				break;
-
-			case CONNECTION_STATE_LICENSING:
+			/* If the size is greater than or equal to 18 bytes, the server MUST consider the
+			PDU an RDP_PRECONNECTION_PDU_V2, check that the size is in the expected range based
+			on the cbSize field, and disconnect the client if the size is not in the expected
+			range.*/
+			if (cbSize < 18)
 			{
-				LicenseCallbackResult res;
-
-				if (!client->LicenseCallback)
-				{
-					WLog_ERR(TAG,
-					         "%s: LicenseCallback has been removed, assuming "
-					         "licensing is ok (please fix your app)",
-					         __FUNCTION__);
-					res = LICENSE_CB_COMPLETED;
-				}
-				else
-					res = client->LicenseCallback(client, s);
-
-				switch (res)
-				{
-					case LICENSE_CB_INTERNAL_ERROR:
-						WLog_ERR(TAG,
-						         "%s: %s - callback internal "
-						         "error, aborting",
-						         __FUNCTION__, rdp_get_state_string(rdp));
-						break;
-
-					case LICENSE_CB_ABORT:
-						break;
-
-					case LICENSE_CB_IN_PROGRESS:
-						ret = 0;
-						break;
-
-					case LICENSE_CB_COMPLETED:
-						rdp_server_transition_to_state(rdp, CONNECTION_STATE_CAPABILITIES_EXCHANGE);
-						ret = 2; /* Rerun, NULL stream */
-						break;
-
-					default:
-						WLog_ERR(TAG,
-						         "%s: CONNECTION_STATE_LICENSING - unknown license callback "
-						         "result %d",
-						         __FUNCTION__, res);
-						ret = 0;
-						break;
-				}
-
-				break;
+				WLog_ERR(TAG, "PRECONNECTION PDU: the cbSize must be greater than 18 bytes");
+				return -1;
 			}
 
-			case CONNECTION_STATE_CAPABILITIES_EXCHANGE:
-				if (!rdp->AwaitCapabilities)
-				{
-					if (client->Capabilities && !client->Capabilities(client))
-					{
-					}
-					else if (!rdp_send_demand_active(rdp))
-					{
-						WLog_ERR(TAG,
-						         "%s: %s - "
-						         "rdp_send_demand_active() fail",
-						         __FUNCTION__, rdp_get_state_string(rdp));
-					}
-					else
-					{
-						rdp->AwaitCapabilities = TRUE;
+			wStream* pcb = Stream_New(NULL, cbSize - Stream_Length(s));
+			unsigned char* data = Stream_Pointer(pcb);
+			int status = 0;
+			do
+			{
+				status = read(client->sockfd, data, cbSize - Stream_Length(s));
+			} while ((status < 0) && (errno == EINTR));
 
-						if (s)
-						{
-							ret = peer_recv_pdu(client, s);
-							if (ret < 0)
-							{
-								WLog_ERR(TAG,
-								         "%s: %s - "
-								         "peer_recv_pdu() fail",
-								         __FUNCTION__, rdp_get_state_string(rdp));
-							}
-						}
-						else
-							ret = 0;
-					}
+			if (status < 0)
+			{
+				WLog_ERR(TAG, "PRECONNECTION PDU: error reading blob bytes");
+				if (pcb)
+					Stream_Free(pcb, TRUE);
+				return -1;
+			}
+
+			winpr_HexDump(TAG, WLOG_INFO, Stream_Buffer(pcb), Stream_Length(pcb));
+
+			Stream_Read_UINT32(pcb, version);
+			Stream_Read_UINT32(pcb, id);
+
+			if (Stream_GetRemainingLength(pcb) < 2)
+			{
+				WLog_ERR(TAG, "PRECONNECTION PDU: not enough bytes for type 2 preconnection PDU");
+				if (pcb)
+					Stream_Free(pcb, TRUE);
+				return -1;
+			}
+
+			Stream_Read_UINT16(pcb, client->cchPCB);
+
+			/* The cbSize MUST be greater than or equal to the size of the
+			 RDP_PRECONNECTION_PDU_V1, plus the size of the cchPCB field and wszPCB field,
+			 calculated as cchPCB multiplied by 2. If cbSize does not meet this condition, the
+			 server SHOULD disconnect the client version1PDU (16 bytes): The
+			 RDP_PRECONNECTION_PDU_V1 header, as specified in section 2.2.1.1. cchPCB (2 bytes):
+			 An unsigned 16-bit integer. The number of Unicode characters in the wszPCB field.
+		   */
+
+			if ((client->cchPCB * 2) + PRECONNECTION_PDU_V2_MIN_SIZE > cbSize)
+			{
+				WLog_ERR(TAG, "PRECONNECTION PDU: the cbSize must be greater than WszPcbLength");
+				if (pcb)
+					Stream_Free(pcb, TRUE);
+				return -1;
+			}
+
+			WLog_INFO(TAG,
+			          "PRECONNECTION PDU: session information: flags %" PRIu32 ", version %" PRIu32
+			          ", id %" PRIu32 ", session information v2: size %" PRIu32 ", status %d",
+			          flags, version, id, client->cchPCB, status);
+			client->wszPCB = (char*)malloc(client->cchPCB * 2);
+
+			if (!client->wszPCB)
+			{
+				if (pcb)
+					Stream_Free(pcb, TRUE);
+				return -1;
+			}
+
+			Stream_Read(pcb, client->wszPCB, client->cchPCB * 2);
+			winpr_HexDump(TAG, WLOG_INFO, client->wszPCB, client->cchPCB * 2);
+			client->read_pcb = true;
+			rdp_server_transition_to_state(rdp, CONNECTION_STATE_INITIAL);
+			if (pcb)
+				Stream_Free(pcb, TRUE);
+			ret = 0;
+			break;
+
+		case CONNECTION_STATE_INITIAL:
+			if (!rdp_server_accept_nego(rdp, s))
+			{
+				WLog_ERR(TAG, "%s: %s - rdp_server_accept_nego() fail", __FUNCTION__,
+				         rdp_get_state_string(rdp));
+			}
+			else
+			{
+				SelectedProtocol = nego_get_selected_protocol(rdp->nego);
+				settings->NlaSecurity = (SelectedProtocol & PROTOCOL_HYBRID) ? TRUE : FALSE;
+				settings->TlsSecurity = (SelectedProtocol & PROTOCOL_SSL) ? TRUE : FALSE;
+				settings->RdpSecurity = (SelectedProtocol == PROTOCOL_RDP) ? TRUE : FALSE;
+
+				if (SelectedProtocol & PROTOCOL_HYBRID)
+				{
+					SEC_WINNT_AUTH_IDENTITY* identity = nego_get_identity(rdp->nego);
+					sspi_CopyAuthIdentity(&client->identity, identity);
+					IFCALLRET(client->Logon, client->authenticated, client, &client->identity,
+					          TRUE);
+					nego_free_nla(rdp->nego);
 				}
 				else
 				{
-					/**
-					 * During reactivation sequence the client might sent some input or channel data
-					 * before receiving the Deactivate All PDU. We need to process them as usual.
-					 */
-					ret = peer_recv_pdu(client, s);
-					if (ret < 0)
-					{
-						WLog_ERR(TAG,
-						         "%s: %s - "
-						         "peer_recv_pdu() fail",
-						         __FUNCTION__, rdp_get_state_string(rdp));
-					}
+					IFCALLRET(client->Logon, client->authenticated, client, &client->identity,
+					          FALSE);
 				}
+				ret = 0;
+			}
+			break;
 
-				break;
+		case CONNECTION_STATE_NEGO:
+			if (!rdp_server_accept_mcs_connect_initial(rdp, s))
+			{
+				WLog_ERR(TAG,
+				         "%s: %s - "
+				         "rdp_server_accept_mcs_connect_initial() fail",
+				         __FUNCTION__, rdp_get_state_string(rdp));
+			}
+			else
+				ret = 0;
 
-			case CONNECTION_STATE_FINALIZATION:
-				ret = peer_recv_pdu(client, s);
-				if (ret < 0)
+			break;
+
+		case CONNECTION_STATE_MCS_CONNECT:
+			if (!rdp_server_accept_mcs_erect_domain_request(rdp, s))
+			{
+				WLog_ERR(TAG,
+				         "%s: %s - "
+				         "rdp_server_accept_mcs_erect_domain_request() fail",
+				         __FUNCTION__, rdp_get_state_string(rdp));
+			}
+			else
+				ret = 0;
+
+			break;
+
+		case CONNECTION_STATE_MCS_ERECT_DOMAIN:
+			if (!rdp_server_accept_mcs_attach_user_request(rdp, s))
+			{
+				WLog_ERR(TAG,
+				         "%s: %s - "
+				         "rdp_server_accept_mcs_attach_user_request() fail",
+				         __FUNCTION__, rdp_get_state_string(rdp));
+			}
+			else
+				ret = 0;
+
+			break;
+
+		case CONNECTION_STATE_MCS_ATTACH_USER:
+			if (!rdp_server_accept_mcs_channel_join_request(rdp, s))
+			{
+				WLog_ERR(TAG,
+				         "%s: %s - "
+				         "rdp_server_accept_mcs_channel_join_request() fail",
+				         __FUNCTION__, rdp_get_state_string(rdp));
+			}
+			else
+				ret = 0;
+			break;
+
+		case CONNECTION_STATE_RDP_SECURITY_COMMENCEMENT:
+			ret = 0;
+			if (rdp->settings->UseRdpSecurityLayer)
+			{
+				if (!rdp_server_establish_keys(rdp, s))
 				{
-					WLog_ERR(TAG, "%s: %s - peer_recv_pdu() fail", __FUNCTION__,
-					         rdp_get_state_string(rdp));
+					WLog_ERR(TAG,
+					         "%s: %s - "
+					         "rdp_server_establish_keys() fail",
+					         __FUNCTION__, rdp_get_state_string(rdp));
+					ret = -1;
 				}
-				break;
+			}
+			if (ret >= 0)
+			{
+				rdp_server_transition_to_state(rdp, CONNECTION_STATE_SECURE_SETTINGS_EXCHANGE);
 
-			case CONNECTION_STATE_ACTIVE:
-				ret = peer_recv_pdu(client, s);
-				if (ret < 0)
-				{
-					WLog_ERR(TAG, "%s: %s - peer_recv_pdu() fail", __FUNCTION__,
-					         rdp_get_state_string(rdp));
-				}
+				if (Stream_GetRemainingLength(s) > 0)
+					ret = 1; /* Rerun function */
+			}
+			break;
 
-				break;
+		case CONNECTION_STATE_SECURE_SETTINGS_EXCHANGE:
+			if (!rdp_recv_client_info(rdp, s))
+			{
+				WLog_ERR(TAG,
+				         "%s: %s - "
+				         "rdp_recv_client_info() fail",
+				         __FUNCTION__, rdp_get_state_string(rdp));
+			}
+			else
+			{
+				rdp_server_transition_to_state(rdp, CONNECTION_STATE_LICENSING);
+				ret = 2; /* Rerun, NULL stream */
+			}
+			break;
 
-			default:
-				WLog_ERR(TAG, "%s state %d", rdp_get_state_string(rdp), rdp_get_state(rdp));
-				break;
+		case CONNECTION_STATE_LICENSING:
+		{
+			LicenseCallbackResult res;
+
+			if (!client->LicenseCallback)
+			{
+				WLog_ERR(TAG,
+				         "%s: LicenseCallback has been removed, assuming "
+				         "licensing is ok (please fix your app)",
+				         __FUNCTION__);
+				res = LICENSE_CB_COMPLETED;
+			}
+			else
+				res = client->LicenseCallback(client, s);
+
+			switch (res)
+			{
+				case LICENSE_CB_INTERNAL_ERROR:
+					WLog_ERR(TAG,
+					         "%s: %s - callback internal "
+					         "error, aborting",
+					         __FUNCTION__, rdp_get_state_string(rdp));
+					break;
+
+				case LICENSE_CB_ABORT:
+					break;
+
+				case LICENSE_CB_IN_PROGRESS:
+					ret = 0;
+					break;
+
+				case LICENSE_CB_COMPLETED:
+					rdp_server_transition_to_state(rdp, CONNECTION_STATE_CAPABILITIES_EXCHANGE);
+					ret = 2; /* Rerun, NULL stream */
+					break;
+
+				default:
+					WLog_ERR(TAG,
+					         "%s: CONNECTION_STATE_LICENSING - unknown license callback "
+					         "result %d",
+					         __FUNCTION__, res);
+					ret = 0;
+					break;
+			}
+
+			break;
 		}
+
+		case CONNECTION_STATE_CAPABILITIES_EXCHANGE:
+			if (!rdp->AwaitCapabilities)
+			{
+				if (client->Capabilities && !client->Capabilities(client))
+				{
+				}
+				else if (!rdp_send_demand_active(rdp))
+				{
+					WLog_ERR(TAG,
+					         "%s: %s - "
+					         "rdp_send_demand_active() fail",
+					         __FUNCTION__, rdp_get_state_string(rdp));
+				}
+				else
+				{
+					rdp->AwaitCapabilities = TRUE;
+
+					if (s)
+					{
+						ret = peer_recv_pdu(client, s);
+						if (ret < 0)
+						{
+							WLog_ERR(TAG,
+							         "%s: %s - "
+							         "peer_recv_pdu() fail",
+							         __FUNCTION__, rdp_get_state_string(rdp));
+						}
+					}
+					else
+						ret = 0;
+				}
+			}
+			else
+			{
+				/**
+				 * During reactivation sequence the client might sent some input or channel data
+				 * before receiving the Deactivate All PDU. We need to process them as usual.
+				 */
+				ret = peer_recv_pdu(client, s);
+				if (ret < 0)
+				{
+					WLog_ERR(TAG,
+					         "%s: %s - "
+					         "peer_recv_pdu() fail",
+					         __FUNCTION__, rdp_get_state_string(rdp));
+				}
+			}
+
+			break;
+
+		case CONNECTION_STATE_FINALIZATION:
+			ret = peer_recv_pdu(client, s);
+			if (ret < 0)
+			{
+				WLog_ERR(TAG, "%s: %s - peer_recv_pdu() fail", __FUNCTION__,
+				         rdp_get_state_string(rdp));
+			}
+			break;
+
+		case CONNECTION_STATE_ACTIVE:
+			ret = peer_recv_pdu(client, s);
+			if (ret < 0)
+			{
+				WLog_ERR(TAG, "%s: %s - peer_recv_pdu() fail", __FUNCTION__,
+				         rdp_get_state_string(rdp));
+			}
+
+			break;
+
+		default:
+			WLog_ERR(TAG, "%s state %d", rdp_get_state_string(rdp), rdp_get_state(rdp));
+			break;
 	}
+	// }
 
 	return ret;
 }

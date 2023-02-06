@@ -417,7 +417,7 @@ BOOL rdp_client_disconnect(rdpRdp* rdp)
 	if (!rdp_reset(rdp))
 		return FALSE;
 
-	rdp_client_transition_to_state(rdp, CONNECTION_STATE_INITIAL);
+	rdp_client_transition_to_state(rdp, CONNECTION_STATE_PRE_CONNECTION);
 
 	if (freerdp_channels_disconnect(context->channels, context->instance) != CHANNEL_RC_OK)
 		return FALSE;
@@ -1534,6 +1534,8 @@ const char* rdp_state_string(CONNECTION_STATE state)
 {
 	switch (state)
 	{
+		case CONNECTION_STATE_PRE_CONNECTION:
+			return "CONNECTION_STATE_PRE_CONNECTION";
 		case CONNECTION_STATE_INITIAL:
 			return "CONNECTION_STATE_INITIAL";
 		case CONNECTION_STATE_NEGO:
