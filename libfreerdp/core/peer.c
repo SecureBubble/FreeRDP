@@ -591,7 +591,14 @@ static int peer_recv_callback_internal(rdpTransport* transport, wStream* s, void
 			Stream_Read_UINT32(s, cbSize);	// 4 bytes
 			Stream_Read_UINT32(s, flags);	// 4 bytes
 
-			WLog_INFO(TAG, "PRECONNECTION PDU V2: cbSize: cbSize %" PRIu32 "", cbSize);
+			WLog_INFO(TAG, "PRECONNECTION PDU V2: cbSize: %" PRIu32 " flags: %" PRIu32 "" , cbSize, flags);
+
+			/*  Flags (4 bytes): An unsigned 32-bit integer. MUST be set to zero when sending and ignored on receipt. */
+			if (flags > 0)
+			{
+				WLog_ERR(TAG, "PRECONNECTION PDU V2: the flags must be set to zero");
+				return -1;
+			}
 
 			/* If the size is greater than or equal to 18 bytes, the server MUST consider the
 			PDU an RDP_PRECONNECTION_PDU_V2, check that the size is in the expected range based
