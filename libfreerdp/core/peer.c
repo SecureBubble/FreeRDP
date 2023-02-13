@@ -581,24 +581,21 @@ static int peer_recv_callback_internal(rdpTransport* transport, wStream* s, void
 		case CONNECTION_STATE_PRE_CONNECTION:
 			winpr_HexDump(TAG, WLOG_INFO, Stream_Buffer(s), Stream_Length(s));
 			DWORD flags, version, id, cbSize;
+			wStream* pcb;
+			wStream* temp;
+			BOOL readFlagsField = false;
+			int status = 0;
+			unsigned char* data;
+			unsigned char* data_temp;
 
-			if (Stream_GetRemainingLength(s) < 8)
+			if (Stream_GetRemainingLength(s) < 4)
 			{
-				WLog_ERR(TAG, "PRECONNECTION PDU V2: not enough bytes for cbSize and flags");
+				WLog_ERR(TAG, "PRECONNECTION PDU V2: not enough bytes for cbSize field");
 				return -1;
 			}
 
-			Stream_Read_UINT32(s, cbSize);	// 4 bytes
-			Stream_Read_UINT32(s, flags);	// 4 bytes
-
-			WLog_INFO(TAG, "PRECONNECTION PDU V2: cbSize: %" PRIu32 " flags: %" PRIu32 "" , cbSize, flags);
-
-			/*  Flags (4 bytes): An unsigned 32-bit integer. MUST be set to zero when sending and ignored on receipt. */
-			if (flags > 0)
-			{
-				WLog_ERR(TAG, "PRECONNECTION PDU V2: the flags must be set to zero");
-				return -1;
-			}
+			Stream_Read_UINT32(s, cbSize); // 4 bytes
+			WLog_INFO(TAG, "PRECONNECTION PDU V2: cbSize: %" PRIu32 " ", cbSize);
 
 			/* If the size is greater than or equal to 18 bytes, the server MUST consider the
 			PDU an RDP_PRECONNECTION_PDU_V2, check that the size is in the expected range based
@@ -610,12 +607,63 @@ static int peer_recv_callback_internal(rdpTransport* transport, wStream* s, void
 				return -1;
 			}
 
-			wStream* pcb = Stream_New(NULL, cbSize - Stream_Length(s));
-			unsigned char* data = Stream_Pointer(pcb);
-			int status = 0;
+			if (Stream_GetRemainingLength(s) >= 4)
+			{
+				Stream_Read_UINT32(s, flags); // 4 bytes
+
+				WLog_INFO(TAG, "PRECONNECTION PDU V2: flags: %" PRIu32 " ", flags);
+
+				/*  Flags (4 bytes): An unsigned 32-bit integer. MUST be set to zero when sending
+				 * and ignored on receipt. */
+				if (flags > 0)
+				{
+					WLog_ERR(TAG, "PRECONNECTION PDU V2: the flags must be set to zero");
+					return -1;
+				}
+				readFlagsField = true;
+			}
+
+			pcb = Stream_New(NULL, cbSize - 8);	// skip cbsize and flags
+			data = Stream_Pointer(pcb);
+
+			/* not enough bytes to read flags field, for example if the s stream contains only 7 bytes */
+			if (!readFlagsField)
+			{
+				WLog_INFO(TAG, "PRECONNECTION PDU V2: remaining bytes in stream: %" PRIu32 " ",
+				          Stream_Length(s) - 4);
+				temp = Stream_New(NULL, 4);
+				Stream_Copy(s, temp, Stream_Length(s) - 4);
+				data_temp = Stream_Pointer(temp);
+				status = read(client->sockfd, data_temp, 8 - Stream_Length(s));
+				if (status < 0)
+				{
+					WLog_ERR(TAG, "PRECONNECTION PDU V2: error reading flags field bytes");
+					if (temp)
+						Stream_Free(temp, TRUE);
+					return -1;
+				}
+
+				winpr_HexDump(TAG, WLOG_INFO, Stream_Buffer(temp), Stream_Length(temp));
+
+				Stream_SetPosition(temp, 0);
+				Stream_Read_UINT32(temp, flags); // 4 bytes
+				WLog_INFO(TAG, "PRECONNECTION PDU V2: flags: %" PRIu32 " ", flags);
+				if (temp)
+					Stream_Free(temp, TRUE);
+
+				/*  Flags (4 bytes): An unsigned 32-bit integer. MUST be set to zero when sending
+				 * and ignored on receipt. */
+				if (flags > 0)
+				{
+					WLog_ERR(TAG, "PRECONNECTION PDU V2: the flags must be set to zero");
+					return -1;
+				}
+				status = 0;
+			}
+
 			do
 			{
-				status = read(client->sockfd, data, cbSize - Stream_Length(s));
+				status = read(client->sockfd, data, cbSize - 8);
 			} while ((status < 0) && (errno == EINTR));
 
 			if (status < 0)
@@ -628,18 +676,19 @@ static int peer_recv_callback_internal(rdpTransport* transport, wStream* s, void
 
 			winpr_HexDump(TAG, WLOG_INFO, Stream_Buffer(pcb), Stream_Length(pcb));
 
-			Stream_Read_UINT32(pcb, version);	// 4 bytes
-			Stream_Read_UINT32(pcb, id);		// 4 bytes
+			Stream_Read_UINT32(pcb, version); // 4 bytes
+			Stream_Read_UINT32(pcb, id);      // 4 bytes
 
 			if (Stream_GetRemainingLength(pcb) < 2)
 			{
-				WLog_ERR(TAG, "PRECONNECTION PDU V2: not enough bytes for type 2 preconnection PDU");
+				WLog_ERR(TAG,
+				         "PRECONNECTION PDU V2: not enough bytes for type 2 preconnection PDU");
 				if (pcb)
 					Stream_Free(pcb, TRUE);
 				return -1;
 			}
 
-			Stream_Read_UINT16(pcb, client->cchPCB);
+			Stream_Read_UINT16(pcb, client->cchPCB); // 2 bytes
 
 			/* The cbSize MUST be greater than or equal to the size of the
 			 RDP_PRECONNECTION_PDU_V1, plus the size of the cchPCB field and wszPCB field,
@@ -658,8 +707,9 @@ static int peer_recv_callback_internal(rdpTransport* transport, wStream* s, void
 			}
 
 			WLog_INFO(TAG,
-			          "PRECONNECTION PDU V2: session information: flags %" PRIu32 ", version %" PRIu32
-			          ", id %" PRIu32 ", session information v2: size %" PRIu32 ", status %d",
+			          "PRECONNECTION PDU V2: session information: flags %" PRIu32
+			          ", version %" PRIu32 ", id %" PRIu32 ", session information v2: size %" PRIu32
+			          ", status %d",
 			          flags, version, id, client->cchPCB, status);
 			client->wszPCB = (char*)malloc(client->cchPCB * 2);
 

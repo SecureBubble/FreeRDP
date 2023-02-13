@@ -27,6 +27,6 @@
 #define UWAC_API_VERSION "0"
 #define UWAC_VERSION "0.2.0"
 #define UWAC_VERSION_FULL "0.2.0"
-#define UWAC_GIT_REVISION "db915c05b"
+#define UWAC_GIT_REVISION "ebba2dd76"
 
 #endif /* UWAC_VERSION_H */
