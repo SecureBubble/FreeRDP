@@ -30,6 +30,7 @@
 #include <freerdp/client/bubble.h>
 
 #include "../../../channels/client/addin.h"
+#include <regex.h>
 
 #define TAG "bubble.client"
 
@@ -171,8 +172,8 @@ static char* bubble_read_string(wStream* s)
 	Stream_Read_UINT32_BE(s, length);
 	if (Stream_GetRemainingLength(s) < length)
 	{
-		WLog_ERR(TAG, "bubble.client: not enough bytes2: have %d, expected %d", Stream_GetRemainingLength(s),
-		         length);
+		WLog_ERR(TAG, "bubble.client: not enough bytes2: have %d, expected %d",
+		         Stream_GetRemainingLength(s), length);
 		return NULL;
 	}
 
@@ -218,10 +219,12 @@ static UINT bubble_handle_process_created(BubbleClientContext* context, wStream*
 		return ERROR_INTERNAL_ERROR;
 	}
 
-	WLog_INFO(TAG, "bubble.client: new process: time=%d, proc_id=%d, proc_name=%s, cmdline=%s, hash=%s", timestamp, proc_id,
-	          proc_name, cmdline, proc_hash);
+	WLog_INFO(TAG,
+	          "bubble.client: new process: time=%d, proc_id=%d, proc_name=%s, cmdline=%s, hash=%s",
+	          timestamp, proc_id, proc_name, cmdline, proc_hash);
 
-	IFCALLRET(context->NewProcessCreated, error, context, timestamp, proc_name, proc_id, cmdline, proc_hash);
+	IFCALLRET(context->NewProcessCreated, error, context, timestamp, proc_name, proc_id, cmdline,
+	          proc_hash);
 
 	free(proc_name);
 	free(cmdline);
@@ -250,12 +253,15 @@ static UINT bubble_handle_active_window_changed(BubbleClientContext* context, wS
 		return ERROR_INTERNAL_ERROR;
 	}
 
-	Stream_Read_UINT32_BE(s, keyboard_layout);   // 2 bytes
+	Stream_Read_UINT32_BE(s, keyboard_layout); // 2 bytes
 
-	WLog_INFO(TAG, "bubble.client: active window changed: time=%d, process name=%s, window title=%s, keyboard layout=%d", timestamp,
-	          proc, window_title, keyboard_layout);
+	WLog_INFO(TAG,
+	          "bubble.client: active window changed: time=%d, process name=%s, window title=%s, "
+	          "keyboard layout=%d",
+	          timestamp, proc, window_title, keyboard_layout);
 
-	IFCALLRET(context->ActiveWindowChanged, error, context, timestamp, proc, window_title, keyboard_layout);
+	IFCALLRET(context->ActiveWindowChanged, error, context, timestamp, proc, window_title,
+	          keyboard_layout);
 
 	free(proc);
 	free(window_title);
@@ -306,12 +312,17 @@ static UINT bubble_handle_uac_window_state(BubbleClientContext* context, wStream
 	return error;
 }
 
-static UINT bubble_request_exec_app(BubbleClientContext* context, int operation_mode, float bubble_version)
+static UINT bubble_request_exec_app(BubbleClientContext* context, int operation_mode,
+                                    float bubble_version)
 {
 	bubblePlugin* plugin = (bubblePlugin*)context->handle;
 	rdpSettings* settings = plugin->rdpcontext->settings;
 	bubble_version = bubble_version * 100; // float to int with truncation
 	wStream* data_in = NULL;
+	int status;
+	regex_t regex;
+	const char* app_to_execute;
+
 	if (settings->RemoteApplicationMode)
 	{
 		if (settings->RemoteApplicationProgram == NULL ||
@@ -321,7 +332,35 @@ static UINT bubble_request_exec_app(BubbleClientContext* context, int operation_
 			return ERROR_INTERNAL_ERROR;
 		}
 
-		const char* app_to_execute = (const char*)(settings->RemoteApplicationProgram + 2);
+		/* in AVD scenario the remote application program is UUID v4, but the alternate shell contains the remote app executable path*/
+		if (settings->AlternateShell != NULL)
+		{
+			WLog_INFO(TAG, "bubble.client: alternate shell: %s, remote application program: %s, regex: [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+			          settings->AlternateShell, settings->RemoteApplicationProgram + 2);
+			if (regcomp(&regex, "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+			            REG_EXTENDED) != 0)
+			{
+				WLog_ERR(TAG, "bubble.client: could not compile regex");
+				return ERROR_INTERNAL_ERROR;
+			}
+
+			status = regexec(&regex, settings->RemoteApplicationProgram + 2, 0, NULL, 0);
+			if (!status)
+			{
+				WLog_INFO(TAG, "bubble.client: regex match");
+            	app_to_execute = (const char*) (settings->AlternateShell);
+			}
+			else
+			{
+				app_to_execute = (const char*)(settings->RemoteApplicationProgram + 2);
+			}
+			
+			regfree(&regex);
+		}
+		else
+		{
+			app_to_execute = (const char*)(settings->RemoteApplicationProgram + 2);
+		}
 
 		WLog_INFO(TAG, "bubble.client: requesting agent to execute %s [len=%d]", app_to_execute,
 		          strlen(app_to_execute));
@@ -360,7 +399,10 @@ static UINT bubble_handle_query_mode(BubbleClientContext* context, wStream* s)
 
 	WLog_INFO(TAG, "bubble.client: before calling pre response callback");
 	IFCALLRET(context->PreQueryModeResponse, error, context, &operation_mode, &bubble_version);
-	WLog_INFO(TAG, "bubble.client: after calling pre response callback, operation_mode:%d, bubble_version:%.1f", operation_mode, bubble_version);
+	WLog_INFO(TAG,
+	          "bubble.client: after calling pre response callback, operation_mode:%d, "
+	          "bubble_version:%.1f",
+	          operation_mode, bubble_version);
 
 	bubble_request_exec_app(context, operation_mode, bubble_version);
 	return error;
@@ -411,16 +453,16 @@ static UINT bubble_handle_keyboard_layout(BubbleClientContext* context, wStream*
 	if (!proc)
 		return ERROR_INTERNAL_ERROR;
 
-	Stream_Read_UINT32_BE(s, keyboard_layout);   // 2 bytes
-	
+	Stream_Read_UINT32_BE(s, keyboard_layout); // 2 bytes
+
 	if (!keyboard_layout)
 	{
 		free(proc);
 		return ERROR_INTERNAL_ERROR;
 	}
-		
+
 	IFCALLRET(context->KeyboardLayoutChanged, error, context, timestamp, proc, keyboard_layout);
-	
+
 	free(proc);
 	return error;
 }
@@ -487,11 +529,12 @@ static UINT bubble_order_recv(LPVOID userdata, wStream* s)
 		case 9: // KEYBOARD_LAYOUT
 			bubble_handle_keyboard_layout(context, s);
 		case 10: // MESSAGES_FROM_AGENT
-			bubble_handle_messages_from_agent(context, s);	
-			break;	
+			bubble_handle_messages_from_agent(context, s);
+			break;
 
 		default:
-			WLog_ERR(TAG, "bubble.client: Unknown SEESPDU order 0x%08" PRIx32 " received.", orderType);
+			WLog_ERR(TAG, "bubble.client: Unknown SEESPDU order 0x%08" PRIx32 " received.",
+			         orderType);
 			return ERROR_INTERNAL_ERROR;
 	}
 
@@ -548,8 +591,8 @@ static UINT bubble_virtual_channel_event_disconnected(bubblePlugin* bubble)
 
 	if (CHANNEL_RC_OK != rc)
 	{
-		WLog_ERR(TAG, "bubble.client: pVirtualChannelCloseEx failed with %s [%08" PRIX32 "]", WTSErrorToString(rc),
-		         rc);
+		WLog_ERR(TAG, "bubble.client: pVirtualChannelCloseEx failed with %s [%08" PRIX32 "]",
+		         WTSErrorToString(rc), rc);
 		return rc;
 	}
 

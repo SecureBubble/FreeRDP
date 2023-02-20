@@ -27,6 +27,6 @@
 #define RDTK_API_VERSION "0"
 #define RDTK_VERSION "0.2.0"
 #define RDTK_VERSION_FULL "0.2.0"
-#define RDTK_GIT_REVISION "ebba2dd76"
+#define RDTK_GIT_REVISION "e9dc979f9"
 
 #endif /* RDTK_VERSION_H */
