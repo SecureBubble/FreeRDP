@@ -96,6 +96,8 @@ struct rdp_freerdp_peer
 	ALIGN64 int source_port;
 	ALIGN64 WCHAR* wszPCB;
 	ALIGN64 UINT16 cchPCB;
+	ALIGN64 BOOL haveMoreBytesToReadPCB;
+	ALIGN64 UINT32 remainingBytesToReadPCB;
 
 #if defined(WITH_FREERDP_DEPRECATED)
 	WINPR_DEPRECATED_VAR("Use rdpContext::update instead", ALIGN64 rdpUpdate* update;)

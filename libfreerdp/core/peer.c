@@ -579,7 +579,6 @@ static int peer_recv_callback_internal(rdpTransport* transport, wStream* s, void
 	switch (rdp_get_state(rdp))
 	{
 		case CONNECTION_STATE_PRE_CONNECTION:
-			winpr_HexDump(TAG, WLOG_INFO, Stream_Buffer(s), Stream_Length(s));
 			DWORD flags, version, id, cbSize;
 			wStream* pcb;
 			wStream* temp;
@@ -588,6 +587,15 @@ static int peer_recv_callback_internal(rdpTransport* transport, wStream* s, void
 			unsigned char* data;
 			unsigned char* data_temp;
 
+			winpr_HexDump(TAG, WLOG_INFO, Stream_Buffer(s), Stream_Length(s));
+
+			//TODO: add support when the pcb data does'nt send from the client in one packet
+			if (client->haveMoreBytesToReadPCB)
+			{
+				WLog_INFO(TAG, "PRECONNECTION PDU V2: haveMoreBytesToRead");	
+				winpr_HexDump(TAG, WLOG_INFO, Stream_Buffer(s), Stream_Length(s));
+			}
+			
 			if (Stream_GetRemainingLength(s) < 4)
 			{
 				WLog_ERR(TAG, "PRECONNECTION PDU V2: not enough bytes for cbSize field");
@@ -624,7 +632,7 @@ static int peer_recv_callback_internal(rdpTransport* transport, wStream* s, void
 			}
 
 			pcb = Stream_New(NULL, cbSize - 8);	// skip cbsize and flags
-			data = Stream_Pointer(pcb);
+			//data = Stream_Pointer(pcb);
 
 			/* not enough bytes to read flags field, for example if the s stream contains only 7 bytes */
 			if (!readFlagsField)
@@ -661,9 +669,17 @@ static int peer_recv_callback_internal(rdpTransport* transport, wStream* s, void
 				status = 0;
 			}
 
+			/* for example if the s stream contains more than 8 bytes */
+			if (Stream_GetRemainingLength(s) >= 1)
+			{
+				Stream_Copy(s, pcb, Stream_Length(s) - 8);	
+			}
+
+			data = Stream_Pointer(pcb);
+
 			do
 			{
-				status = read(client->sockfd, data, cbSize - 8);
+				status = read(client->sockfd, data, cbSize - Stream_Length(s));
 			} while ((status < 0) && (errno == EINTR));
 
 			if (status < 0)
@@ -674,7 +690,19 @@ static int peer_recv_callback_internal(rdpTransport* transport, wStream* s, void
 				return -1;
 			}
 
+			//TODO: add support when the pcb data does'nt send from the client in one packet
+			if (status < cbSize - Stream_Length(s))
+			{
+				client->haveMoreBytesToReadPCB = true;
+				client->remainingBytesToReadPCB = cbSize - 8 - status;
+				rdp_server_transition_to_state(rdp, CONNECTION_STATE_PRE_CONNECTION);
+				ret = 0;
+				break;
+			}
+
 			winpr_HexDump(TAG, WLOG_INFO, Stream_Buffer(pcb), Stream_Length(pcb));
+
+			Stream_SetPosition(pcb, 0);
 
 			Stream_Read_UINT32(pcb, version); // 4 bytes
 			Stream_Read_UINT32(pcb, id);      // 4 bytes
@@ -689,6 +717,12 @@ static int peer_recv_callback_internal(rdpTransport* transport, wStream* s, void
 			}
 
 			Stream_Read_UINT16(pcb, client->cchPCB); // 2 bytes
+
+			WLog_INFO(TAG,
+			          "PRECONNECTION PDU V2: session information: flags %" PRIu32
+			          ", version %" PRIu32 ", id %" PRIu32 ", session information v2: size %" PRIu32
+			          ", status %d",
+			          flags, version, id, client->cchPCB, status);
 
 			/* The cbSize MUST be greater than or equal to the size of the
 			 RDP_PRECONNECTION_PDU_V1, plus the size of the cchPCB field and wszPCB field,
@@ -706,11 +740,6 @@ static int peer_recv_callback_internal(rdpTransport* transport, wStream* s, void
 				return -1;
 			}
 
-			WLog_INFO(TAG,
-			          "PRECONNECTION PDU V2: session information: flags %" PRIu32
-			          ", version %" PRIu32 ", id %" PRIu32 ", session information v2: size %" PRIu32
-			          ", status %d",
-			          flags, version, id, client->cchPCB, status);
 			client->wszPCB = (char*)malloc(client->cchPCB * 2);
 
 			if (!client->wszPCB)
