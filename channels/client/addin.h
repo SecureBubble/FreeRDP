@@ -30,7 +30,7 @@ FREERDP_API void* channel_client_create_handler(rdpContext* ctx, LPVOID userdata
                                                 MsgHandler handler, const char* channel_name);
 
 WINPR_ATTR_NODISCARD
-FREERDP_LOCAL UINT channel_client_post_message(void* MsgsHandle, LPVOID pData, UINT32 dataLength,
+FREERDP_API UINT channel_client_post_message(void* MsgsHandle, LPVOID pData, UINT32 dataLength,
                                                UINT32 totalLength, UINT32 dataFlags);
 
-FREERDP_LOCAL UINT channel_client_quit_handler(void* MsgsHandle);
+FREERDP_API UINT channel_client_quit_handler(void* MsgsHandle);
