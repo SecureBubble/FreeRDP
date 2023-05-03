@@ -393,6 +393,7 @@ BOOL freerdp_peer_set_local_and_hostname(freerdp_peer* client,
                                          const struct sockaddr_storage* peer_addr)
 {
 	const void* sin_addr = NULL;
+	uint16_t sin_port = 0;
 	const BYTE localhost6_bytes[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };
 
 	WINPR_ASSERT(client);
@@ -401,6 +402,7 @@ BOOL freerdp_peer_set_local_and_hostname(freerdp_peer* client,
 	if (peer_addr->ss_family == AF_INET)
 	{
 		const UINT32* usin_addr = sin_addr = &(((const struct sockaddr_in*)peer_addr)->sin_addr);
+		sin_port = htons(((struct sockaddr_in*)peer_addr)->sin_port);
 
 		if ((*usin_addr) == 0x0100007f)
 			client->local = TRUE;
@@ -409,6 +411,7 @@ BOOL freerdp_peer_set_local_and_hostname(freerdp_peer* client,
 	{
 		const struct sockaddr_in6* usin_addr = sin_addr =
 		    &(((const struct sockaddr_in6*)peer_addr)->sin6_addr);
+		sin_port = htons(((struct sockaddr_in6*)peer_addr)->sin6_port);
 
 		if (memcmp(usin_addr, localhost6_bytes, 16) == 0)
 			client->local = TRUE;
@@ -428,6 +431,8 @@ BOOL freerdp_peer_set_local_and_hostname(freerdp_peer* client,
 
 	if (sin_addr)
 		inet_ntop(peer_addr->ss_family, sin_addr, client->hostname, sizeof(client->hostname));
+	if (sin_port)
+		client->source_port = sin_port;
 
 	return TRUE;
 }
