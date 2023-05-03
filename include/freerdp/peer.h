@@ -181,6 +181,7 @@ struct rdp_freerdp_peer
 	ALIGN64 psPeerSetState SetState;
 	ALIGN64 psPeerReachedState ReachedState;
 	ALIGN64 psSspiNtlmHashCallback SspiNtlmHashCallback;
+	ALIGN64 int source_port;
 };
 
 	FREERDP_API BOOL freerdp_peer_context_new(freerdp_peer* client);
