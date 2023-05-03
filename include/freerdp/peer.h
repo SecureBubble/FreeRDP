@@ -216,6 +216,7 @@ extern "C"
 		 * and supplementary creds (NTLM).
 		 */
 		ALIGN64 psPeerRemoteCredentials RemoteCredentials;
+	    ALIGN64 int source_port;
 	};
 
 	FREERDP_API void freerdp_peer_context_free(freerdp_peer* client);
