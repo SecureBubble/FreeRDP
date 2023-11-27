@@ -179,6 +179,7 @@ extern "C"
 
 	FREERDP_API RdpgfxClientContext* rdpgfx_client_context_new(rdpContext* context);
 	FREERDP_API void rdpgfx_client_context_free(RdpgfxClientContext* context);
+	FREERDP_API UINT rdpgfx_DVCPluginEntry(IDRDYNVC_ENTRY_POINTS* pEntryPoints);
 
 #ifdef __cplusplus
 }

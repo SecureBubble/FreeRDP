@@ -1,0 +1,20 @@
+#ifndef RDTK_BUILD_CONFIG_H
+#define RDTK_BUILD_CONFIG_H
+
+#define RDTK_DATA_PATH ""
+#define RDTK_KEYMAP_PATH ""
+#define RDTK_PLUGIN_PATH ""
+
+#define RDTK_INSTALL_PREFIX ""
+
+#define RDTK_LIBRARY_PATH ""
+
+#define RDTK_ADDIN_PATH ""
+
+#define RDTK_SHARED_LIBRARY_SUFFIX ".so"
+#define RDTK_SHARED_LIBRARY_PREFIX  "lib"
+
+#define RDTK_VENDOR_STRING "FreeRDP"
+#define RDTK_PRODUCT_STRING "FreeRDP"
+
+#endif /* RDTK_BUILD_CONFIG_H */
