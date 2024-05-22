@@ -545,8 +545,8 @@ static BOOL rdp_write_extended_info_packet(rdpRdp* rdp, wStream* s)
 	if (!Stream_EnsureRemainingCapacity(s, 10ull))
 		goto fail;
 
-	Stream_Write_UINT32(
-	    s, settings->ClientSessionId); /* clientSessionId (4 bytes), should be set to 0 */
+	/* clientSessionId (4 bytes), should be set to 0 */
+	Stream_Write_UINT32(s, settings->ClientSessionId);
 	freerdp_performance_flags_make(settings);
 	Stream_Write_UINT32(s, settings->PerformanceFlags); /* performanceFlags (4 bytes) */
 	Stream_Write_UINT16(s, cbAutoReconnectCookie);      /* cbAutoReconnectCookie (2 bytes) */
@@ -560,8 +560,6 @@ static BOOL rdp_write_extended_info_packet(rdpRdp* rdp, wStream* s)
 
 		if (!Stream_EnsureRemainingCapacity(s, 4ull))
 			goto fail;
-		Stream_Write_UINT16(s, 0); /* reserved1 (2 bytes) */
-		Stream_Write_UINT16(s, 0); /* reserved2 (2 bytes) */
 	}
 
 	if (freerdp_settings_get_bool(settings, FreeRDP_SupportDynamicTimeZone))
@@ -569,8 +567,8 @@ static BOOL rdp_write_extended_info_packet(rdpRdp* rdp, wStream* s)
 		if (!Stream_EnsureRemainingCapacity(s, 10 + 254 * sizeof(WCHAR)))
 			goto fail;
 
-		/* skip reserved1 and reserved2 fields */
-		Stream_Seek(s, 4);
+		Stream_Write_UINT16(s, 0); /* reserved1 (2 bytes) */
+		Stream_Write_UINT16(s, 0); /* reserved2 (2 bytes) */
 
 		size_t rlen = 0;
 		const char* tz = freerdp_settings_get_string(settings, FreeRDP_DynamicDSTTimeZoneKeyName);
