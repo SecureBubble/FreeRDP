@@ -1979,6 +1979,10 @@ static UINT rdpgfx_recv_pdu(GENERIC_CHANNEL_CALLBACK* callback, wStream* s)
 
 			break;
 
+		case RDPGFX_CMDID_WATERMARK:
+		    Stream_Seek(s, header.pduLength - 8);
+		    break;
+
 		default:
 			error = CHANNEL_RC_BAD_PROC;
 			break;
@@ -2351,7 +2355,7 @@ static const IWTSVirtualChannelCallback rdpgfx_callbacks = { rdpgfx_on_data_rece
  *
  * @return 0 on success, otherwise a Win32 error code
  */
-FREERDP_ENTRY_POINT(UINT VCAPITYPE rdpgfx_DVCPluginEntry(IDRDYNVC_ENTRY_POINTS* pEntryPoints))
+FREERDP_ENTRY_POINT(FREERDP_API UINT VCAPITYPE rdpgfx_DVCPluginEntry(IDRDYNVC_ENTRY_POINTS* pEntryPoints))
 {
 	return freerdp_generic_DVCPluginEntry(pEntryPoints, TAG, RDPGFX_DVC_CHANNEL_NAME,
 	                                      sizeof(RDPGFX_PLUGIN), sizeof(GENERIC_CHANNEL_CALLBACK),
