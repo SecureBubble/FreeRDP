@@ -30,7 +30,7 @@ UINT devman_load_device_service(DEVMAN* devman, const RDPDR_DEVICE* device, rdpC
 DEVICE* devman_get_device_by_id(DEVMAN* devman, UINT32 id);
 DEVICE* devman_get_device_by_type(DEVMAN* devman, UINT32 type);
 
-DEVMAN* devman_new(rdpdrPlugin* rdpdr);
+FREERDP_API DEVMAN* devman_new(rdpdrPlugin* rdpdr);
 void devman_free(DEVMAN* devman);
 
 #endif /* FREERDP_CHANNEL_RDPDR_CLIENT_DEVMAN_H */
