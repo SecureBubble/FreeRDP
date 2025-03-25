@@ -42,6 +42,7 @@ FREERDP_LOCAL DEVICE* devman_get_device_by_type(DEVMAN* devman, UINT32 type);
 
 WINPR_ATTR_MALLOC(devman_free, 1)
 WINPR_ATTR_NODISCARD
-FREERDP_LOCAL DEVMAN* devman_new(rdpdrPlugin* rdpdr);
+FREERDP_APIL DEVMAN* devman_new(rdpdrPlugin* rdpdr);
+
 
 #endif /* FREERDP_CHANNEL_RDPDR_CLIENT_DEVMAN_H */
