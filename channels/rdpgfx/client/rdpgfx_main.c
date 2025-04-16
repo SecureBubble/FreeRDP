@@ -2053,6 +2053,7 @@ static UINT rdpgfx_recv_pdu(GENERIC_CHANNEL_CALLBACK* callback, wStream* s)
 			break;
 
 		case RDPGFX_CMDID_WATERMARK:
+		case RDPGFX_CMDID_PROTECTSURFACE:
 		    Stream_Seek(s, header.pduLength - 8);
 		    break;
 
