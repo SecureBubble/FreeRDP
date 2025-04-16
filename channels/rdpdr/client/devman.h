@@ -28,7 +28,7 @@
 #include "rdpdr_main.h"
 
 FREERDP_LOCAL void devman_unregister_device(DEVMAN* devman, void* key);
-FREERDP_LOCAL void devman_free(DEVMAN* devman);
+FREERDP_API void devman_free(DEVMAN* devman);
 
 WINPR_ATTR_NODISCARD
 FREERDP_LOCAL UINT devman_load_device_service(DEVMAN* devman, RDPDR_DEVICE* device,
@@ -42,7 +42,6 @@ FREERDP_LOCAL DEVICE* devman_get_device_by_type(DEVMAN* devman, UINT32 type);
 
 WINPR_ATTR_MALLOC(devman_free, 1)
 WINPR_ATTR_NODISCARD
-FREERDP_APIL DEVMAN* devman_new(rdpdrPlugin* rdpdr);
-
+FREERDP_API DEVMAN* devman_new(rdpdrPlugin* rdpdr);
 
 #endif /* FREERDP_CHANNEL_RDPDR_CLIENT_DEVMAN_H */
