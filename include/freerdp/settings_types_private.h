@@ -348,7 +348,8 @@ struct rdp_settings
 	SETTINGS_DEPRECATED(ALIGN64 char* ReaderName);           /* 1293 */
 	SETTINGS_DEPRECATED(ALIGN64 char* ContainerName);        /* 1294 */
 	SETTINGS_DEPRECATED(ALIGN64 char* CspName);              /* 1295 */
-	UINT64 padding1344[1344 - 1296];                         /* 1296 */
+	SETTINGS_DEPRECATED(ALIGN64 BOOL FakeSmartcardCreds);    /* 1296 */
+	UINT64 padding1344[1344 - 1297];                         /* 1297 */
 
 	/* Kerberos Authentication */
 	SETTINGS_DEPRECATED(ALIGN64 char* KerberosKdcUrl);            /* 1344 */

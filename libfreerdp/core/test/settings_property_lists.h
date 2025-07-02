@@ -57,6 +57,7 @@ static const size_t bool_list_indices[] = {
 	FreeRDP_ExtSecurity,
 	FreeRDP_ExternalCertificateManagement,
 	FreeRDP_FIPSMode,
+	FreeRDP_FakeSmartcardCreds,
 	FreeRDP_FastPathInput,
 	FreeRDP_FastPathOutput,
 	FreeRDP_ForceEncryptedCsPdu,
