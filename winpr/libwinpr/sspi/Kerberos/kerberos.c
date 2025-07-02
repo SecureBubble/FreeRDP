@@ -48,6 +48,9 @@
 
 #include "kerberos.h"
 
+#ifndef WITH_KRB5
+#define WITH_KRB5
+#endif
 #ifdef WITH_KRB5_MIT
 #include "krb5glue.h"
 #include <profile.h>
@@ -448,6 +451,7 @@ static SECURITY_STATUS SEC_ENTRY kerberos_AcquireCredentialsHandleA(
 		if (krb_log_exec(build_krbtgt, ctx, principal, &matchCreds.server))
 			goto cleanup;
 
+#if 0
 		int rv = krb5_cc_retrieve_cred(ctx, ccache, matchFlags, &matchCreds, &creds);
 		krb5_free_principal(ctx, matchCreds.server);
 		krb5_free_cred_contents(ctx, &creds);
@@ -457,6 +461,7 @@ static SECURITY_STATUS SEC_ENTRY kerberos_AcquireCredentialsHandleA(
 			                 password, krb_settings))
 				goto cleanup;
 		}
+#endif
 	}
 
 	credentials = calloc(1, sizeof(KRB_CREDENTIALS));
@@ -1089,7 +1094,7 @@ static SECURITY_STATUS SEC_ENTRY kerberos_InitializeSecurityContextA(
 
 			/* Get a service ticket */
 			if (krb_log_exec(krb5_sname_to_principal, credentials->ctx, host, sname,
-			                 KRB5_NT_SRV_HST, &in_creds.server))
+				KRB5_NT_SRV_HST, &in_creds.server))
 				goto cleanup;
 
 			if (krb_log_exec(krb5_cc_get_principal, credentials->ctx, credentials->ccache,
@@ -1099,12 +1104,20 @@ static SECURITY_STATUS SEC_ENTRY kerberos_InitializeSecurityContextA(
 				goto cleanup;
 			}
 
-			if (krb_log_exec(krb5_get_credentials, credentials->ctx,
-			                 context->u2u ? KRB5_GC_USER_USER : 0, credentials->ccache, &in_creds,
-			                 &creds))
-			{
-				status = SEC_E_NO_CREDENTIALS;
-				goto cleanup;
+			krb5_ccache sessionCache;
+			int rv = krb5_cc_resolve(credentials->ctx, "FILE:/tmp/cc_user", &sessionCache);
+			krb5_creds mcreds;
+			rv = krb5_cc_retrieve_cred(credentials->ctx, sessionCache, 0 /*KRB5_TC_MATCH_2ND_TKT*/, &in_creds, &mcreds);
+
+			if (rv) {
+	            int flags = context->u2u ? KRB5_GC_USER_USER : 0;
+                if (krb_log_exec(krb5_get_credentials, credentials->ctx, flags, credentials->ccache, &in_creds, &creds))
+                {
+                    status = SEC_E_NO_CREDENTIALS;
+                    goto cleanup;
+                }
+			} else {
+			    creds = &mcreds;
 			}
 
 			/* Write the checksum (delegation not implemented) */
@@ -1223,7 +1236,7 @@ cleanup:
 	krb5_free_cred_contents(credentials->ctx, &in_creds);
 }
 
-	krb5_free_creds(credentials->ctx, creds);
+	//krb5_free_creds(credentials->ctx, creds);
 	if (output_token.data)
 		krb5glue_free_data_contents(credentials->ctx, &output_token);
 
@@ -1281,6 +1294,125 @@ static SECURITY_STATUS SEC_ENTRY kerberos_InitializeSecurityContextW(
 	return status;
 }
 
+krb5_error_code KRB5_CALLCONV
+krb5_get_credentials_for_proxy(krb5_context context,
+                               krb5_flags options,
+                               krb5_ccache ccache,
+                               krb5_creds *in_creds,
+                               krb5_ticket *evidence_tkt,
+                               krb5_creds **out_creds);
+
+krb5_error_code KRB5_CALLCONV
+krb5_get_credentials_for_user(krb5_context context, krb5_flags options,
+                              krb5_ccache ccache, krb5_creds *in_creds,
+                              krb5_data *subject_cert,
+                              krb5_creds **out_creds);
+
+krb5_error_code encode_krb5_ticket(const krb5_ticket *rep, krb5_data **code_out);
+
+krb5_error_code KRB5_CALLCONV krb5_decrypt_tkt_part(krb5_context,
+                                                    const krb5_keyblock *,
+                                                    krb5_ticket * );
+
+
+static BOOL retrieveTgt(KRB_CONTEXT* context, KRB_CREDENTIALS* credentials, krb5_principal principal, krb5_creds *creds)
+{
+    BOOL ret = FALSE;
+    krb5_kt_cursor cur = { 0 };
+    krb5_keytab_entry entry = { 0 };
+    if (krb_log_exec(krb5_kt_start_seq_get, credentials->ctx, credentials->keytab, &cur))
+        goto cleanup;
+
+    krb5_get_init_creds_opt opts;
+    krb5_get_init_creds_opt_init(&opts);
+    krb5_get_init_creds_opt_set_forwardable(&opts, TRUE);
+    krb5_get_init_creds_opt_set_pac_request(credentials->ctx, &opts, TRUE);
+
+    do
+    {
+        krb5_error_code rv = krb_log_exec(krb5_kt_next_entry, credentials->ctx,
+                                          credentials->keytab, &entry, &cur);
+        if (rv == KRB5_KT_END)
+            break;
+        if (rv != 0)
+            goto cleanup;
+
+        if (krb5_principal_compare(credentials->ctx, principal, entry.principal))
+            break;
+        const krb5_error_code res =
+            krb_log_exec(krb5glue_free_keytab_entry_contents, credentials->ctx, &entry);
+        memset(&entry, 0, sizeof(entry));
+        if (res != 0)
+            goto cleanup;
+    } while (1);
+
+    if (krb_log_exec(krb5_kt_end_seq_get, credentials->ctx, credentials->keytab, &cur))
+        goto cleanup;
+
+    if (!entry.principal)
+        goto cleanup;
+
+    /* Get the TGT */
+    if (krb_log_exec(krb5_get_init_creds_keytab, credentials->ctx, creds, entry.principal,
+                     credentials->keytab, 0, NULL, &opts))
+        goto cleanup;
+
+    ret = TRUE;
+
+cleanup:
+    return ret;
+}
+
+
+static BOOL retrieveSomeTgt(KRB_CONTEXT* context, KRB_CREDENTIALS* credentials, const char *target, krb5_creds *creds)
+{
+    BOOL ret = TRUE;
+    krb5_principal target_princ = { 0 };
+    char *default_realm = NULL;
+
+    int rv = krb5_parse_name_flags(credentials->ctx, target, 0, &target_princ);
+    if (rv)
+        return FALSE;
+
+    if (!target_princ->realm.length) {
+        rv = krb5_get_default_realm(credentials->ctx, &default_realm);
+        if (rv)
+            goto out;
+
+        target_princ->realm.data = default_realm;
+        target_princ->realm.length = strlen(default_realm);
+    }
+
+
+    /* first try with the account service */
+    if (retrieveTgt(context, credentials, target_princ, creds))
+        goto out;
+
+    ret = FALSE;
+
+    /* if not working try with <host>$@<REALM> */
+    char hostDollar[300] = { 0 };
+    if(target_princ->length != 2)
+        goto out;
+
+    snprintf(hostDollar, sizeof(hostDollar) -1, "%s$@%s", target_princ->data[1].data, target_princ->realm.data);
+    krb5_free_principal(credentials->ctx, target_princ);
+
+    rv = krb5_parse_name_flags(credentials->ctx, hostDollar, 0, &target_princ);
+    if (rv)
+        return FALSE;
+
+    ret = retrieveTgt(context, credentials, target_princ, creds);
+
+out:
+    if (default_realm)
+        krb5_free_default_realm(credentials->ctx, default_realm);
+
+    krb5_free_principal(credentials->ctx, target_princ);
+    return ret;
+}
+
+
 static SECURITY_STATUS SEC_ENTRY kerberos_AcceptSecurityContext(
     PCredHandle phCredential, PCtxtHandle phContext, PSecBufferDesc pInput,
     WINPR_ATTR_UNUSED ULONG fContextReq, WINPR_ATTR_UNUSED ULONG TargetDataRep,
@@ -1299,11 +1431,13 @@ static SECURITY_STATUS SEC_ENTRY kerberos_AcceptSecurityContext(
 	krb5_flags ap_flags = 0;
 	krb5glue_authenticator authenticator = NULL;
 	char* target = NULL;
+#if 0
 	char* sname = NULL;
 	char* realm = NULL;
 	krb5_kt_cursor cur = { 0 };
+#endif
 	krb5_keytab_entry entry = { 0 };
-	krb5_principal principal = NULL;
+	//krb5_principal principal = NULL;
 	krb5_creds creds = { 0 };
 
 	/* behave like windows SSPIs that don't want empty context */
@@ -1352,92 +1486,24 @@ static SECURITY_STATUS SEC_ENTRY kerberos_AcceptSecurityContext(
 		if (!kerberos_rd_tgt_token(&input_token, &target, NULL))
 			goto bad_token;
 
-		/*
-		 *  we're requested with target="TERMSRV/<host>@<REALM>" but we're gonna look
-		 *  at <host>$@<REALM> in the keytab (notice the $), so we build a new "target"
-		 *  string containing
-		 *
-		 *  sname   realm
-		 *  |       |
-		 *  v       v
-		 *  <host>$@<REALM>
-		 *
-		 */
-		if (target)
-		{
-			sname = strchr(target, '/');
-			if (!sname)
-				goto cleanup;
-			sname++;
+		if (!retrieveSomeTgt(context, credentials, target, &creds))
+		    goto cleanup;
+#if 1
+		krb5_ccache sessionCache;
+		int rv = krb5_cc_resolve(credentials->ctx, "FILE:/tmp/cc_session", &sessionCache);
+		if (rv)
+		    goto cleanup;
+		krb5_principal p;
+		krb5_parse_name(credentials->ctx, target, &p);
+        rv = krb5_cc_initialize(credentials->ctx, sessionCache, p);
+        if (rv)
+            goto cleanup;
 
-			/* target goes from TERMSRV/<host>[@<REALM>] to <host>[@<REALM>] */
-			sname = memmove(target, sname, strlen(sname) + 1);
-
-			realm = strchr(target, '@');
-			if (realm)
-			{
-				*realm = '$';
-				realm++;
-
-				size_t len = strlen(realm);
-				memmove(realm + 1, realm, len + 1);
-
-				*realm = '@';
-				realm++;
-			}
-			else
-			{
-				size_t len = strlen(sname);
-				target[len] = '$';
-				target[len + 1] = 0;
-			}
-		}
-
-		if (krb_log_exec(krb5_parse_name_flags, credentials->ctx, sname ? sname : "",
-		                 KRB5_PRINCIPAL_PARSE_NO_REALM, &principal))
-			goto cleanup;
-
-		WINPR_ASSERT(principal);
-
-		if (realm)
-		{
-			if (krb_log_exec(krb5glue_set_principal_realm, credentials->ctx, principal, realm))
-				goto cleanup;
-		}
-
-		if (krb_log_exec(krb5_kt_start_seq_get, credentials->ctx, credentials->keytab, &cur))
-			goto cleanup;
-
-		do
-		{
-			krb5_error_code rv = krb_log_exec(krb5_kt_next_entry, credentials->ctx,
-			                                  credentials->keytab, &entry, &cur);
-			if (rv == KRB5_KT_END)
-				break;
-			if (rv != 0)
-				goto cleanup;
-
-			if ((!sname ||
-			     krb5_principal_compare_any_realm(credentials->ctx, principal, entry.principal)) &&
-			    (!realm || krb5_realm_compare(credentials->ctx, principal, entry.principal)))
-				break;
-			const krb5_error_code res =
-			    krb_log_exec(krb5glue_free_keytab_entry_contents, credentials->ctx, &entry);
-			memset(&entry, 0, sizeof(entry));
-			if (res != 0)
-				goto cleanup;
-		} while (1);
-
-		if (krb_log_exec(krb5_kt_end_seq_get, credentials->ctx, credentials->keytab, &cur))
-			goto cleanup;
-
-		if (!entry.principal)
-			goto cleanup;
-
-		/* Get the TGT */
-		if (krb_log_exec(krb5_get_init_creds_keytab, credentials->ctx, &creds, entry.principal,
-		                 credentials->keytab, 0, NULL, NULL))
-			goto cleanup;
+        rv = krb5_cc_store_cred(credentials->ctx, sessionCache, &creds);
+        if (rv)
+            goto cleanup;
+        krb5_cc_close(credentials->ctx, sessionCache);
+#endif
 
 		if (!kerberos_mk_tgt_token(output_buffer, KRB_TGT_REP, NULL, NULL, &creds.ticket))
 			goto cleanup;
@@ -1453,8 +1519,10 @@ static SECURITY_STATUS SEC_ENTRY kerberos_AcceptSecurityContext(
 	}
 	else if (context->state == KERBEROS_STATE_AP_REQ && tok_id == TOK_ID_AP_REQ)
 	{
+	    krb5_ticket *ticket = NULL;
+
 		if (krb_log_exec(krb5_rd_req, credentials->ctx, &context->auth_ctx, &input_token, NULL,
-		                 credentials->keytab, &ap_flags, NULL))
+		                 credentials->keytab, &ap_flags, &ticket))
 			goto cleanup;
 
 		if (krb_log_exec(krb5_auth_con_setflags, credentials->ctx, context->auth_ctx,
@@ -1503,6 +1571,87 @@ static SECURITY_STATUS SEC_ENTRY kerberos_AcceptSecurityContext(
 		if (krb_log_exec(krb5glue_update_keyset, credentials->ctx, context->auth_ctx, TRUE,
 		                 &context->keyset))
 			goto cleanup;
+
+
+		/*if (!(ticket->enc_part2->flags & TKT_FLG_FORWARDABLE))
+        {
+            WLog_ERR(TAG, "Ticket from user is not forwardable. Cannot perform S4U2Proxy.");
+            goto cleanup;
+        }*/
+
+
+        int rv;
+        krb5_creds mcred = { 0 };
+        krb5_creds *new_cred = NULL;
+
+        krb5_ccache sessionCache;
+        rv = krb5_cc_resolve(credentials->ctx, "FILE:/tmp/cc_session", &sessionCache);
+        if (rv)
+            goto cleanup;
+
+        krb5_principal user_princ;
+        krb5_principal target_princ;
+        krb5_principal self_princ;
+
+        if ((rv = krb5_parse_name(credentials->ctx, "Administrateur@HARDENING2.COM", &user_princ)) ||
+            (rv = krb5_parse_name(credentials->ctx, "TERMSRV/dc.hardening2.com@HARDENING2.COM", &target_princ)) ||
+            (rv = krb5_parse_name(credentials->ctx, "TERMSRV/djinn65@HARDENING2.COM", &self_princ)))
+            goto cleanup;
+
+        mcred.client = user_princ;
+        mcred.server = self_princ;
+        mcred.ticket_flags = TKT_FLG_FORWARDABLE;
+
+        int extraFlags = /*KRB5_GC_USER_USER*/0;
+        WLog_DBG(TAG, "krb5_get_credentials_for_user");
+        rv = krb5_get_credentials_for_user(credentials->ctx, KRB5_GC_NO_STORE | KRB5_GC_CANONICALIZE | KRB5_GC_FORWARDABLE | extraFlags, sessionCache,
+                                                &mcred, NULL, &new_cred);
+        if (rv)
+            goto cleanup;
+
+        krb5_ticket* decoded_ticket = NULL;
+        rv = krb5_decode_ticket(&new_cred->ticket, &decoded_ticket);
+        if (rv)
+           goto cleanup;
+
+        krb5_keytab_entry kt_entry;
+        memset(&kt_entry, 0, sizeof(kt_entry));
+        rv = krb5_kt_get_entry(credentials->ctx, credentials->keytab, decoded_ticket->server, 0, 0, &kt_entry);
+        if (rv)
+            goto cleanup;
+
+        rv = krb5_decrypt_tkt_part(credentials->ctx, &kt_entry.key, decoded_ticket);
+        krb5_kt_free_entry(credentials->ctx, &kt_entry);
+        if (rv)
+            goto cleanup;
+
+        memset(&mcred, 0, sizeof(mcred));
+        mcred.client = user_princ;
+        mcred.server = target_princ;
+
+        rv = krb5_get_credentials_for_proxy(credentials->ctx,
+                /*KRB5_GC_NO_STORE | KRB5_GC_CANONICALIZE |*/ KRB5_GC_CONSTRAINED_DELEGATION | KRB5_GC_FORWARDABLE | extraFlags, sessionCache, &mcred,
+                decoded_ticket, &new_cred);
+        if (rv)
+            goto cleanup;
+
+        krb5_ccache userCache;
+        rv = krb5_cc_resolve(credentials->ctx, "FILE:/tmp/cc_user", &userCache);
+        if (rv)
+            goto cleanup;
+
+        rv = krb5_cc_initialize(credentials->ctx, userCache, user_princ);
+        if (rv)
+            goto cleanup;
+
+        rv = krb5_cc_store_cred(credentials->ctx, userCache, new_cred);
+        if (rv)
+            goto cleanup;
+
+        rv = krb5_cc_close(credentials->ctx, userCache);
+        if (rv)
+            goto cleanup;
+
 
 		context->state = KERBEROS_STATE_FINAL;
 	}
