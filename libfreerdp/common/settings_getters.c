@@ -220,6 +220,9 @@ BOOL freerdp_settings_get_bool(WINPR_ATTR_UNUSED const rdpSettings* settings,
 		case FreeRDP_FIPSMode:
 			return settings->FIPSMode;
 
+		case FreeRDP_FakeSmartcardCreds:
+			return settings->FakeSmartcardCreds;
+
 		case FreeRDP_FastPathInput:
 			return settings->FastPathInput;
 
@@ -882,6 +885,10 @@ BOOL freerdp_settings_set_bool(WINPR_ATTR_UNUSED rdpSettings* settings,
 
 		case FreeRDP_FIPSMode:
 			settings->FIPSMode = cnv.c;
+			break;
+
+		case FreeRDP_FakeSmartcardCreds:
+			settings->FakeSmartcardCreds = cnv.c;
 			break;
 
 		case FreeRDP_FastPathInput:

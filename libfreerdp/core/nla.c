@@ -369,11 +369,8 @@ static BOOL nla_client_setup_identity(rdpNla* nla)
 	}
 	else if (settings->SmartcardLogon)
 	{
-		if (smartCardLogonWasDisabled)
-		{
-			if (!nla_adjust_settings_from_smartcard(nla))
-				return FALSE;
-		}
+        if (!nla_adjust_settings_from_smartcard(nla))
+            return FALSE;
 
 		if (!identity_set_from_smartcard_hash(nla->identity, settings, FreeRDP_Username,
 		                                      FreeRDP_Domain, FreeRDP_Password, nla->certSha1,
@@ -1758,7 +1755,7 @@ static BOOL nla_encode_ts_credentials(rdpNla* nla)
 
 	if (settings->RemoteCredentialGuard)
 		credType = TSCREDS_REMOTEGUARD;
-	else if (settings->SmartcardLogon)
+	else if (settings->SmartcardLogon || settings->FakeSmartcardCreds)
 		credType = TSCREDS_SMARTCARD;
 	else
 		credType = TSCREDS_USER_PASSWD;
