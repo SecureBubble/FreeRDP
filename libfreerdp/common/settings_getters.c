@@ -220,6 +220,9 @@ BOOL freerdp_settings_get_bool(WINPR_ATTR_UNUSED const rdpSettings* settings,
 		case FreeRDP_FIPSMode:
 			return settings->FIPSMode;
 
+		case FreeRDP_FakeSmartcardCreds:
+			return settings->FakeSmartcardCreds;
+
 		case FreeRDP_FastPathInput:
 			return settings->FastPathInput;
 
@@ -882,6 +885,10 @@ BOOL freerdp_settings_set_bool(WINPR_ATTR_UNUSED rdpSettings* settings,
 
 		case FreeRDP_FIPSMode:
 			settings->FIPSMode = cnv.c;
+			break;
+
+		case FreeRDP_FakeSmartcardCreds:
+			settings->FakeSmartcardCreds = cnv.c;
 			break;
 
 		case FreeRDP_FastPathInput:
@@ -2373,7 +2380,8 @@ BOOL freerdp_settings_set_uint32(WINPR_ATTR_UNUSED rdpSettings* settings,
 			break;
 
 		case FreeRDP_ReceivedCapabilitiesSize:
-			return freerdp_capability_buffer_resize(settings, cnv.c, FALSE);
+			settings->ReceivedCapabilitiesSize = cnv.c;
+			break;
 
 		case FreeRDP_RedirectedSessionId:
 			settings->RedirectedSessionId = cnv.c;
@@ -2500,7 +2508,8 @@ BOOL freerdp_settings_set_uint32(WINPR_ATTR_UNUSED rdpSettings* settings,
 			break;
 
 		case FreeRDP_TargetNetAddressCount:
-			return freerdp_target_net_addresses_resize(settings, cnv.c);
+			settings->TargetNetAddressCount = cnv.c;
+			break;
 
 		case FreeRDP_TcpAckTimeout:
 			settings->TcpAckTimeout = cnv.c;

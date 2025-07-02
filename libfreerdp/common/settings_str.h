@@ -101,6 +101,7 @@ static const struct settings_str_entry settings_map[] = {
 	{ FreeRDP_ExternalCertificateManagement, FREERDP_SETTINGS_TYPE_BOOL,
 	  "FreeRDP_ExternalCertificateManagement" },
 	{ FreeRDP_FIPSMode, FREERDP_SETTINGS_TYPE_BOOL, "FreeRDP_FIPSMode" },
+	{ FreeRDP_FakeSmartcardCreds, FREERDP_SETTINGS_TYPE_BOOL, "FreeRDP_FakeSmartcardCreds" },
 	{ FreeRDP_FastPathInput, FREERDP_SETTINGS_TYPE_BOOL, "FreeRDP_FastPathInput" },
 	{ FreeRDP_FastPathOutput, FREERDP_SETTINGS_TYPE_BOOL, "FreeRDP_FastPathOutput" },
 	{ FreeRDP_ForceEncryptedCsPdu, FREERDP_SETTINGS_TYPE_BOOL, "FreeRDP_ForceEncryptedCsPdu" },
