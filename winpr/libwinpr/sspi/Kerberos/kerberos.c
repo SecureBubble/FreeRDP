@@ -48,6 +48,9 @@
 
 #include "kerberos.h"
 
+#ifndef WITH_KRB5
+#define WITH_KRB5
+#endif
 #ifdef WITH_KRB5_MIT
 #include "krb5glue.h"
 #include <profile.h>
@@ -447,6 +450,7 @@ static SECURITY_STATUS SEC_ENTRY kerberos_AcquireCredentialsHandleA(
 		if (krb_log_exec(build_krbtgt, ctx, principal, &matchCreds.server))
 			goto cleanup;
 
+#if 0
 		int rv = krb5_cc_retrieve_cred(ctx, ccache, matchFlags, &matchCreds, &creds);
 		krb5_free_principal(ctx, matchCreds.server);
 		krb5_free_cred_contents(ctx, &creds);
@@ -456,6 +460,7 @@ static SECURITY_STATUS SEC_ENTRY kerberos_AcquireCredentialsHandleA(
 			                 password, krb_settings))
 				goto cleanup;
 		}
+#endif
 	}
 
 	credentials = calloc(1, sizeof(KRB_CREDENTIALS));
@@ -1088,7 +1093,7 @@ static SECURITY_STATUS SEC_ENTRY kerberos_InitializeSecurityContextA(
 
 			/* Get a service ticket */
 			if (krb_log_exec(krb5_sname_to_principal, credentials->ctx, host, sname,
-			                 KRB5_NT_SRV_HST, &in_creds.server))
+				KRB5_NT_SRV_HST, &in_creds.server))
 				goto cleanup;
 
 			if (krb_log_exec(krb5_cc_get_principal, credentials->ctx, credentials->ccache,
@@ -1098,12 +1103,20 @@ static SECURITY_STATUS SEC_ENTRY kerberos_InitializeSecurityContextA(
 				goto cleanup;
 			}
 
-			if (krb_log_exec(krb5_get_credentials, credentials->ctx,
-			                 context->u2u ? KRB5_GC_USER_USER : 0, credentials->ccache, &in_creds,
-			                 &creds))
-			{
-				status = SEC_E_NO_CREDENTIALS;
-				goto cleanup;
+			krb5_ccache sessionCache;
+			int rv = krb5_cc_resolve(credentials->ctx, "FILE:/tmp/cc_user", &sessionCache);
+			krb5_creds mcreds;
+			rv = krb5_cc_retrieve_cred(credentials->ctx, sessionCache, 0 /*KRB5_TC_MATCH_2ND_TKT*/, &in_creds, &mcreds);
+
+			if (rv) {
+	            int flags = context->u2u ? KRB5_GC_USER_USER : 0;
+                if (krb_log_exec(krb5_get_credentials, credentials->ctx, flags, credentials->ccache, &in_creds, &creds))
+                {
+                    status = SEC_E_NO_CREDENTIALS;
+                    goto cleanup;
+                }
+			} else {
+			    creds = &mcreds;
 			}
 
 			/* Write the checksum (delegation not implemented) */
@@ -1222,7 +1235,7 @@ cleanup:
 	krb5_free_cred_contents(credentials->ctx, &in_creds);
 }
 
-	krb5_free_creds(credentials->ctx, creds);
+	//krb5_free_creds(credentials->ctx, creds);
 	if (output_token.data)
 		krb5glue_free_data_contents(credentials->ctx, &output_token);
 
@@ -1395,6 +1408,30 @@ out:
 }
 #endif
 
+krb5_error_code KRB5_CALLCONV
+krb5_get_credentials_for_proxy(krb5_context context,
+                               krb5_flags options,
+                               krb5_ccache ccache,
+                               krb5_creds *in_creds,
+                               krb5_ticket *evidence_tkt,
+                               krb5_creds **out_creds);
+
+krb5_error_code KRB5_CALLCONV
+krb5_get_credentials_for_user(krb5_context context, krb5_flags options,
+                              krb5_ccache ccache, krb5_creds *in_creds,
+                              krb5_data *subject_cert,
+                              krb5_creds **out_creds);
+
+krb5_error_code encode_krb5_ticket(const krb5_ticket *rep, krb5_data **code_out);
+
+krb5_error_code KRB5_CALLCONV krb5_decrypt_tkt_part(krb5_context,
+                                                    const krb5_keyblock *,
+                                                    krb5_ticket * );
+
+
+
+
+
 static SECURITY_STATUS SEC_ENTRY kerberos_AcceptSecurityContext(
     PCredHandle phCredential, PCtxtHandle phContext, PSecBufferDesc pInput,
     WINPR_ATTR_UNUSED ULONG fContextReq, WINPR_ATTR_UNUSED ULONG TargetDataRep,
@@ -1479,8 +1516,10 @@ static SECURITY_STATUS SEC_ENTRY kerberos_AcceptSecurityContext(
 	}
 	else if (context->state == KERBEROS_STATE_AP_REQ && tok_id == TOK_ID_AP_REQ)
 	{
+	    krb5_ticket *ticket = NULL;
+
 		if (krb_log_exec(krb5_rd_req, credentials->ctx, &context->auth_ctx, &input_token, NULL,
-		                 credentials->keytab, &ap_flags, NULL))
+		                 credentials->keytab, &ap_flags, &ticket))
 			goto cleanup;
 
 		if (krb_log_exec(krb5_auth_con_setflags, credentials->ctx, context->auth_ctx,
@@ -1529,6 +1568,87 @@ static SECURITY_STATUS SEC_ENTRY kerberos_AcceptSecurityContext(
 		if (krb_log_exec(krb5glue_update_keyset, credentials->ctx, context->auth_ctx, TRUE,
 		                 &context->keyset))
 			goto cleanup;
+
+
+		/*if (!(ticket->enc_part2->flags & TKT_FLG_FORWARDABLE))
+        {
+            WLog_ERR(TAG, "Ticket from user is not forwardable. Cannot perform S4U2Proxy.");
+            goto cleanup;
+        }*/
+
+
+        int rv;
+        krb5_creds mcred = { 0 };
+        krb5_creds *new_cred = NULL;
+
+        krb5_ccache sessionCache;
+        rv = krb5_cc_resolve(credentials->ctx, "FILE:/tmp/cc_session", &sessionCache);
+        if (rv)
+            goto cleanup;
+
+        krb5_principal user_princ;
+        krb5_principal target_princ;
+        krb5_principal self_princ;
+
+        if ((rv = krb5_parse_name(credentials->ctx, "Administrateur@HARDENING2.COM", &user_princ)) ||
+            (rv = krb5_parse_name(credentials->ctx, "TERMSRV/dc.hardening2.com@HARDENING2.COM", &target_princ)) ||
+            (rv = krb5_parse_name(credentials->ctx, "TERMSRV/djinn65@HARDENING2.COM", &self_princ)))
+            goto cleanup;
+
+        mcred.client = user_princ;
+        mcred.server = self_princ;
+        mcred.ticket_flags = TKT_FLG_FORWARDABLE;
+
+        int extraFlags = /*KRB5_GC_USER_USER*/0;
+        WLog_DBG(TAG, "krb5_get_credentials_for_user");
+        rv = krb5_get_credentials_for_user(credentials->ctx, KRB5_GC_NO_STORE | KRB5_GC_CANONICALIZE | KRB5_GC_FORWARDABLE | extraFlags, sessionCache,
+                                                &mcred, NULL, &new_cred);
+        if (rv)
+            goto cleanup;
+
+        krb5_ticket* decoded_ticket = NULL;
+        rv = krb5_decode_ticket(&new_cred->ticket, &decoded_ticket);
+        if (rv)
+           goto cleanup;
+
+        krb5_keytab_entry kt_entry;
+        memset(&kt_entry, 0, sizeof(kt_entry));
+        rv = krb5_kt_get_entry(credentials->ctx, credentials->keytab, decoded_ticket->server, 0, 0, &kt_entry);
+        if (rv)
+            goto cleanup;
+
+        rv = krb5_decrypt_tkt_part(credentials->ctx, &kt_entry.key, decoded_ticket);
+        krb5_kt_free_entry(credentials->ctx, &kt_entry);
+        if (rv)
+            goto cleanup;
+
+        memset(&mcred, 0, sizeof(mcred));
+        mcred.client = user_princ;
+        mcred.server = target_princ;
+
+        rv = krb5_get_credentials_for_proxy(credentials->ctx,
+                /*KRB5_GC_NO_STORE | KRB5_GC_CANONICALIZE |*/ KRB5_GC_CONSTRAINED_DELEGATION | KRB5_GC_FORWARDABLE | extraFlags, sessionCache, &mcred,
+                decoded_ticket, &new_cred);
+        if (rv)
+            goto cleanup;
+
+        krb5_ccache userCache;
+        rv = krb5_cc_resolve(credentials->ctx, "FILE:/tmp/cc_user", &userCache);
+        if (rv)
+            goto cleanup;
+
+        rv = krb5_cc_initialize(credentials->ctx, userCache, user_princ);
+        if (rv)
+            goto cleanup;
+
+        rv = krb5_cc_store_cred(credentials->ctx, userCache, new_cred);
+        if (rv)
+            goto cleanup;
+
+        rv = krb5_cc_close(credentials->ctx, userCache);
+        if (rv)
+            goto cleanup;
+
 
 		context->state = KERBEROS_STATE_FINAL;
 	}
