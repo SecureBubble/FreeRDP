@@ -145,6 +145,88 @@ extern "C"
 	FREERDP_API WINPR_JSON* freerdp_utils_aad_get_wellknown(wLog* log, const char* base,
 	                                                        const char* tenantid);
 
+	typedef struct FreeRDP_Aad_callbacks FreeRDP_Aad_callbacks;
+
+	/** @brief various callbacks used during the AAD workflow
+	 * @since 3.18.0
+	 */
+	struct FreeRDP_Aad_callbacks
+	{
+		/**
+		 *
+		 * @param context
+		 * @return
+		 */
+		BOOL (*start)(rdpContext* context);
+
+		/** handles the receiving of a server nonce (client impl)
+		 *
+		 * @param context associated rdpContext
+		 * @param s the serverNone
+		 * @return if the treatment was successful
+		 */
+		BOOL (*recvServerNonce)(rdpContext* context, wStream* s);
+
+		/** forges a ServerNonce message (server impl)
+		 *
+		 * @param context associated rdpContext
+		 * @return if the treatment was successful
+		 */
+		BOOL (*sendServerNonce)(rdpContext* context);
+
+		/** handles the receiving of an auth request (server impl)
+		 *
+		 * @param context associated rdpContext
+		 * @param s the auth request message
+		 * @return if the treatment was successful
+		 */
+		BOOL (*recvAuthRequest)(rdpContext* context, wStream* s);
+
+		/** sends an AuthRequest (client impl)
+		 *
+		 * @param context associated rdpContext
+		 * @param ts_nonce the nonce
+		 * @return if the treatment was successful
+		 */
+		BOOL (*sendAuthRequest)(rdpContext* context, const char* ts_nonce);
+
+		/** handles the receiving of an auth result (client impl)
+		 *
+		 * @param context associated rdpContext
+		 * @param s the auth result message
+		 * @return if the treatment was successful
+		 */
+		BOOL (*recvAuthResponse)(rdpContext* context, wStream* s);
+
+		/** sends an Auth response
+		 *
+		 * @param context associated rdpContext
+		 * @return if the treatment was successful
+		 */
+		BOOL (*sendAuthResponse)(rdpContext* context);
+	};
+
+	/**
+	 * install some AAD callbacks on the context
+	 *
+	 * @param context The rdpContext to install the AAD callbacks on
+	 * @param cb the callbacks
+	 *
+	 *  @since version 3.18.0
+	 */
+	FREERDP_API void freerdp_utils_aad_set_callbacks(rdpContext* context,
+	                                                 const FreeRDP_Aad_callbacks* cb);
+
+	/**
+	 * retrieves the installed AAD callbacks
+	 *
+	 * @param context The rdpContext to query AAD callbacks for
+	 * @return the AAD callbacks
+	 *
+	 *  @since version 3.18.0
+	 */
+	FREERDP_API FreeRDP_Aad_callbacks freerdp_utils_aad_get_callbacks(rdpContext* context);
+
 #ifdef __cplusplus
 }
 #endif

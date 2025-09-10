@@ -1668,6 +1668,17 @@ BOOL nego_send_negotiation_response(rdpNego* nego)
 				                                 ENCRYPTION_LEVEL_NONE))
 					return FALSE;
 				break;
+			case PROTOCOL_RDSAAD:
+				if (!freerdp_settings_set_bool(settings, FreeRDP_TlsSecurity, FALSE) ||
+				    !freerdp_settings_set_bool(settings, FreeRDP_RdstlsSecurity, FALSE) ||
+				    !freerdp_settings_set_bool(settings, FreeRDP_NlaSecurity, FALSE) ||
+				    !freerdp_settings_set_bool(settings, FreeRDP_AadSecurity, TRUE) ||
+				    !freerdp_settings_set_bool(settings, FreeRDP_RdpSecurity, FALSE) ||
+				    !freerdp_settings_set_bool(settings, FreeRDP_UseRdpSecurityLayer, FALSE) ||
+				    !freerdp_settings_set_uint32(settings, FreeRDP_EncryptionLevel,
+				                                 ENCRYPTION_LEVEL_NONE))
+					return FALSE;
+				break;
 			default:
 				break;
 		}

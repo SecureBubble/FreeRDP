@@ -22,6 +22,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#define FREERDP_SETTINGS_INTERNAL_USE
+#include <freerdp/settings_types_private.h>
 #include <freerdp/crypto/crypto.h>
 #include <freerdp/crypto/privatekey.h>
 #include "../crypto/privatekey.h"
@@ -44,11 +46,27 @@ struct rdp_aad
 	char* access_token;
 	rdpPrivateKey* key;
 	char* kid;
-	char* nonce;
+	char* aadNonce;
 	char* hostname;
 	char* scope;
 	wLog* log;
+	BOOL isServer;
+	char* serverNonce;
+	FreeRDP_Aad_callbacks callbacks;
 };
+
+void freerdp_utils_aad_set_callbacks(rdpContext* context, const FreeRDP_Aad_callbacks* cb)
+{
+	context->rdp->aad->callbacks = *cb;
+}
+
+FreeRDP_Aad_callbacks freerdp_utils_aad_get_callbacks(rdpContext* context)
+{
+	return context->rdp->aad->callbacks;
+}
+#ifndef WITH_AAD
+#define WITH_AAD
+#endif
 
 #ifdef WITH_AAD
 
@@ -249,7 +267,7 @@ static BOOL aad_get_nonce(rdpAad* aad)
 		goto fail;
 	}
 
-	if (!json_get_string_alloc(aad->log, json, "Nonce", &aad->nonce))
+	if (!json_get_string_alloc(aad->log, json, "Nonce", &aad->aadNonce))
 		goto fail;
 
 	ret = TRUE;
@@ -260,31 +278,31 @@ fail:
 	return ret;
 }
 
-int aad_client_begin(rdpAad* aad)
+static BOOL aad_client_start_cb(rdpContext* rdpcontext)
 {
 	size_t size = 0;
 
-	WINPR_ASSERT(aad);
-	WINPR_ASSERT(aad->rdpcontext);
-
+	WINPR_ASSERT(rdpcontext);
+	rdpAad* aad = rdpcontext->rdp->aad;
 	rdpSettings* settings = aad->rdpcontext->settings;
 	WINPR_ASSERT(settings);
 
 	/* Get the host part of the hostname */
 	const char* hostname = freerdp_settings_get_string(settings, FreeRDP_AadServerHostname);
 	if (!hostname)
-		hostname = freerdp_settings_get_server_name(settings);
+		// hostname = freerdp_settings_get_server_name(settings);
+		hostname = _strdup("play-us-1");
 	if (!hostname)
 	{
 		WLog_Print(aad->log, WLOG_ERROR, "hostname == NULL");
-		return -1;
+		return FALSE;
 	}
 
 	aad->hostname = _strdup(hostname);
 	if (!aad->hostname)
 	{
 		WLog_Print(aad->log, WLOG_ERROR, "_strdup(hostname) == NULL");
-		return -1;
+		return FALSE;
 	}
 
 	char* p = strchr(aad->hostname, '.');
@@ -295,38 +313,83 @@ int aad_client_begin(rdpAad* aad)
 	                   "ms-device-service%%3A%%2F%%2Ftermsrv.wvd.microsoft.com%%2Fname%%2F%s%%"
 	                   "2Fuser_impersonation",
 	                   aad->hostname) <= 0)
-		return -1;
+		return FALSE;
 
 	if (!generate_pop_key(aad))
-		return -1;
+		return FALSE;
 
 	/* Obtain an oauth authorization code */
 	pGetCommonAccessToken GetCommonAccessToken = freerdp_get_common_access_token(aad->rdpcontext);
 	if (!GetCommonAccessToken)
 	{
 		WLog_Print(aad->log, WLOG_ERROR, "GetCommonAccessToken == NULL");
-		return -1;
+		return FALSE;
 	}
 
 	if (!aad_fetch_wellknown(aad->log, aad->rdpcontext))
-		return -1;
+		return FALSE;
 
 	const BOOL arc = GetCommonAccessToken(aad->rdpcontext, ACCESS_TOKEN_TYPE_AAD,
 	                                      &aad->access_token, 2, aad->scope, aad->kid);
 	if (!arc)
 	{
 		WLog_Print(aad->log, WLOG_ERROR, "Unable to obtain access token");
-		return -1;
+		return FALSE;
 	}
 
 	/* Send the nonce request message */
 	if (!aad_get_nonce(aad))
 	{
 		WLog_Print(aad->log, WLOG_ERROR, "Unable to obtain nonce");
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+int aad_client_begin(rdpAad* aad)
+{
+	WINPR_ASSERT(aad);
+	WINPR_ASSERT(aad->rdpcontext);
+
+	if (aad->callbacks.start(aad->rdpcontext))
+	{
+		aad->state = AAD_STATE_WAIT_SERVER_NONCE;
+		return 1;
+	}
+
+	return -1;
+}
+
+static BOOL aad_server_start_cb(rdpContext* rdpcontext)
+{
+	size_t size = 0;
+
+	WINPR_ASSERT(rdpcontext);
+	rdpAad* aad = rdpcontext->rdp->aad;
+	aad->serverNonce = NULL;
+
+	return TRUE;
+}
+
+int aad_server_begin(rdpAad* aad)
+{
+	WINPR_ASSERT(aad);
+	WINPR_ASSERT(aad->rdpcontext);
+
+	if (!aad->callbacks.start(aad->rdpcontext))
+	{
+		WLog_Print(aad->log, WLOG_ERROR, "error during callbacks.start");
 		return -1;
 	}
 
-	return 1;
+	WINPR_ASSERT(aad->callbacks.sendServerNonce);
+	if (aad->callbacks.sendServerNonce(aad->rdpcontext))
+	{
+		aad->state = AAD_STATE_WAIT_AUTH_REQUEST;
+		return 1;
+	}
+	return -1;
 }
 
 static char* aad_create_jws_header(rdpAad* aad)
@@ -370,7 +433,7 @@ static char* aad_create_jws_payload(rdpAad* aad, const char* ts_nonce)
 	                   "\"cnf\":{\"jwk\":{\"kty\":\"RSA\",\"e\":\"%s\",\"n\":\"%s\"}},"
 	                   "\"client_claims\":\"{\\\"aad_nonce\\\":\\\"%s\\\"}\""
 	                   "}",
-	                   ts, aad->access_token, aad->hostname, ts_nonce, e, n, aad->nonce);
+	                   ts, aad->access_token, aad->hostname, ts_nonce, e, n, aad->aadNonce);
 	free(e);
 	free(n);
 
@@ -466,12 +529,15 @@ fail:
 	return jws_signature;
 }
 
-static int aad_send_auth_request(rdpAad* aad, const char* ts_nonce)
+static BOOL aad_send_auth_request(rdpContext* rdpcontext, const char* ts_nonce)
 {
-	int ret = -1;
+	BOOL ret = FALSE;
 	char* jws_header = NULL;
 	char* jws_payload = NULL;
 	char* jws_signature = NULL;
+
+	WINPR_ASSERT(rdpcontext);
+	rdpAad* aad = rdpcontext->rdp->aad;
 
 	WINPR_ASSERT(aad);
 	WINPR_ASSERT(ts_nonce);
@@ -512,8 +578,8 @@ static int aad_send_auth_request(rdpAad* aad, const char* ts_nonce)
 	}
 	else
 	{
-		ret = 1;
-		aad->state = AAD_STATE_AUTH;
+		ret = TRUE;
+		aad->state = AAD_STATE_WAIT_AUTH_RESULT;
 	}
 fail:
 	Stream_Free(s, TRUE);
@@ -524,7 +590,7 @@ fail:
 	return ret;
 }
 
-static int aad_parse_state_initial(rdpAad* aad, wStream* s)
+static BOOL aad_parse_server_nonce(rdpContext* rdpcontext, wStream* s)
 {
 	const char* jstr = Stream_PointerAs(s, char);
 	const size_t jlen = Stream_GetRemainingLength(s);
@@ -532,6 +598,8 @@ static int aad_parse_state_initial(rdpAad* aad, wStream* s)
 	int ret = -1;
 	WINPR_JSON* json = NULL;
 
+	WINPR_ASSERT(rdpcontext);
+	rdpAad* aad = rdpcontext->rdp->aad;
 	if (!Stream_SafeSeek(s, jlen))
 		goto fail;
 
@@ -546,13 +614,13 @@ static int aad_parse_state_initial(rdpAad* aad, wStream* s)
 	if (!json_get_const_string(aad->log, json, "ts_nonce", &ts_nonce))
 		goto fail;
 
-	ret = aad_send_auth_request(aad, ts_nonce);
+	ret = aad->callbacks.sendAuthRequest(rdpcontext, ts_nonce);
 fail:
 	WINPR_JSON_Delete(json);
 	return ret;
 }
 
-static int aad_parse_state_auth(rdpAad* aad, wStream* s)
+static BOOL aad_parse_auth_result(rdpContext* rdpcontext, wStream* s)
 {
 	int rc = -1;
 	double result = 0;
@@ -561,6 +629,7 @@ static int aad_parse_state_auth(rdpAad* aad, wStream* s)
 	const char* jstr = Stream_PointerAs(s, char);
 	const size_t jlength = Stream_GetRemainingLength(s);
 
+	rdpAad* aad = rdpcontext->rdp->aad;
 	if (!Stream_SafeSeek(s, jlength))
 		goto fail;
 
@@ -587,6 +656,7 @@ static int aad_parse_state_auth(rdpAad* aad, wStream* s)
 fail:
 	WINPR_JSON_Delete(json);
 	return rc;
+	return 1;
 }
 
 int aad_recv(rdpAad* aad, wStream* s)
@@ -594,12 +664,15 @@ int aad_recv(rdpAad* aad, wStream* s)
 	WINPR_ASSERT(aad);
 	WINPR_ASSERT(s);
 
+	FreeRDP_Aad_callbacks* callbacks = &aad->callbacks;
 	switch (aad->state)
 	{
-		case AAD_STATE_INITIAL:
-			return aad_parse_state_initial(aad, s);
-		case AAD_STATE_AUTH:
-			return aad_parse_state_auth(aad, s);
+		case AAD_STATE_WAIT_SERVER_NONCE:
+			return callbacks->recvServerNonce(aad->rdpcontext, s);
+		case AAD_STATE_WAIT_AUTH_REQUEST:
+			return callbacks->recvAuthRequest(aad->rdpcontext, s);
+		case AAD_STATE_WAIT_AUTH_RESULT:
+			return callbacks->recvAuthResponse(aad->rdpcontext, s);
 		case AAD_STATE_FINAL:
 		default:
 			WLog_Print(aad->log, WLOG_ERROR, "Invalid AAD_STATE %u", aad->state);
@@ -795,6 +868,28 @@ static BOOL ensure_wellknown(WINPR_ATTR_UNUSED rdpContext* context)
 
 #endif
 
+/** @brief default set of callbacks for AAD client side */
+static FreeRDP_Aad_callbacks clientCallbacks = {
+	aad_client_start_cb,
+	aad_parse_server_nonce, /*recvServerNonce */
+	NULL,                   /* sendServerNonce */
+	NULL,                   /* recvAuthRequest */
+	aad_send_auth_request,  /* sendAuthRequest */
+	aad_parse_auth_result,  /* recvAuthResponse */
+	NULL,                   /* sendAuthResponse */
+};
+
+/** @brief default set of callbacks for AAD server side */
+static FreeRDP_Aad_callbacks serverCallbacks = {
+	aad_server_start_cb,
+	NULL, /* recvServerNonce */
+	NULL, /* TODO: sendServerNonce */
+	NULL, /* recvAuthRequest */
+	NULL, /* sendAuthRequest */
+	NULL, /* recvAuthResponse */
+	NULL, /* TODO: sendAuthResponse */
+};
+
 rdpAad* aad_new(rdpContext* context, rdpTransport* transport)
 {
 	WINPR_ASSERT(transport);
@@ -811,6 +906,18 @@ rdpAad* aad_new(rdpContext* context, rdpTransport* transport)
 		goto fail;
 	aad->rdpcontext = context;
 	aad->transport = transport;
+	aad->state = AAD_STATE_INIT;
+
+	rdpSettings* settings = context->settings;
+	aad->isServer = settings->ServerMode;
+	if (aad->isServer)
+	{
+		aad->callbacks = serverCallbacks;
+	}
+	else
+	{
+		aad->callbacks = clientCallbacks;
+	}
 
 	return aad;
 fail:
@@ -828,7 +935,7 @@ void aad_free(rdpAad* aad)
 
 	free(aad->hostname);
 	free(aad->scope);
-	free(aad->nonce);
+	free(aad->aadNonce);
 	free(aad->access_token);
 	free(aad->kid);
 	freerdp_key_free(aad->key);
