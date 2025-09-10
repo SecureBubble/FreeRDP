@@ -732,6 +732,19 @@ fail:
 	return rc;
 }
 
+BOOL transport_accept_rdsaad(rdpTransport* transport)
+{
+	WINPR_ASSERT(transport);
+
+	if (!IFCALLRESULT(FALSE, transport->io.TLSAccept, transport))
+		return FALSE;
+
+	rdpContext* context = transport_get_context(transport);
+
+	transport_set_aad_mode(transport, TRUE);
+	return aad_server_begin(context->rdp->aad) == 1;
+}
+
 #define WLog_ERR_BIO(transport, biofunc, bio) \
 	transport_bio_error_log(transport, biofunc, bio, __FILE__, __func__, __LINE__)
 

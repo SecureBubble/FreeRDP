@@ -1334,9 +1334,9 @@ static const char* nego_rdp_neg_rsp_flags_str(UINT32 flags)
 		winpr_str_append("RESTRICTED_ADMIN_MODE_SUPPORTED", buffer, sizeof(buffer), "|");
 	if (flags & REDIRECTED_AUTHENTICATION_MODE_SUPPORTED)
 		winpr_str_append("REDIRECTED_AUTHENTICATION_MODE_SUPPORTED", buffer, sizeof(buffer), "|");
-	if ((flags & (uint32_t)~(EXTENDED_CLIENT_DATA_SUPPORTED | DYNVC_GFX_PROTOCOL_SUPPORTED |
-	                         RDP_NEGRSP_RESERVED | RESTRICTED_ADMIN_MODE_SUPPORTED |
-	                         REDIRECTED_AUTHENTICATION_MODE_SUPPORTED)))
+	if ((flags & (uint32_t) ~(EXTENDED_CLIENT_DATA_SUPPORTED | DYNVC_GFX_PROTOCOL_SUPPORTED |
+	                          RDP_NEGRSP_RESERVED | RESTRICTED_ADMIN_MODE_SUPPORTED |
+	                          REDIRECTED_AUTHENTICATION_MODE_SUPPORTED)))
 		winpr_str_append("UNKNOWN", buffer, sizeof(buffer), "|");
 
 	return buffer;
@@ -1623,6 +1623,17 @@ BOOL nego_send_negotiation_response(rdpNego* nego)
 					return FALSE;
 
 				if (!freerdp_settings_set_uint32(settings, FreeRDP_EncryptionLevel,
+				                                 ENCRYPTION_LEVEL_NONE))
+					return FALSE;
+				break;
+			case PROTOCOL_RDSAAD:
+				if (!freerdp_settings_set_bool(settings, FreeRDP_TlsSecurity, FALSE) ||
+				    !freerdp_settings_set_bool(settings, FreeRDP_RdstlsSecurity, FALSE) ||
+				    !freerdp_settings_set_bool(settings, FreeRDP_NlaSecurity, FALSE) ||
+				    !freerdp_settings_set_bool(settings, FreeRDP_AadSecurity, TRUE) ||
+				    !freerdp_settings_set_bool(settings, FreeRDP_RdpSecurity, FALSE) ||
+				    !freerdp_settings_set_bool(settings, FreeRDP_UseRdpSecurityLayer, FALSE) ||
+				    !freerdp_settings_set_uint32(settings, FreeRDP_EncryptionLevel,
 				                                 ENCRYPTION_LEVEL_NONE))
 					return FALSE;
 				break;

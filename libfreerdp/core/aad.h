@@ -22,10 +22,13 @@
 
 typedef struct rdp_aad rdpAad;
 
+/** @brief state of the AAD state machine */
 typedef enum
 {
-	AAD_STATE_INITIAL,
-	AAD_STATE_AUTH,
+	AAD_STATE_INIT,
+	AAD_STATE_WAIT_SERVER_NONCE,
+	AAD_STATE_WAIT_AUTH_REQUEST,
+	AAD_STATE_WAIT_AUTH_RESULT,
 	AAD_STATE_FINAL
 } AAD_STATE;
 
@@ -35,6 +38,7 @@ typedef enum
 FREERDP_LOCAL BOOL aad_is_supported(void);
 
 FREERDP_LOCAL int aad_client_begin(rdpAad* aad);
+FREERDP_LOCAL int aad_server_begin(rdpAad* aad);
 FREERDP_LOCAL int aad_recv(rdpAad* aad, wStream* s);
 
 FREERDP_LOCAL AAD_STATE aad_get_state(rdpAad* aad);

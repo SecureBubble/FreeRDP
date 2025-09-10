@@ -1452,17 +1452,23 @@ BOOL rdp_server_accept_nego(rdpRdp* rdp, wStream* s)
 		return FALSE;
 
 	RequestedProtocols = nego_get_requested_protocols(nego);
-	WLog_DBG(TAG, "Client Security: RDSTLS:%d NLA:%d TLS:%d RDP:%d",
+	WLog_DBG(TAG, "Client Security: RDSAAD:%d RDSTLS:%d NLA:%d TLS:%d RDP:%d",
+	         (RequestedProtocols & PROTOCOL_RDSAAD) ? 1 : 0,
 	         (RequestedProtocols & PROTOCOL_RDSTLS) ? 1 : 0,
 	         (RequestedProtocols & PROTOCOL_HYBRID) ? 1 : 0,
 	         (RequestedProtocols & PROTOCOL_SSL) ? 1 : 0,
 	         (RequestedProtocols == PROTOCOL_RDP) ? 1 : 0);
 	WLog_DBG(TAG,
-	         "Server Security: RDSTLS:%" PRId32 " NLA:%" PRId32 " TLS:%" PRId32 " RDP:%" PRId32 "",
-	         settings->RdstlsSecurity, settings->NlaSecurity, settings->TlsSecurity,
-	         settings->RdpSecurity);
+	         "Server Security: RDSAAD:%" PRId32 " RDSTLS:%" PRId32 " NLA:%" PRId32 " TLS:%" PRId32
+	         " RDP:%" PRId32 "",
+	         settings->AadSecurity, settings->RdstlsSecurity, settings->NlaSecurity,
+	         settings->TlsSecurity, settings->RdpSecurity);
 
-	if ((settings->RdstlsSecurity) && (RequestedProtocols & PROTOCOL_RDSTLS))
+	if ((settings->AadSecurity) && (RequestedProtocols & PROTOCOL_RDSAAD))
+	{
+		SelectedProtocol = PROTOCOL_RDSAAD;
+	}
+	else if ((settings->RdstlsSecurity) && (RequestedProtocols & PROTOCOL_RDSTLS))
 	{
 		SelectedProtocol = PROTOCOL_RDSTLS;
 	}
@@ -1510,7 +1516,8 @@ BOOL rdp_server_accept_nego(rdpRdp* rdp, wStream* s)
 
 	if (!(SelectedProtocol & PROTOCOL_FAILED_NEGO))
 	{
-		WLog_DBG(TAG, "Negotiated Security: RDSTLS:%d NLA:%d TLS:%d RDP:%d",
+		WLog_DBG(TAG, "Negotiated Security: RDSAAD:%d RDSTLS:%d NLA:%d TLS:%d RDP:%d",
+		         (SelectedProtocol & PROTOCOL_RDSAAD) ? 1 : 0,
 		         (SelectedProtocol & PROTOCOL_RDSTLS) ? 1 : 0,
 		         (SelectedProtocol & PROTOCOL_HYBRID) ? 1 : 0,
 		         (SelectedProtocol & PROTOCOL_SSL) ? 1 : 0,
@@ -1530,6 +1537,8 @@ BOOL rdp_server_accept_nego(rdpRdp* rdp, wStream* s)
 	    SelectedProtocol != PROTOCOL_RDP)
 		/* When behind a Hyper-V proxy, security != RDP is handled by the host. */
 		status = TRUE;
+	else if (SelectedProtocol & PROTOCOL_RDSAAD)
+		status = transport_accept_rdsaad(rdp->transport);
 	else if (SelectedProtocol & PROTOCOL_RDSTLS)
 		status = transport_accept_rdstls(rdp->transport);
 	else if (SelectedProtocol & PROTOCOL_HYBRID)
