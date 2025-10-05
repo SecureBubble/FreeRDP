@@ -259,6 +259,34 @@ fail:
 	return ret;
 }
 
+static int is_hex(char c)
+{
+	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+}
+
+BOOL is_uuid(const char* s)
+{
+	if (!s)
+		return FALSE;
+	if (strlen(s) != 36)
+		return FALSE;
+
+	if (s[8] != '-' || s[13] != '-' || s[18] != '-' || s[23] != '-')
+	{
+		return FALSE;
+	}
+
+	for (int i = 0; i < 36; i++)
+	{
+		if (i == 8 || i == 13 || i == 18 || i == 23)
+			continue;
+		if (!is_hex(s[i]))
+			return FALSE;
+	}
+
+	return TRUE;
+}
+
 int aad_client_begin(rdpAad* aad)
 {
 	size_t size = 0;
@@ -286,16 +314,35 @@ int aad_client_begin(rdpAad* aad)
 		return -1;
 	}
 
-	char* p = strchr(aad->hostname, '.');
-	if (p)
-		*p = '\0';
+	if (is_uuid(hostname))
+	{
+		WLog_Print(aad->log, WLOG_INFO,
+		           "hostname contains device ID: %s",
+		           aad->hostname);
+		size_t size = 0;
+		if (winpr_asprintf(
+		        &aad->scope, &size,
+		        "ms-device-service%%3A%%2F%%2F270efc09-cd0d-444b-a71f-39af4910ec45%%2Fid%%2F%s%%2Fuser_impersonation", aad->hostname) <= 0)
+		{
+			return -1;
+		}
+	}
+	else
+	{
+		WLog_Print(aad->log, WLOG_INFO, "hostname does NOT contain device ID substring: %s",
+		           aad->hostname);
+		char* p = strchr(aad->hostname, '.');
+		if (p)
+			*p = '\0';
 
-	if (winpr_asprintf(&aad->scope, &size,
-	                   "ms-device-service%%3A%%2F%%2Ftermsrv.wvd.microsoft.com%%2Fname%%2F%s%%"
-	                   "2Fuser_impersonation",
-	                   aad->hostname) <= 0)
-		return -1;
+		if (winpr_asprintf(&aad->scope, &size,
+		                   "ms-device-service%%3A%%2F%%2Ftermsrv.wvd.microsoft.com%%2Fname%%2F%s%%"
+		                   "2Fuser_impersonation",
+		                   aad->hostname) <= 0)
+			return -1;
+	}
 
+	WLog_Print(aad->log, WLOG_DEBUG, "Got scope='%s'", aad->scope);
 	if (!generate_pop_key(aad))
 		return -1;
 
@@ -348,6 +395,7 @@ static char* aad_create_jws_header(rdpAad* aad)
 static char* aad_create_jws_payload(rdpAad* aad, const char* ts_nonce)
 {
 	const time_t ts = time(NULL);
+	int length;
 
 	WINPR_ASSERT(aad);
 
@@ -359,17 +407,34 @@ static char* aad_create_jws_payload(rdpAad* aad, const char* ts_nonce)
 	/* Construct the base64url encoded JWS payload */
 	char* buffer = NULL;
 	size_t bufferlen = 0;
-	const int length =
-	    winpr_asprintf(&buffer, &bufferlen,
-	                   "{"
-	                   "\"ts\":\"%li\","
-	                   "\"at\":\"%s\","
-	                   "\"u\":\"ms-device-service://termsrv.wvd.microsoft.com/name/%s\","
-	                   "\"nonce\":\"%s\","
-	                   "\"cnf\":{\"jwk\":{\"kty\":\"RSA\",\"e\":\"%s\",\"n\":\"%s\"}},"
-	                   "\"client_claims\":\"{\\\"aad_nonce\\\":\\\"%s\\\"}\""
-	                   "}",
-	                   ts, aad->access_token, aad->hostname, ts_nonce, e, n, aad->nonce);
+
+	if (is_uuid(aad->hostname))
+	{
+		length = winpr_asprintf(&buffer, &bufferlen,
+		                        "{"
+		                        "\"ts\":%li,"
+		                        "\"at\":\"%s\","
+		                        "\"u\":\"ms-device-service://270efc09-cd0d-444b-a71f-39af4910ec45/id/%s\","
+		                        "\"nonce\":\"%s\","
+		                        "\"cnf\":{\"jwk\":{\"kty\":\"RSA\",\"e\":\"%s\",\"n\":\"%s\"}},"
+		                        "\"client_claims\":\"{\\\"aad_nonce\\\":\\\"%s\\\"}\""
+		                        "}",
+		                        ts, aad->access_token, aad->hostname, ts_nonce, e, n, aad->nonce);
+	}
+	else
+	{
+		length = winpr_asprintf(&buffer, &bufferlen,
+		                        "{"
+		                        "\"ts\":\"%li\","
+		                        "\"at\":\"%s\","
+		                        "\"u\":\"ms-device-service://termsrv.wvd.microsoft.com/name/%s\","
+		                        "\"nonce\":\"%s\","
+		                        "\"cnf\":{\"jwk\":{\"kty\":\"RSA\",\"e\":\"%s\",\"n\":\"%s\"}},"
+		                        "\"client_claims\":\"{\\\"aad_nonce\\\":\\\"%s\\\"}\""
+		                        "}",
+		                        ts, aad->access_token, aad->hostname, ts_nonce, e, n, aad->nonce);
+	}
+
 	free(e);
 	free(n);
 
