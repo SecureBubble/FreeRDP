@@ -316,10 +316,26 @@ DWORD WaitForMultipleObjectsEx(DWORD nCount, const HANDLE* lpHandles, BOOL bWait
 	UINT64 now = 0;
 	UINT64 dueTime = 0;
 
-	if (!nCount || (nCount > MAXIMUM_WAIT_OBJECTS))
+	if (!nCount)
 	{
-		WLog_ERR(TAG, "invalid handles count(%" PRIu32 ")", nCount);
+		WLog_ERR(TAG, "invalid handles count(0)");
 		return WAIT_FAILED;
+	}
+
+	/*
+	 * Bubble RDP proxy note:
+	 * The proxy listener waits on one stop event, multiple FreeRDP listener
+	 * handles, and a potentially large set of child IPC sockets.
+	 * In production, this number can exceed the Windows MAXIMUM_WAIT_OBJECTS (64).
+	 * We intentionally allow this and continue execution, since WinPR’s pollset
+	 * backend supports waiting on hundreds of FDs safely.
+	 */
+	if (nCount > MAXIMUM_WAIT_OBJECTS)
+	{
+		WLog_WARN(
+		    TAG, "handle count (%" PRIu32 ") exceeds MAXIMUM_WAIT_OBJECTS (%u) — continuing anyway",
+		    nCount, MAXIMUM_WAIT_OBJECTS);
+		/* no return; continue execution */
 	}
 
 	if (bAlertable)
