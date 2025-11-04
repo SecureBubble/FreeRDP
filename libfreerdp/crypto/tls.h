@@ -107,6 +107,8 @@ extern "C"
 	WINPR_ATTR_NODISCARD
 	FREERDP_LOCAL TlsHandshakeResult freerdp_tls_connect_ex(rdpTls* tls, BIO* underlying,
 	                                                        const SSL_METHOD* methods);
+	FREERDP_LOCAL TlsHandshakeResult freerdp_tls_connect_ex2(rdpTls* tls, BIO* underlying,
+			const SSL_METHOD* methods, DWORD timeout);
 
 	WINPR_ATTR_NODISCARD
 	FREERDP_LOCAL BOOL freerdp_tls_accept(rdpTls* tls, BIO* underlying, rdpSettings* settings);
