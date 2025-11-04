@@ -32,6 +32,7 @@
 #include <winpr/string.h>
 #include <winpr/sspi.h>
 #include <winpr/ssl.h>
+#include <winpr/sysinfo.h>
 #include <winpr/json.h>
 
 #include <winpr/stream.h>
@@ -878,7 +879,55 @@ const SSL_METHOD* freerdp_tls_get_ssl_method(BOOL isDtls, BOOL isClient)
 #endif
 }
 
-TlsHandshakeResult freerdp_tls_connect_ex(rdpTls* tls, BIO* underlying, const SSL_METHOD* methods)
+static TlsHandshakeResult pollAndHandshake(rdpTls* tls, DWORD timeout)
+{
+	WINPR_ASSERT(tls);
+	UINT64 now = GetTickCount64();
+	UINT64 dueDate = (timeout == INFINITE) ? UINT64_MAX : (now + timeout);
+
+	for ( ; now < dueDate; now = GetTickCount64())
+	{
+		HANDLE events[] = { freerdp_abort_event(tls->context), NULL };
+		DWORD status = 0;
+		if (BIO_get_event(tls->bio, &events[1]) < 0)
+		{
+			WLog_ERR(TAG, "unable to retrieve BIO associated event");
+			return TLS_HANDSHAKE_ERROR;
+		}
+
+		if (!events[1])
+		{
+			WLog_ERR(TAG, "unable to retrieve BIO event");
+			return TLS_HANDSHAKE_ERROR;
+		}
+
+		DWORD waitDelay = (timeout == INFINITE) ? INFINITE : (dueDate - now);
+		status = WaitForMultipleObjectsEx(ARRAYSIZE(events), events, FALSE, waitDelay, TRUE);
+		switch (status)
+		{
+			case WAIT_OBJECT_0 + 1:
+				break;
+			case WAIT_OBJECT_0:
+				WLog_DBG(TAG, "Abort event set, cancel connect");
+				return TLS_HANDSHAKE_ERROR;
+			case WAIT_TIMEOUT:
+			case WAIT_IO_COMPLETION:
+				continue;
+			default:
+				WLog_ERR(TAG, "error during WaitForSingleObject(): 0x%08" PRIX32 "", status);
+				return TLS_HANDSHAKE_ERROR;
+		}
+
+		TlsHandshakeResult result = freerdp_tls_handshake(tls);
+		if (result != TLS_HANDSHAKE_CONTINUE)
+			return result;
+	}
+
+	return TLS_HANDSHAKE_CONTINUE;
+}
+
+
+TlsHandshakeResult freerdp_tls_connect_ex2(rdpTls* tls, BIO* underlying, const SSL_METHOD* methods, DWORD timeout)
 {
 	WINPR_ASSERT(tls);
 
@@ -923,6 +972,11 @@ TlsHandshakeResult freerdp_tls_connect_ex(rdpTls* tls, BIO* underlying, const SS
 #endif
 
 	return freerdp_tls_handshake(tls);
+}
+
+TlsHandshakeResult freerdp_tls_connect_ex(rdpTls* tls, BIO* underlying, const SSL_METHOD* methods)
+{
+	return freerdp_tls_connect_ex2(tls, underlying, methods, INFINITE);
 }
 
 static int bio_err_print(const char* str, size_t len, void* u)
@@ -1000,56 +1054,6 @@ TlsHandshakeResult freerdp_tls_handshake(rdpTls* tls)
 	return ret;
 }
 
-static int pollAndHandshake(rdpTls* tls)
-{
-	WINPR_ASSERT(tls);
-
-	do
-	{
-		HANDLE events[] = { freerdp_abort_event(tls->context), NULL };
-		DWORD status = 0;
-		if (BIO_get_event(tls->bio, &events[1]) < 0)
-		{
-			WLog_ERR(TAG, "unable to retrieve BIO associated event");
-			return -1;
-		}
-
-		if (!events[1])
-		{
-			WLog_ERR(TAG, "unable to retrieve BIO event");
-			return -1;
-		}
-
-		status = WaitForMultipleObjectsEx(ARRAYSIZE(events), events, FALSE, INFINITE, TRUE);
-		switch (status)
-		{
-			case WAIT_OBJECT_0 + 1:
-				break;
-			case WAIT_OBJECT_0:
-				WLog_DBG(TAG, "Abort event set, cancel connect");
-				return -1;
-			case WAIT_TIMEOUT:
-			case WAIT_IO_COMPLETION:
-				continue;
-			default:
-				WLog_ERR(TAG, "error during WaitForSingleObject(): 0x%08" PRIX32 "", status);
-				return -1;
-		}
-
-		TlsHandshakeResult result = freerdp_tls_handshake(tls);
-		switch (result)
-		{
-			case TLS_HANDSHAKE_CONTINUE:
-				break;
-			case TLS_HANDSHAKE_SUCCESS:
-				return 1;
-			case TLS_HANDSHAKE_ERROR:
-			case TLS_HANDSHAKE_VERIFY_ERROR:
-			default:
-				return -1;
-		}
-	} while (TRUE);
-}
 
 int freerdp_tls_connect(rdpTls* tls, BIO* underlying)
 {
@@ -1070,7 +1074,21 @@ int freerdp_tls_connect(rdpTls* tls, BIO* underlying)
 			return -1;
 	}
 
-	return pollAndHandshake(tls);
+	switch(pollAndHandshake(tls, INFINITE))
+	{
+	case TLS_HANDSHAKE_SUCCESS:
+		return 1;
+	case TLS_HANDSHAKE_CONTINUE:
+		/* as we do a INFINITE wait we shall not exit of pollAndHandshake with
+		 * TLS_HANDSHAKE_CONTINUE, so return an error
+		 */
+		WLog_ERR(TAG, "TLS_HANDSHAKE_CONTINUE should not be returned, treating that as an error");
+		return -1;
+	case TLS_HANDSHAKE_ERROR:
+	case TLS_HANDSHAKE_VERIFY_ERROR:
+	default:
+		return -1;
+	}
 }
 
 #if defined(MICROSOFT_IOS_SNI_BUG) && !defined(OPENSSL_NO_TLSEXT) && \
@@ -1103,7 +1121,21 @@ BOOL freerdp_tls_accept(rdpTls* tls, BIO* underlying, rdpSettings* settings)
 			return FALSE;
 	}
 
-	return pollAndHandshake(tls) > 0;
+	switch(pollAndHandshake(tls, INFINITE))
+	{
+	case TLS_HANDSHAKE_SUCCESS:
+		return TRUE;
+	case TLS_HANDSHAKE_CONTINUE:
+		/* as we do a INFINITE wait we shall not exit of pollAndHandshake with
+		 * TLS_HANDSHAKE_CONTINUE, so return an error
+		 */
+		WLog_ERR(TAG, "TLS_HANDSHAKE_CONTINUE should not be returned, treating that as an error");
+		return FALSE;
+	case TLS_HANDSHAKE_ERROR:
+	case TLS_HANDSHAKE_VERIFY_ERROR:
+	default:
+		return FALSE;
+	}
 }
 
 TlsHandshakeResult freerdp_tls_accept_ex(rdpTls* tls, BIO* underlying, rdpSettings* settings,
