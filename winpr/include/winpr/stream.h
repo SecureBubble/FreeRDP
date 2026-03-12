@@ -1330,6 +1330,8 @@ extern "C"
 	WINPR_ATTR_NODISCARD
 	WINPR_API BOOL Stream_SetLength(wStream* _s, size_t _l);
 
+	WINPR_API void Stream_SetLengthUnchecked(wStream* _s, size_t _l);
+
 	WINPR_ATTR_NODISCARD static inline size_t Stream_Capacity(const wStream* _s)
 	{
 		WINPR_ASSERT(_s);
@@ -1361,6 +1363,8 @@ extern "C"
 
 	WINPR_ATTR_NODISCARD
 	WINPR_API BOOL Stream_SetPosition(wStream* _s, size_t _p);
+
+	WINPR_API void Stream_SetPositionUnchecked(wStream* _s, size_t _p);
 
 	WINPR_API void Stream_SealLength(wStream* _s);
 

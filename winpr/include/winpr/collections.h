@@ -282,10 +282,8 @@ extern "C"
 
 	typedef BOOL (*ArrayList_ForEachFkt)(void* data, size_t index, va_list ap);
 
-	WINPR_ATTR_NODISCARD
 	WINPR_API BOOL ArrayList_ForEach(wArrayList* arrayList, ArrayList_ForEachFkt fkt, ...);
 
-	WINPR_ATTR_NODISCARD
 	WINPR_API BOOL ArrayList_ForEachAP(wArrayList* arrayList, ArrayList_ForEachFkt fkt, va_list ap);
 
 	WINPR_API void ArrayList_Clear(wArrayList* arrayList);
@@ -743,7 +741,6 @@ extern "C"
 	WINPR_ATTR_NODISCARD
 	WINPR_API size_t HashTable_GetKeys(wHashTable* table, ULONG_PTR** ppKeys);
 
-	WINPR_ATTR_NODISCARD
 	WINPR_API BOOL HashTable_Foreach(wHashTable* table, HASH_TABLE_FOREACH_FN fn, VOID* arg);
 
 	WINPR_ATTR_NODISCARD

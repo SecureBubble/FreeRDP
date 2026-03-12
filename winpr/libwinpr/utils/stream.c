@@ -182,6 +182,12 @@ BOOL Stream_SetLength(wStream* _s, size_t _l)
 	return TRUE;
 }
 
+void Stream_SetLengthUnchecked(wStream* _s, size_t _l)
+{
+	WINPR_ASSERT(Stream_Capacity(_s) >= _l);
+	_s->length = _l;
+}
+
 BOOL Stream_SetPosition(wStream* _s, size_t _p)
 {
 	if ((_p) > Stream_Capacity(_s))
@@ -192,6 +198,13 @@ BOOL Stream_SetPosition(wStream* _s, size_t _p)
 	_s->pointer = _s->buffer + (_p);
 	return TRUE;
 }
+
+void Stream_SetPositionUnchecked(wStream* _s, size_t _p)
+{
+	WINPR_ASSERT(Stream_Capacity(_s) >= _p);
+	_s->pointer = _s->buffer + (_p);
+}
+
 
 void Stream_SealLength(wStream* _s)
 {
