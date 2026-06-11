@@ -1761,11 +1761,22 @@ static BOOL rdp_write_glyph_cache_capability_set(wLog* log, wStream* s, const rd
 	const size_t header = rdp_capability_set_start(log, s);
 	if (settings->GlyphSupportLevel > UINT16_MAX)
 		return FALSE;
-	/* glyphCache (40 bytes) */
+	/* glyphCache (40 bytes) + fragCache (4 bytes). A proxy that does not use the
+	 * glyph cache (GlyphSupportLevel=NONE) can have null GlyphCache/FragCache; the
+	 * cap is written unconditionally, and rdp_write_cache_definition only
+	 * WINPR_ASSERTs the pointer (a no-op under NDEBUG), so fall back to a zeroed
+	 * definition to avoid a NULL deref. */
+	GLYPH_CACHE_DEFINITION zeroCache = { 0 };
 	for (size_t x = 0; x < 10; x++)
-		rdp_write_cache_definition(s, &(settings->GlyphCache[x])); /* glyphCache0 (4 bytes) */
-	rdp_write_cache_definition(s, settings->FragCache);            /* fragCache (4 bytes) */
-	Stream_Write_UINT16(s, (UINT16)settings->GlyphSupportLevel);   /* glyphSupportLevel (2 bytes) */
+		rdp_write_cache_definition(s, settings->GlyphCache ? &settings->GlyphCache[x] : &zeroCache);
+	rdp_write_cache_definition(s, settings->FragCache ? settings->FragCache : &zeroCache);
+	/* The RDS HTML5 web client rejects glyphSupportLevel > GLYPH_SUPPORT_FULL(2)
+	 * ("supportLevel with value 3 must be <= 2"). A proxy may relay ENCODE(3) from
+	 * the backend, so clamp at the write to keep strict clients happy. */
+	UINT16 glyphLevel = (UINT16)settings->GlyphSupportLevel;
+	if (glyphLevel > GLYPH_SUPPORT_FULL)
+		glyphLevel = GLYPH_SUPPORT_FULL;
+	Stream_Write_UINT16(s, glyphLevel);                            /* glyphSupportLevel (2 bytes) */
 	Stream_Write_UINT16(s, 0);                                     /* pad2Octets (2 bytes) */
 	return rdp_capability_set_finish(s, header, CAPSET_TYPE_GLYPH_CACHE);
 }
@@ -2119,14 +2130,22 @@ static BOOL rdp_write_bitmap_cache_v2_capability_set(wLog* log, wStream* s,
 	const size_t header = rdp_capability_set_start(log, s);
 	UINT16 cacheFlags = ALLOW_CACHE_WAITING_LIST_FLAG;
 
+	/* A proxy/feature-disabled client can have BitmapCacheV2NumCells set but a NULL
+	 * BitmapCacheV2CellInfo array; this cap is written unconditionally and the cell
+	 * writes deref it (rdp_write_bitmap_cache_cell_info only WINPR_ASSERTs, a no-op
+	 * under NDEBUG). Fall back to a zeroed cell array to avoid a NULL deref. */
+	BITMAP_CACHE_V2_CELL_INFO zeroCells[5] = { 0 };
+	BITMAP_CACHE_V2_CELL_INFO* cells =
+	    settings->BitmapCacheV2CellInfo ? settings->BitmapCacheV2CellInfo : zeroCells;
+
 	if (freerdp_settings_get_bool(settings, FreeRDP_BitmapCachePersistEnabled))
 	{
 		cacheFlags |= PERSISTENT_KEYS_EXPECTED_FLAG;
-		settings->BitmapCacheV2CellInfo[0].persistent = 1;
-		settings->BitmapCacheV2CellInfo[1].persistent = 1;
-		settings->BitmapCacheV2CellInfo[2].persistent = 1;
-		settings->BitmapCacheV2CellInfo[3].persistent = 1;
-		settings->BitmapCacheV2CellInfo[4].persistent = 1;
+		cells[0].persistent = 1;
+		cells[1].persistent = 1;
+		cells[2].persistent = 1;
+		cells[3].persistent = 1;
+		cells[4].persistent = 1;
 	}
 
 	Stream_Write_UINT16(s, cacheFlags);                     /* cacheFlags (2 bytes) */
@@ -2134,17 +2153,12 @@ static BOOL rdp_write_bitmap_cache_v2_capability_set(wLog* log, wStream* s,
 	Stream_Write_UINT8(
 	    s, WINPR_ASSERTING_INT_CAST(uint8_t,
 	                                settings->BitmapCacheV2NumCells)); /* numCellCaches (1 byte) */
-	rdp_write_bitmap_cache_cell_info(
-	    s, &settings->BitmapCacheV2CellInfo[0]); /* bitmapCache0CellInfo (4 bytes) */
-	rdp_write_bitmap_cache_cell_info(
-	    s, &settings->BitmapCacheV2CellInfo[1]); /* bitmapCache1CellInfo (4 bytes) */
-	rdp_write_bitmap_cache_cell_info(
-	    s, &settings->BitmapCacheV2CellInfo[2]); /* bitmapCache2CellInfo (4 bytes) */
-	rdp_write_bitmap_cache_cell_info(
-	    s, &settings->BitmapCacheV2CellInfo[3]); /* bitmapCache3CellInfo (4 bytes) */
-	rdp_write_bitmap_cache_cell_info(
-	    s, &settings->BitmapCacheV2CellInfo[4]); /* bitmapCache4CellInfo (4 bytes) */
-	Stream_Zero(s, 12);                          /* pad3 (12 bytes) */
+	rdp_write_bitmap_cache_cell_info(s, &cells[0]); /* bitmapCache0CellInfo (4 bytes) */
+	rdp_write_bitmap_cache_cell_info(s, &cells[1]); /* bitmapCache1CellInfo (4 bytes) */
+	rdp_write_bitmap_cache_cell_info(s, &cells[2]); /* bitmapCache2CellInfo (4 bytes) */
+	rdp_write_bitmap_cache_cell_info(s, &cells[3]); /* bitmapCache3CellInfo (4 bytes) */
+	rdp_write_bitmap_cache_cell_info(s, &cells[4]); /* bitmapCache4CellInfo (4 bytes) */
+	Stream_Zero(s, 12);                             /* pad3 (12 bytes) */
 	return rdp_capability_set_finish(s, header, CAPSET_TYPE_BITMAP_CACHE_V2);
 }
 
@@ -2606,7 +2620,17 @@ static BOOL rdp_write_window_list_capability_set(wLog* log, wStream* s, const rd
 		return FALSE;
 
 	const size_t header = rdp_capability_set_start(log, s);
-	Stream_Write_UINT32(s, settings->RemoteWndSupportLevel); /* wndSupportLevel (4 bytes) */
+	/* MS-RDPERP wndSupportLevel valid values: NOT_SUPPORTED(0), SUPPORTED(1),
+	 * SUPPORTED_EX(2). A backend may relay 3; the RDS HTML5 web client rejects it
+	 * ("supportLevel with value 3 must be <= 2"). Clamp to SUPPORTED_EX(2). */
+	UINT32 wndLevel = settings->RemoteWndSupportLevel;
+	if (wndLevel > 2)
+	{
+		WLog_Print(log, WLOG_INFO, "wndSupportLevel %" PRIu32 " clamped to 2 (SUPPORTED_EX)",
+		           wndLevel);
+		wndLevel = 2;
+	}
+	Stream_Write_UINT32(s, wndLevel);                        /* wndSupportLevel (4 bytes) */
 	Stream_Write_UINT8(
 	    s, WINPR_ASSERTING_INT_CAST(uint8_t,
 	                                settings->RemoteAppNumIconCaches)); /* numIconCaches (1 byte) */

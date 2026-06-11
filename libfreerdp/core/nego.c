@@ -1205,22 +1205,26 @@ static BOOL nego_process_correlation_info(WINPR_ATTR_UNUSED rdpNego* nego, wStre
 	}
 
 	Stream_Read(s, correlationId, sizeof(correlationId));
+	/* [MS-RDPBCGR] reserves correlationId[0] in {0x00,0xF4} and forbids 0x0D in any
+	 * byte. The MS RDS HTML5 web client reuses its connection CorId (which can
+	 * contain these bytes) as the correlation id, so tolerate rather than drop the
+	 * connection - the field is informational. */
 	if ((correlationId[0] == 0x00) || (correlationId[0] == 0xF4))
 	{
-		WLog_Print(nego->log, WLOG_ERROR,
-		           "(RDP_NEG_CORRELATION_INFO::correlationId[0] has invalid value 0x%02" PRIx8,
+		WLog_Print(nego->log, WLOG_WARN,
+		           "(RDP_NEG_CORRELATION_INFO::correlationId[0] has reserved value 0x%02" PRIx8
+		           " - tolerating",
 		           correlationId[0]);
-		return FALSE;
 	}
 	for (size_t x = 0; x < ARRAYSIZE(correlationId); x++)
 	{
 		if (correlationId[x] == 0x0D)
 		{
-			WLog_Print(nego->log, WLOG_ERROR,
+			WLog_Print(nego->log, WLOG_WARN,
 			           "(RDP_NEG_CORRELATION_INFO::correlationId[%" PRIuz
-			           "] has invalid value 0x%02" PRIx8,
-			           x, correlationId[x]);
-			return FALSE;
+			           "] has reserved value 0x0D - tolerating",
+			           x);
+			break;
 		}
 	}
 	Stream_Seek(s, 16); /* skip reserved bytes */

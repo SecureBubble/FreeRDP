@@ -59,6 +59,7 @@
 
 #include "gateway/rdg.h"
 #include "gateway/wst.h"
+#include "gateway/wsts.h"
 #include "gateway/arm.h"
 
 #define TAG FREERDP_TAG("core.transport")
@@ -72,6 +73,7 @@ struct rdp_transport
 	rdpRdg* rdg;
 	rdpTsg* tsg;
 	rdpWst* wst;
+	rdpWsts* wsts; /* server-role gateway ingress (browser/RDS HTML5 web client) */
 	rdpTls* tls;
 	rdpContext* context;
 	rdpNla* nla;
@@ -209,6 +211,37 @@ BOOL transport_attach(rdpTransport* transport, int sockfd)
 	if (!transport)
 		return FALSE;
 	return IFCALLRESULT(FALSE, transport->io.TransportAttach, transport, sockfd);
+}
+
+/* Server-role gateway ingress: terminate the browser's wss + MS-TSGU tunnel on
+ * sockfd and expose the inner-RDP stream as frontBio, so the rest of the peer
+ * stack (transport_accept_tls, MCS, NLA, ...) runs unchanged over the tunnel.
+ * Symmetric to the client path that swaps in wst_get_front_bio (see below). */
+BOOL transport_accept_gateway(rdpTransport* transport, int sockfd)
+{
+	WINPR_ASSERT(transport);
+	rdpContext* context = transport_get_context(transport);
+
+	WINPR_ASSERT(!transport->wsts);
+	transport->wsts = wsts_new(context);
+	if (!transport->wsts)
+		return FALSE;
+
+	if (!wsts_accept(transport->wsts, sockfd, 0))
+	{
+		wsts_free(transport->wsts);
+		transport->wsts = nullptr;
+		return FALSE;
+	}
+
+	EnterCriticalSection(&(transport->ReadLock));
+	EnterCriticalSection(&(transport->WriteLock));
+	transport->frontBio = wsts_get_front_bio_and_take_ownership(transport->wsts);
+	transport->layer = TRANSPORT_LAYER_TSG;
+	LeaveCriticalSection(&(transport->WriteLock));
+	LeaveCriticalSection(&(transport->ReadLock));
+
+	return transport->frontBio != nullptr;
 }
 
 static BOOL transport_default_attach(rdpTransport* transport, int sockfd)
@@ -1687,6 +1720,12 @@ static BOOL transport_default_disconnect(rdpTransport* transport)
 	{
 		wst_free(transport->wst);
 		transport->wst = nullptr;
+	}
+
+	if (transport->wsts)
+	{
+		wsts_free(transport->wsts);
+		transport->wsts = nullptr;
 	}
 
 	transport->frontBio = nullptr;
