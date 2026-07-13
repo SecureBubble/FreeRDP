@@ -217,6 +217,15 @@ BOOL transport_attach(rdpTransport* transport, int sockfd)
  * sockfd and expose the inner-RDP stream as frontBio, so the rest of the peer
  * stack (transport_accept_tls, MCS, NLA, ...) runs unchanged over the tunnel.
  * Symmetric to the client path that swaps in wst_get_front_bio (see below). */
+BOOL transport_front_security_external(rdpTransport* transport)
+{
+	WINPR_ASSERT(transport);
+	/* RDCleanPath (ironrdp-web plain-WS ingress): the outer wss is the secure
+	 * channel and the browser performs no inner RDP TLS handshake, so the server
+	 * peer must skip transport_accept_tls — symmetric to VmConnectMode. */
+	return transport->wsts && (wsts_get_mode(transport->wsts) == WSTS_MODE_PLAIN_WS);
+}
+
 BOOL transport_accept_gateway(rdpTransport* transport, int sockfd)
 {
 	WINPR_ASSERT(transport);

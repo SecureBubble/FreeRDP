@@ -1481,7 +1481,10 @@ static BOOL rdp_write_logon_info_v2(wStream* s, const logon_info* info)
 	if (usernameLen >= UINT32_MAX / sizeof(WCHAR))
 		return FALSE;
 	Stream_Write_UINT32(s, (UINT32)(usernameLen + 1) * sizeof(WCHAR));
-	Stream_Seek(s, logonInfoV2ReservedSize);
+	/* Zero (not seek) the reserved pad: Stream_Seek left this 558-byte field
+	 * uninitialized, leaking heap contents to the client and producing a PDU that
+	 * strict decoders (e.g. IronRDP) reject. */
+	Stream_Zero(s, logonInfoV2ReservedSize);
 	if (Stream_Write_UTF16_String_From_UTF8(s, domainLen + 1, info->domain, domainLen, TRUE) < 0)
 		return FALSE;
 	if (Stream_Write_UTF16_String_From_UTF8(s, usernameLen + 1, info->username, usernameLen, TRUE) <
@@ -1495,7 +1498,7 @@ static BOOL rdp_write_logon_info_plain(wStream* s)
 	if (!Stream_EnsureRemainingCapacity(s, 576))
 		return FALSE;
 
-	Stream_Seek(s, 576);
+	Stream_Zero(s, 576); /* zero, not seek: avoid leaking uninitialized heap to the client */
 	return TRUE;
 }
 
@@ -1538,7 +1541,7 @@ static BOOL rdp_write_logon_info_ex(wStream* s, logon_info_ex* info)
 		Stream_Write_UINT32(s, info->ErrorNotificationData); /* ErrorNotificationData (4 bytes) */
 	}
 
-	Stream_Seek(s, 570);
+	Stream_Zero(s, 570); /* zero, not seek: avoid leaking uninitialized heap to the client */
 	return TRUE;
 }
 

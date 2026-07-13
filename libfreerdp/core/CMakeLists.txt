@@ -52,6 +52,8 @@ set(${MODULE_PREFIX}_GATEWAY_SRCS
     ${${MODULE_PREFIX}_GATEWAY_DIR}/wst.h
     ${${MODULE_PREFIX}_GATEWAY_DIR}/wsts.c
     ${${MODULE_PREFIX}_GATEWAY_DIR}/wsts.h
+    ${${MODULE_PREFIX}_GATEWAY_DIR}/rdcleanpath.c
+    ${${MODULE_PREFIX}_GATEWAY_DIR}/rdcleanpath.h
     ${${MODULE_PREFIX}_GATEWAY_DIR}/arm.c
     ${${MODULE_PREFIX}_GATEWAY_DIR}/arm.h
     ${${MODULE_PREFIX}_GATEWAY_DIR}/ncacn_http.c

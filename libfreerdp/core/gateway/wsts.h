@@ -31,6 +31,13 @@
 
 typedef struct rdp_wsts rdpWsts;
 
+/* Transport mode, selected from the websocket upgrade request path during accept. */
+typedef enum
+{
+	WSTS_MODE_GATEWAY,  /* MS-TSGU tunnel — RDS HTML5 web client (librdphtml) */
+	WSTS_MODE_PLAIN_WS, /* raw RDP-over-WebSocket — IronRDP ironrdp-web, etc. */
+} WstsMode;
+
 WINPR_ATTR_NODISCARD
 FREERDP_LOCAL rdpWsts* wsts_new(rdpContext* context);
 
@@ -48,11 +55,18 @@ FREERDP_LOCAL BOOL wsts_accept(rdpWsts* wsts, int sockfd, DWORD timeout);
 
 /**
  * Hand the inner-RDP front BIO to the caller (the peer transport).
- * Reads/writes on it are translated to/from MS-TSGU DATA PDUs inside
- * websocket binary frames. After this call wsts will not free the BIO.
+ * Reads/writes on it are translated to/from MS-TSGU DATA PDUs (gateway mode) or
+ * carried as raw websocket binary frames (plain-WS mode). After this call wsts
+ * will not free the BIO.
  */
 WINPR_ATTR_NODISCARD
 FREERDP_LOCAL BIO* wsts_get_front_bio_and_take_ownership(rdpWsts* wsts);
+
+/* Transport mode chosen during wsts_accept (valid afterwards). PLAIN_WS clients
+ * are full RDP clients and skip the MS-TSGU tunnel; a caller may use this to drop
+ * the web-client quirks (e.g. keep HiDef RemoteApp on). */
+WINPR_ATTR_NODISCARD
+FREERDP_LOCAL WstsMode wsts_get_mode(rdpWsts* wsts);
 
 /* Resolve which proxy session this connection belongs to: the RDS web client
  * carries CorId / ConId in the upgrade URL query string. Valid after wsts_accept. */

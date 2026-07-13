@@ -23,7 +23,11 @@
 #include <freerdp/log.h>
 #include <freerdp/crypto/crypto.h>
 
+#include <freerdp/settings.h>
+#include <freerdp/crypto/certificate.h>
+
 #include "wsts.h"
+#include "rdcleanpath.h"
 #include "websocket.h" /* WEBSOCKET_* opcodes / FIN / MASK bits */
 #include "../tcp.h"
 #include "../credssp_auth.h"
@@ -80,6 +84,16 @@ struct rdp_wsts
 	char* gwquery; /* just the query part (after '?') */
 
 	WSTS_STATE state;
+	WstsMode mode; /* gateway (MS-TSGU) vs plain RDP-over-WS; set in wsts_http_upgrade */
+
+	/* RDCleanPath (plain-WS) shim: the peer's X.224 CC is captured here until a full
+	 * TPKT is buffered, then folded into the RDCleanPath response. The X.224 CR is
+	 * replayed to the peer via dataResidual. */
+	BOOL rdcpPending;    /* RDCleanPath request not yet read (unwrapped in wsts_bio_read) */
+	BOOL rdcpAwaitingCc; /* capturing the peer's X.224 CC into the RDCleanPath response */
+	BYTE* ccBuf;
+	size_t ccLen;
+	size_t ccCap;
 
 	/* residual inner-RDP bytes decoded from a DATA frame not yet consumed by BIO_read */
 	BYTE* dataResidual;
@@ -369,6 +383,16 @@ static BOOL wsts_http_upgrade(rdpWsts* wsts)
 				wsts->gwquery = _strdup(q + 1);
 		}
 	}
+
+	/* Select transport mode from the request path: the RDS HTML5 web client uses
+	 * /remoteDesktopGateway (MS-TSGU tunnel); any other websocket path is treated as
+	 * raw RDP-over-WebSocket (e.g. IronRDP ironrdp-web), which skips the tunnel. */
+	wsts->mode = (wsts->gwpath && _strnicmp(wsts->gwpath, "/remoteDesktopGateway", 21) == 0)
+	                 ? WSTS_MODE_GATEWAY
+	                 : WSTS_MODE_PLAIN_WS;
+	WLog_Print(wsts->log, WLOG_INFO, "upgrade: mode=%s path=%s",
+	           (wsts->mode == WSTS_MODE_GATEWAY) ? "gateway(MS-TSGU)" : "plain-RDP-over-WS",
+	           wsts->gwpath ? wsts->gwpath : "(none)");
 
 	key = wsts_header_value(buf, "Sec-WebSocket-Key");
 	upgrade = wsts_header_value(buf, "Upgrade");
@@ -677,6 +701,82 @@ static BOOL wsts_run_handshake(rdpWsts* wsts)
  * Inner-RDP front BIO: translate RDP byte stream <-> DATA PDUs over websocket
  * ------------------------------------------------------------------------- */
 
+/* Send the RDCleanPath response: [0] version, [6] the peer's X.224 CC, [7] the
+ * server cert chain (auth-irrelevant with CredSSP off, but populated). */
+static BOOL wsts_rdcp_send_response(rdpWsts* wsts, const BYTE* cc, size_t ccLen)
+{
+	const BYTE* certs[1] = { 0 };
+	size_t certLens[1] = { 0 };
+	size_t certCount = 0;
+	BYTE* certDer = NULL;
+
+	const rdpCertificate* cert =
+	    freerdp_settings_get_pointer(wsts->context->settings, FreeRDP_RdpServerCertificate);
+	if (cert)
+	{
+		size_t len = 0;
+		certDer = freerdp_certificate_get_der(cert, &len);
+		if (certDer && len)
+		{
+			certs[0] = certDer;
+			certLens[0] = len;
+			certCount = 1;
+		}
+	}
+
+	BYTE* der = NULL;
+	size_t derLen = 0;
+	/* [9] serverAddr must be present for the client to classify this as a Response; the
+	 * value is ignored by ironrdp (destructured as _), so a placeholder host:port is
+	 * fine. TODO: echo the request's [2] destination / the resolved target ip:port. */
+	const BOOL built = rdcleanpath_write_response(cc, ccLen, certs, certLens, certCount,
+	                                              "0.0.0.0:3389", &der, &derLen);
+	free(certDer);
+	if (!built)
+		return FALSE;
+
+	const BOOL sent = wsts_ws_send(wsts, der, derLen, WebsocketBinaryOpcode);
+	free(der);
+	WLog_Print(wsts->log, WLOG_INFO,
+	           "RDCleanPath: response sent (CC %" PRIuz "B, certs %" PRIuz ", pdu %" PRIuz "B)",
+	           ccLen, certCount, derLen);
+	return sent;
+}
+
+/* Accumulate the peer's X.224 Connection Confirm; once a full TPKT is buffered,
+ * fold it into the RDCleanPath response and leave the shim. */
+static BOOL wsts_rdcp_capture_cc(rdpWsts* wsts, const BYTE* buf, size_t num)
+{
+	if (wsts->ccLen + num > wsts->ccCap)
+	{
+		size_t ncap = wsts->ccCap ? wsts->ccCap : 64;
+		while (ncap < wsts->ccLen + num)
+			ncap *= 2;
+		BYTE* nb = (BYTE*)realloc(wsts->ccBuf, ncap);
+		if (!nb)
+			return FALSE;
+		wsts->ccBuf = nb;
+		wsts->ccCap = ncap;
+	}
+	memcpy(wsts->ccBuf + wsts->ccLen, buf, num);
+	wsts->ccLen += num;
+
+	if (wsts->ccLen >= 4) /* TPKT header present */
+	{
+		const size_t tpkt = ((size_t)wsts->ccBuf[2] << 8) | wsts->ccBuf[3];
+		if ((tpkt >= 4) && (wsts->ccLen >= tpkt))
+		{
+			if (!wsts_rdcp_send_response(wsts, wsts->ccBuf, tpkt))
+				return FALSE;
+			wsts->rdcpAwaitingCc = FALSE;
+			free(wsts->ccBuf);
+			wsts->ccBuf = NULL;
+			wsts->ccLen = wsts->ccCap = 0;
+		}
+	}
+	return TRUE;
+}
+
 static int wsts_bio_write(BIO* bio, const char* buf, int num)
 {
 	rdpWsts* wsts = (rdpWsts*)BIO_get_data(bio);
@@ -686,15 +786,38 @@ static int wsts_bio_write(BIO* bio, const char* buf, int num)
 	if (num < 0)
 		return -1;
 
-	/* one DATA PDU per write: header(8) + dataSize(2) + data */
-	const size_t bodyLen = 2ull + (size_t)num;
-	wStream* s = wsts_pdu_new(PKT_TYPE_DATA, bodyLen);
-	if (!s)
-		return -1;
-	Stream_Write_UINT16(s, (UINT16)num);
-	Stream_Write(s, buf, (size_t)num);
+	/* RDCleanPath: the peer's nego is writing the X.224 Connection Confirm; capture it
+	 * into the RDCleanPath response instead of framing it raw over the websocket. */
+	if (wsts->rdcpAwaitingCc)
+	{
+		if (!wsts_rdcp_capture_cc(wsts, (const BYTE*)buf, (size_t)num))
+		{
+			BIO_clear_flags(bio, BIO_FLAGS_SHOULD_RETRY);
+			return -1;
+		}
+		BIO_set_flags(bio, BIO_FLAGS_WRITE);
+		return num;
+	}
 
-	if (!wsts_send_pdu(wsts, s))
+	BOOL ok = FALSE;
+	if (wsts->mode == WSTS_MODE_PLAIN_WS)
+	{
+		/* raw inner-RDP byte stream carried directly as a websocket binary frame */
+		ok = wsts_ws_send(wsts, (const BYTE*)buf, (size_t)num, WebsocketBinaryOpcode);
+	}
+	else
+	{
+		/* one MS-TSGU DATA PDU per write: header(8) + dataSize(2) + data */
+		const size_t bodyLen = 2ull + (size_t)num;
+		wStream* s = wsts_pdu_new(PKT_TYPE_DATA, bodyLen);
+		if (!s)
+			return -1;
+		Stream_Write_UINT16(s, (UINT16)num);
+		Stream_Write(s, buf, (size_t)num);
+		ok = wsts_send_pdu(wsts, s);
+	}
+
+	if (!ok)
 	{
 		BIO_clear_flags(bio, BIO_FLAGS_SHOULD_RETRY);
 		return -1;
@@ -829,6 +952,46 @@ static int wsts_bio_read(BIO* bio, char* buf, int size)
 		{
 			if ((opcode == WebsocketBinaryOpcode) || (opcode == WebsocketContinuationOpcode))
 			{
+				if (wsts->rdcpPending)
+				{
+					/* first plain-WS frame = DER RDCleanPath request. Unwrap the X.224
+					 * CR and serve it to the peer's nego (its CC is captured in
+					 * wsts_bio_write and folded into the RDCleanPath response). */
+					BYTE* cr = NULL;
+					size_t crLen = 0;
+					const BOOL okReq = rdcleanpath_read_request(payload, plen, &cr, &crLen);
+					free(payload);
+					if (!okReq)
+					{
+						WLog_Print(wsts->log, WLOG_ERROR, "RDCleanPath: malformed request PDU");
+						BIO_clear_flags(bio, BIO_FLAGS_SHOULD_RETRY);
+						return -1;
+					}
+					wsts->rdcpPending = FALSE;
+					wsts->rdcpAwaitingCc = TRUE;
+					wsts->dataResidual = cr;
+					wsts->dataResidualLen = crLen;
+					wsts->dataResidualPos = 0;
+					WLog_Print(wsts->log, WLOG_INFO,
+					           "RDCleanPath: request parsed, X.224 CR = %" PRIuz " bytes", crLen);
+					continue; /* serve the CR next loop */
+				}
+
+				if (wsts->mode == WSTS_MODE_PLAIN_WS)
+				{
+					/* the frame payload IS raw inner-RDP bytes; hand them straight to
+					 * BIO_read via the residual buffer (take ownership, no copy). */
+					if (plen)
+					{
+						wsts->dataResidual = payload;
+						wsts->dataResidualLen = plen;
+						wsts->dataResidualPos = 0;
+						continue; /* serve residual next loop; do NOT free payload */
+					}
+					free(payload);
+					continue;
+				}
+
 				/* one MS-TSGU PDU: type(2) resv(2) len(4) [dataSize(2) data] */
 				if (plen >= RDG_HEADER_LEN + 2)
 				{
@@ -1003,10 +1166,26 @@ BOOL wsts_accept(rdpWsts* wsts, int sockfd, DWORD timeout)
 		WLog_Print(wsts->log, WLOG_ERROR, "websocket upgrade failed");
 		return FALSE;
 	}
-	if (!wsts_run_handshake(wsts))
+	if (wsts->mode == WSTS_MODE_GATEWAY)
 	{
-		WLog_Print(wsts->log, WLOG_ERROR, "MS-TSGU handshake failed");
-		return FALSE;
+		if (!wsts_run_handshake(wsts))
+		{
+			WLog_Print(wsts->log, WLOG_ERROR, "MS-TSGU handshake failed");
+			return FALSE;
+		}
+	}
+	else
+	{
+		/* PLAIN_WS = RDCleanPath (ironrdp-web): DEFER reading the DER request to the
+		 * data phase. Consuming it here (blocking) and buffering the CR deadlocks: the
+		 * peer's event loop waits on socket readability to drive its nego, but the CR
+		 * would already be off the socket. So leave the request on the wire —
+		 * wsts_bio_read unwraps the first frame into the X.224 CR when the peer's nego
+		 * first reads, and wsts_bio_write folds the peer's CC into the RDCleanPath
+		 * response. The inner RDP then runs plaintext over the websocket
+		 * (rdp_server_accept_nego skips inner TLS, see transport_front_security_external). */
+		wsts->rdcpPending = TRUE;
+		WLog_Print(wsts->log, WLOG_INFO, "RDCleanPath: deferring request to data phase");
 	}
 
 	/* The handshake ran with the outer TLS bio in blocking mode. The data phase is
@@ -1022,6 +1201,11 @@ BIO* wsts_get_front_bio_and_take_ownership(rdpWsts* wsts)
 		return NULL;
 	wsts->attached = TRUE;
 	return wsts->frontBio;
+}
+
+WstsMode wsts_get_mode(rdpWsts* wsts)
+{
+	return wsts ? wsts->mode : WSTS_MODE_GATEWAY;
 }
 
 const char* wsts_get_query_param(rdpWsts* wsts, const char* name)
@@ -1046,6 +1230,7 @@ rdpWsts* wsts_new(rdpContext* context)
 	wsts->log = WLog_Get(TAG);
 	wsts->sockfd = -1;
 	wsts->state = WSTS_STATE_INIT;
+	wsts->mode = WSTS_MODE_GATEWAY; /* refined from the request path in wsts_http_upgrade */
 
 	wsts->frontBio = BIO_new(BIO_s_wsts());
 	if (!wsts->frontBio)
@@ -1067,6 +1252,7 @@ void wsts_free(rdpWsts* wsts)
 	free(wsts->gwpath);
 	free(wsts->gwquery);
 	free(wsts->dataResidual);
+	free(wsts->ccBuf);
 	free(wsts->rxbuf);
 
 	if (!wsts->attached && wsts->frontBio)

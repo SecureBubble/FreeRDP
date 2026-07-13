@@ -1559,8 +1559,12 @@ BOOL rdp_server_accept_nego(rdpRdp* rdp, wStream* s)
 	SelectedProtocol = nego_get_selected_protocol(nego);
 	status = FALSE;
 
-	if (freerdp_settings_get_bool(rdp->settings, FreeRDP_VmConnectMode) &&
-	    SelectedProtocol != PROTOCOL_RDP)
+	if (transport_front_security_external(rdp->transport))
+		/* RDCleanPath (ironrdp-web): outer wss is the secure channel, no inner RDP
+		 * TLS — the peer proceeds straight to plaintext MCS. Symmetric to VmConnectMode. */
+		status = TRUE;
+	else if (freerdp_settings_get_bool(rdp->settings, FreeRDP_VmConnectMode) &&
+	         SelectedProtocol != PROTOCOL_RDP)
 		/* When behind a Hyper-V proxy, security != RDP is handled by the host. */
 		status = TRUE;
 	else if (SelectedProtocol & PROTOCOL_RDSTLS)
