@@ -81,6 +81,11 @@ FREERDP_LOCAL BOOL transport_connect_childsession(rdpTransport* transport);
  */
 WINPR_ATTR_NODISCARD
 FREERDP_LOCAL BOOL transport_attach(rdpTransport* transport, int sockfd);
+FREERDP_LOCAL BOOL transport_accept_gateway(rdpTransport* transport, int sockfd);
+
+/* TRUE when the front transport already provides confidentiality (RDCleanPath
+ * plain-WS): the server peer must skip the inner RDP TLS accept. */
+FREERDP_LOCAL BOOL transport_front_security_external(rdpTransport* transport);
 
 /**! \brief Attach a transport layer
  *

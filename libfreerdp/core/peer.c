@@ -44,6 +44,7 @@
 #define TAG FREERDP_TAG("core.peer")
 
 static state_run_t peer_recv_pdu(freerdp_peer* client, wStream* s);
+static state_run_t peer_recv_callback(rdpTransport* transport, wStream* s, void* extra);
 
 static HANDLE freerdp_peer_virtual_channel_open(freerdp_peer* client, const char* name,
                                                 UINT32 flags)
@@ -257,6 +258,35 @@ static BOOL freerdp_peer_initialize(freerdp_peer* client)
 	{
 		WLog_ERR(TAG, "Missing server certificate, can not continue.");
 		return FALSE;
+	}
+
+	if (client->gatewayMode)
+	{
+		/* The OUTER wss TLS must present the gateway-hostname cert, while the inner
+		 * RDP TLS uses RdpServerCertificate (the session-host cert the web client
+		 * pins). Swap the server cert to the gateway cert just for the wsts
+		 * handshake, then restore it for the inner RDP. Direct field access avoids
+		 * the ownership-transfer semantics of freerdp_settings_set_pointer. */
+		void* savedCert = settings->RdpServerCertificate;
+		void* savedKey = settings->RdpServerRsaKey;
+		if (client->gatewayServerCert)
+			settings->RdpServerCertificate = client->gatewayServerCert;
+		if (client->gatewayServerKey)
+			settings->RdpServerRsaKey = client->gatewayServerKey;
+
+		const BOOL gwok = transport_accept_gateway(rdp->transport, client->sockfd);
+
+		settings->RdpServerCertificate = savedCert;
+		settings->RdpServerRsaKey = savedKey;
+
+		if (!gwok)
+			return FALSE;
+		client->sockfd = -1;
+
+		if (!transport_set_recv_callbacks(rdp->transport, peer_recv_callback, client))
+			return FALSE;
+		if (!transport_set_blocking_mode(rdp->transport, FALSE))
+			return FALSE;
 	}
 
 	if (freerdp_settings_get_bool(settings, FreeRDP_RdpSecurity))
@@ -1504,6 +1534,8 @@ void freerdp_peer_free(freerdp_peer* client)
 		return;
 
 	sspi_FreeAuthIdentity(&client->identity);
+	freerdp_certificate_free(client->gatewayServerCert);
+	freerdp_key_free(client->gatewayServerKey);
 	if (client->sockfd >= 0)
 		closesocket((SOCKET)client->sockfd);
 	free(client);
@@ -1518,6 +1550,14 @@ static BOOL freerdp_peer_transport_setup(freerdp_peer* client)
 
 	rdp = client->context->rdp;
 	WINPR_ASSERT(rdp);
+
+	if (client->gatewayMode)
+	{
+		/* Defer all transport bring-up to freerdp_peer_initialize: the wss + MS-TSGU
+		 * server handshake needs the server certificate, which the server app
+		 * configures only after freerdp_peer_context_new() returns. Keep sockfd. */
+		return TRUE;
+	}
 
 	if (!transport_attach(rdp->transport, client->sockfd))
 		return FALSE;
