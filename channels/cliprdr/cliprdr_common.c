@@ -500,7 +500,13 @@ UINT cliprdr_read_format_list(wLog* log, wStream* s, CLIPRDR_FORMAT_LIST* format
 		wStream sub2buffer = sub1buffer;
 		wStream* sub2 = &sub2buffer;
 
-		while (Stream_GetRemainingLength(sub1) > 0)
+		/* Count pass. Bound must match the read pass below (>= 4): Windows appends a
+		 * 2-byte list-terminator null after the last long-format name (seen on the
+		 * "ZoneIdentifier" / Mark-of-the-Web format list emitted when copying a file
+		 * with a Zone.Identifier ADS). With "> 0" the count pass entered on that 2-byte
+		 * trailer, tried to seek a 4-byte formatId, and failed the whole PDU with
+		 * ERROR_INTERNAL_ERROR — even though the read pass would have ignored it. */
+		while (Stream_GetRemainingLength(sub1) >= 4)
 		{
 			size_t rest = 0;
 			if (!Stream_SafeSeek(sub1, 4)) /* formatId (4 bytes) */
