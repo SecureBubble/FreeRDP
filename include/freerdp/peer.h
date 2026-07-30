@@ -129,6 +129,19 @@ extern "C"
 		ALIGN64 int sockfd;
 		ALIGN64 char hostname[50];
 
+		/* When TRUE, peer initialization runs the server-role gateway ingress
+		 * (wss + MS-TSGU / RDS HTML5 web client) on sockfd before inner RDP.
+		 * Set by the server app in its PeerAccepted handler. */
+		ALIGN64 BOOL gatewayMode;
+
+		/* Optional cert/key (rdpCertificate* / rdpPrivateKey*) presented for the
+		 * OUTER wss/MS-TSGU TLS (the gateway hostname). When set, freerdp_peer
+		 * initialization swaps them in for the gateway handshake only; the inner
+		 * RDP TLS keeps RdpServerCertificate (the pinned session-host cert).
+		 * void* to avoid extra includes here; the server app owns/frees them. */
+		ALIGN64 void* gatewayServerCert;
+		ALIGN64 void* gatewayServerKey;
+
 #if defined(WITH_FREERDP_DEPRECATED)
 		WINPR_DEPRECATED_VAR("Use rdpContext::update instead", ALIGN64 rdpUpdate* update;)
 		WINPR_DEPRECATED_VAR("Use rdpContext::settings instead", ALIGN64 rdpSettings* settings;)
