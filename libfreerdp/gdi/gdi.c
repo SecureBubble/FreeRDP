@@ -1485,9 +1485,15 @@ BOOL gdi_init_ex(freerdp* instance, UINT32 format, UINT32 stride, BYTE* buffer,
 		goto fail;
 
 	gdi_register_update_callbacks(context->update);
-	brush_cache_register_callbacks(context->update);
+	/* The legacy order caches are created by the core at post-connect time, so a
+	 * context that never went through the connect sequence (headless/mocked
+	 * clients replaying a recorded stream) has none. */
+	if (context->cache)
+	{
+		brush_cache_register_callbacks(context->update);
+		bitmap_cache_register_callbacks(context->update);
+	}
 	glyph_cache_register_callbacks(context->update);
-	bitmap_cache_register_callbacks(context->update);
 	offscreen_cache_register_callbacks(context->update);
 	palette_cache_register_callbacks(context->update);
 
