@@ -1,0 +1,132 @@
+# Rebases the Bubble patch stack onto upstream master whenever FreeRDP
+# publishes a release. Upstream release events never reach a fork, so a
+# cheap scheduled job polls the upstream latest release and only does
+# work when it sees a tag it has not handled yet.
+name: auto-rebase-on-release
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Upstream release tag to act on (default: latest)'
+        required: false
+
+permissions:
+  contents: write
+  issues: write
+
+env:
+  STACK: david/rebased_on_master
+  UPSTREAM: FreeRDP/FreeRDP
+
+jobs:
+  detect:
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      skip: ${{ steps.release.outputs.skip }}
+    steps:
+      - id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          tag="$INPUT_TAG"
+          [ -n "$tag" ] || tag=$(gh api "repos/$UPSTREAM/releases/latest" --jq .tag_name)
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          # One branch per upstream release; its existence marks the release as handled.
+          if gh api "repos/$GITHUB_REPOSITORY/branches/auto-rebase/$tag" >/dev/null 2>&1; then
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+          fi
+
+  rebase:
+    needs: detect
+    if: needs.detect.outputs.skip != '1'
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.detect.outputs.tag }}
+      BRANCH: auto-rebase/${{ needs.detect.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.STACK }}
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream "https://github.com/$UPSTREAM.git"
+          git fetch -q upstream master --tags
+          echo "OLD_BASE=$(git merge-base HEAD upstream/master)" >> "$GITHUB_ENV"
+          echo "NEW_BASE=$(git rev-parse upstream/master)" >> "$GITHUB_ENV"
+
+      # Conflict resolutions recorded once are replayed on later releases.
+      - uses: actions/cache@v4
+        with:
+          path: .git/rr-cache
+          key: rerere-${{ github.run_id }}
+          restore-keys: rerere-
+
+      - name: Rebase onto upstream/master
+        run: |
+          git config user.name "freerdp-rebase-bot"
+          git config user.email "contact@bubble.cloud"
+          git config rerere.enabled true
+          git config rerere.autoupdate true
+          git switch -c "$BRANCH"
+          git rebase --onto "$NEW_BASE" "$OLD_BASE" && exit 0
+          for _ in $(seq 100); do
+            if git diff --name-only --diff-filter=U | grep -q .; then
+              gh issue create --title "Auto-rebase for $TAG: conflicts" --body "$(cat <<EOF
+          Rebasing \`$STACK\` onto upstream/master \`${NEW_BASE:0:9}\` (release $TAG) stopped at:
+
+          $(git log -1 --oneline REBASE_HEAD)
+
+          Conflicting files:
+          $(git diff --name-only --diff-filter=U | sed 's/^/- /')
+
+          Resolve locally with rerere enabled, push \`$BRANCH\`, and the next run picks the resolution up.
+          EOF
+          )"
+              exit 1
+            fi
+            # rerere resolved every conflict in this commit
+            GIT_EDITOR=true git rebase --continue && exit 0
+          done
+          exit 1
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -qy ninja-build cmake libssl-dev libkrb5-dev \
+            libcjson-dev libjson-c-dev libusb-1.0-0-dev libpulse-dev \
+            libasound2-dev libcups2-dev libpcsclite-dev libfuse3-dev \
+            libswscale-dev libavcodec-dev libavutil-dev libsdl2-dev \
+            libsdl2-ttf-dev libwayland-dev libxkbcommon-dev libx11-dev \
+            libxext-dev libxi-dev libxrandr-dev libxinerama-dev \
+            libxcursor-dev libxdamage-dev libxv-dev libxtst-dev \
+            libsystemd-dev uuid-dev zlib1g-dev
+
+      - name: Build and test
+        run: |
+          cmake -GNinja -B build -C ci/cmake-preloads/config-qa.cmake \
+            -DWITH_PROXY=ON -DWITH_SERVER=ON -DWITH_SANITIZE_ADDRESS=OFF
+          cmake --build build
+          ctest --test-dir build --output-on-failure
+
+      - name: Publish branch and review issue
+        run: |
+          git push origin "$BRANCH"
+          git range-diff "$OLD_BASE..origin/$STACK" "$NEW_BASE..HEAD" > range-diff.txt || true
+          gh issue create --title "Auto-rebase for $TAG: ready for review" --body "$(cat <<EOF
+          \`$STACK\` rebased onto upstream/master \`${NEW_BASE:0:9}\` (release $TAG); build and ctest passed.
+
+          Branch: \`$BRANCH\`. Promote by hand once reviewed.
+
+          \`\`\`
+          $(head -c 60000 range-diff.txt)
+          \`\`\`
+          EOF
+          )"
