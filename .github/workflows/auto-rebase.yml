@@ -100,19 +100,24 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update -q
-          sudo apt-get install -qy ninja-build cmake libssl-dev libkrb5-dev \
-            libcjson-dev libjson-c-dev libusb-1.0-0-dev libpulse-dev \
-            libasound2-dev libcups2-dev libpcsclite-dev libfuse3-dev \
-            libswscale-dev libavcodec-dev libavutil-dev libsdl2-dev \
-            libsdl2-ttf-dev libwayland-dev libxkbcommon-dev libx11-dev \
-            libxext-dev libxi-dev libxrandr-dev libxinerama-dev \
-            libxcursor-dev libxdamage-dev libxv-dev libxtst-dev \
-            libsystemd-dev uuid-dev zlib1g-dev
+          sudo apt-get install -qy ninja-build cmake pkg-config libssl-dev \
+            libcjson-dev libusb-1.0-0-dev libcups2-dev libpcsclite-dev \
+            libavcodec-dev libavutil-dev libswscale-dev libswresample-dev \
+            libjpeg-dev libpng-dev libwebp-dev libfuse3-dev libasound2-dev \
+            libwayland-dev libxkbcommon-dev libx11-dev libxext-dev libxi-dev \
+            libxrandr-dev libxinerama-dev libxcursor-dev libxdamage-dev \
+            libxv-dev libxtst-dev libxfixes-dev libxrender-dev uuid-dev zlib1g-dev
 
+      # Same feature set as the proxy's production FreeRDP build.
       - name: Build and test
         run: |
-          cmake -GNinja -B build -C ci/cmake-preloads/config-qa.cmake \
-            -DWITH_PROXY=ON -DWITH_SERVER=ON -DWITH_SANITIZE_ADDRESS=OFF
+          cmake -GNinja -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
+            -DWITH_SERVER=ON -DWITH_PROXY=ON -DWITH_SANITIZE_ADDRESS=OFF \
+            -DWITH_KRB5=OFF -DWITH_CJSON=ON -DWITH_AAD=ON -DWITH_CLIENT_SDL=OFF \
+            -DWITH_PULSE=OFF -DWITH_CUPS=ON -DWITH_FFMPEG=ON -DWITH_DSP_FFMPEG=ON \
+            -DWITH_FAAC=OFF -DWITH_FAAD2=OFF -DWITH_GSM=OFF -DCHANNEL_URBDRC=ON \
+            -DCHANNEL_DISP_SERVER=ON -DCHANNEL_RDPGFX_SERVER=ON -DCHANNEL_RAIL_SERVER=ON \
+            -DWINPR_UTILS_IMAGE_JPEG=ON -DWINPR_UTILS_IMAGE_PNG=ON -DWINPR_UTILS_IMAGE_WEBP=ON
           cmake --build build
           ctest --test-dir build --output-on-failure
 
