@@ -119,7 +119,7 @@ jobs:
             -DCHANNEL_DISP_SERVER=ON -DCHANNEL_RDPGFX_SERVER=ON -DCHANNEL_RAIL_SERVER=ON \
             -DWINPR_UTILS_IMAGE_JPEG=ON -DWINPR_UTILS_IMAGE_PNG=ON -DWINPR_UTILS_IMAGE_WEBP=ON
           cmake --build build
-          ctest --test-dir build --output-on-failure
+          ctest --test-dir build --output-on-failure --no-tests=error
 
       - name: Publish branch and review issue
         run: |
