@@ -79,7 +79,7 @@ jobs:
           git rebase --onto "$NEW_BASE" "$OLD_BASE" && exit 0
           for _ in $(seq 100); do
             if git diff --name-only --diff-filter=U | grep -q .; then
-              gh issue create --title "Auto-rebase for $TAG: conflicts" --body "$(cat <<EOF
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "Auto-rebase for $TAG: conflicts" --body "$(cat <<EOF
           Rebasing \`$STACK\` onto upstream/master \`${NEW_BASE:0:9}\` (release $TAG) stopped at:
 
           $(git log -1 --oneline REBASE_HEAD)
@@ -125,7 +125,7 @@ jobs:
         run: |
           git push origin "$BRANCH"
           git range-diff "$OLD_BASE..origin/$STACK" "$NEW_BASE..HEAD" > range-diff.txt || true
-          gh issue create --title "Auto-rebase for $TAG: ready for review" --body "$(cat <<EOF
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "Auto-rebase for $TAG: ready for review" --body "$(cat <<EOF
           \`$STACK\` rebased onto upstream/master \`${NEW_BASE:0:9}\` (release $TAG); build and ctest passed.
 
           Branch: \`$BRANCH\`. Promote by hand once reviewed.
