@@ -46,7 +46,8 @@ jobs:
     if: needs.detect.outputs.skip != '1'
     runs-on: ubuntu-24.04
     env:
-      GH_TOKEN: ${{ github.token }}
+      # GITHUB_TOKEN may not push commits that touch .github/workflows
+      GH_TOKEN: ${{ secrets.AUTO_REBASE_TOKEN }}
       TAG: ${{ needs.detect.outputs.tag }}
       BRANCH: auto-rebase/${{ needs.detect.outputs.tag }}
     steps:
@@ -54,6 +55,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ env.STACK }}
+          token: ${{ secrets.AUTO_REBASE_TOKEN }}
 
       - name: Fetch upstream
         run: |
@@ -135,3 +137,11 @@ jobs:
           \`\`\`
           EOF
           )"
+
+      - name: Report failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "Auto-rebase for $TAG failed" \
+            --body "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
